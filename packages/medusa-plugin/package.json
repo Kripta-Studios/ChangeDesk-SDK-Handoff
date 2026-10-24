@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "medusa plugin:build",
-    "test:unit": "node --experimental-strip-types --test ../../tests/medusa/*.test.ts"
+    "test:unit": "vitest run ../../tests/medusa/*.test.ts"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -28,6 +28,7 @@
     "@medusajs/medusa": "2.22.1"
   },
   "dependencies": {
+    "@changedesk/react": "workspace:*",
     "canonicalize": "5.1.0"
   },
   "devDependencies": {

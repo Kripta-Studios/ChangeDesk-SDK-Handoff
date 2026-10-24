@@ -120,6 +120,7 @@ export type ActorPolicy = {
   role: "viewer" | "requester" | "operator" | "admin"
   policyVersion: string
   hostSessionId: string
+  readableProductIds: string[]
 }
 
 export type BridgeReceipt = {
