@@ -260,6 +260,9 @@
       "status": "in_progress",
       "assignedAgent": "/root/core",
       "evidence": [
+        "evidence/p8-ci-deterministic.json",
+        "evidence/p8-inventory.json",
+        "evidence/p8-sbom.spdx.json",
         "evidence/frontend-packaging.json"
       ],
       "blocker": null,
