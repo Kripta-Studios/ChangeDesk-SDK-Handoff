@@ -77,6 +77,7 @@ $env:CHANGEDESK_AUTHORITY_CHECK_URL = "http://127.0.0.1:4100/internal/v1/medusa/
 $env:CHANGEDESK_AUTHORITY_CREDENTIAL = $credential
 $env:MEDUSA_DISABLE_TELEMETRY = "true"
 $env:MEDUSA_FF_ANALYTICS = "false"
+$env:VITE_CHANGEDESK_ENDPOINT = "http://127.0.0.1:4100"
 
 $node = Join-Path $root ".tools/node-v22.23.4-win-x64/node.exe"
 $cli = Join-Path $root "packages/medusa-plugin/node_modules/@medusajs/cli/cli.js"
