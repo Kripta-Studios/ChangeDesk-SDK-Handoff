@@ -20,6 +20,26 @@ describe("storefront buyer client", () => {
     expect(invalidated).toHaveBeenCalledOnce();
   });
 
+  it("turns a server 401 into full invalidation while preserving the API error and rejecting concurrent late data", async () => {
+    let finishLate!: (response: Response) => void;
+    const proposal = { id: "p-late", baseGlobalRevision: 0, proposed: preferences.effective, status: "pending", proposalRevision: 1, createdAt: "2026-10-24T12:00:00.000Z" };
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input)).pathname;
+      if (path.endsWith("/p-late")) return new Promise<Response>((resolve) => { finishLate = resolve; });
+      if (init?.method === "PUT") return new Response(JSON.stringify({ error: { code: "session_expired", message: "Vuelve a iniciar sesión", requestId: "r-401", retryable: false } }), { status: 401, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify(preferences), { headers: { "content-type": "application/json" } });
+    });
+    const client = createStorefrontClient({ endpoint: "https://desk.example.test", getSession: async () => ({ accessToken: "buyer-token", expiresAt: "2099-01-01T00:00:00Z" }), fetch: fetcher });
+    const invalidated = vi.fn(); client.subscribeSessionInvalidation(invalidated);
+    await client.getPreferences();
+    const late = client.getOwnProposal("p-late");
+    await vi.waitFor(() => expect(finishLate).toBeTypeOf("function"));
+    await expect(client.replacePreferences({ expectedRevision: 0, overrides: { theme: "dark" } })).rejects.toMatchObject({ status: 401, code: "session_expired", message: "Vuelve a iniciar sesión" });
+    expect(invalidated).toHaveBeenCalledOnce();
+    finishLate(new Response(JSON.stringify(proposal), { headers: { "content-type": "application/json" } }));
+    await expect(late).rejects.toMatchObject({ name: "AbortError" });
+  });
+
   it("validates fixed endpoints, sessions and closed response bodies", async () => {
     expect(() => createStorefrontClient({ endpoint: "http://desk.example.test", getSession: async () => ({ accessToken: "x", expiresAt: "2099-01-01T00:00:00Z" }) })).toThrow(/HTTPS/);
     expect(() => createStorefrontClient({ endpoint: "https://user:secret@desk.example.test", getSession: async () => ({ accessToken: "x", expiresAt: "2099-01-01T00:00:00Z" }) })).toThrow(/origen fijo/);

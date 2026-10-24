@@ -158,9 +158,9 @@ function createTransport(options: StorefrontClientOptions) {
       const payload = await response.json().catch(() => undefined) as unknown;
       if (expectedGeneration !== generation) throw abortError();
       if (!response.ok) {
-        if (response.status === 401) session = undefined;
         const wrapper = payload && typeof payload === "object" ? (payload as JsonObject).error : undefined;
         const error = wrapper && typeof wrapper === "object" ? wrapper as JsonObject : {};
+        if (response.status === 401) clearSession();
         throw new StorefrontApiError(response.status, typeof error.code === "string" ? error.code : "http_error", typeof error.message === "string" ? error.message : "La solicitud storefront no pudo completarse", typeof error.requestId === "string" ? error.requestId : "unknown", error.retryable === true, error.details);
       }
       return parser(payload);

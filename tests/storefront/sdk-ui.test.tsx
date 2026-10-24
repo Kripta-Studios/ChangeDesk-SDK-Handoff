@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StorefrontAdminPanel, StorefrontPreferencesPanel, StorefrontRoot } from "../../packages/sdk-react/src/storefront/components.js";
 import { StorefrontProvider } from "../../packages/sdk-react/src/storefront/provider.js";
-import type { StorefrontAdminClient, StorefrontClient } from "../../packages/sdk-react/src/storefront/client.js";
+import { createStorefrontAdminClient, createStorefrontClient, type StorefrontAdminClient, type StorefrontClient } from "../../packages/sdk-react/src/storefront/client.js";
 
 const preferences = { overrides: {}, inherited: { theme: "system" as const, density: "comfortable" as const, productLayout: "grid" as const }, effective: { theme: "system" as const, density: "comfortable" as const, productLayout: "grid" as const }, buyerRevision: 0, globalRevision: 0 };
 function withInvalidation(client: Omit<StorefrontClient, "subscribeSessionInvalidation">): StorefrontClient {
@@ -81,6 +81,21 @@ describe("storefront buyer UI", () => {
     await user.selectOptions(await screen.findByLabelText("Tema"), "");
     expect(screen.getByTestId("inherit-product").closest(".changedesk-storefront-root")?.getAttribute("data-theme")).toBe("light");
   });
+
+  it("removes buyer preferences and draft immediately when a save receives 401", async () => {
+    const loaded = { ...preferences, overrides: { theme: "dark" as const }, effective: { ...preferences.effective, theme: "dark" as const } };
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => init?.method === "PUT"
+      ? new Response(JSON.stringify({ error: { code: "session_expired", message: "Sesión expirada", requestId: "buyer-401", retryable: false } }), { status: 401, headers: { "content-type": "application/json" } })
+      : new Response(JSON.stringify(loaded), { headers: { "content-type": "application/json" } }));
+    const client = createStorefrontClient({ endpoint: "https://desk.example.test", getSession: async () => ({ accessToken: "buyer", expiresAt: "2099-01-01T00:00:00Z" }), fetch: fetcher });
+    const user = userEvent.setup();
+    render(<StorefrontProvider client={client}><StorefrontPreferencesPanel /><StorefrontRoot><span data-testid="buyer-401-product">Product</span></StorefrontRoot></StorefrontProvider>);
+    expect(await screen.findByDisplayValue("Oscuro")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Solo para mí" }));
+    await waitFor(() => expect((screen.getByLabelText("Tema") as HTMLSelectElement).disabled).toBe(true));
+    expect(screen.getByTestId("buyer-401-product").closest(".changedesk-storefront-root")?.getAttribute("data-theme")).toBe("system");
+    expect(screen.getByRole("alert").textContent).toMatch(/sesión expirada/i);
+  });
 });
 
 describe("storefront administrator review UI", () => {
@@ -127,5 +142,19 @@ describe("storefront administrator review UI", () => {
     finish({ proposals: [{ proposalId: "atlas-late", proposalRevision: 1, current: preferences.effective, proposed: preferences.effective, globalRevision: 0, precedenceNotice: "No debe aparecer", status: "pending" }] });
     await waitFor(() => expect(screen.getByText(/sesión.*invalidada/i)).toBeTruthy());
     expect(screen.queryByText("Propuesta atlas-late")).toBeNull();
+  });
+
+  it("removes resolved admin proposals immediately when approve receives 401", async () => {
+    const preview = { proposalId: "atlas-401", proposalRevision: 1, current: preferences.effective, proposed: { theme: "dark" as const, density: "compact" as const, productLayout: "list" as const }, globalRevision: 0, precedenceNotice: "Los overrides personales se conservan.", status: "pending" as const };
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => new URL(String(input)).pathname.endsWith("/approve")
+      ? new Response(JSON.stringify({ error: { code: "session_expired", message: "Sesión administrativa expirada", requestId: "admin-401", retryable: false } }), { status: 401, headers: { "content-type": "application/json" } })
+      : new Response(JSON.stringify({ proposals: [preview] }), { headers: { "content-type": "application/json" } }));
+    const client = createStorefrontAdminClient({ endpoint: "https://desk.example.test", getSession: async () => ({ accessToken: "admin", expiresAt: "2099-01-01T00:00:00Z" }), fetch: fetcher });
+    const user = userEvent.setup();
+    render(<StorefrontAdminPanel client={client} />);
+    expect(await screen.findByText("Propuesta atlas-401")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Aprobar cambio global" }));
+    await waitFor(() => expect(screen.queryByText("Propuesta atlas-401")).toBeNull());
+    expect(screen.getByText(/sesión administrativa invalidada/i)).toBeTruthy();
   });
 });
