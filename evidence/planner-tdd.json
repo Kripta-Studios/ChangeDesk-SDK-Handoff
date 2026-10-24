@@ -24,12 +24,12 @@
     },
     {
       "command": "CHANGEDESK_RUN_CODEX_LIVE=1 CHANGEDESK_CODEX_MODEL=gpt-6.1-sol vitest run tests/planner/live.codex.test.ts",
-      "result": "PASS for transport/schema wrapper; full Ajv and semantic assertions were added afterward and require the next explicitly budgeted live rerun",
+      "result": "BLOCKED: transport/schema wrapper passed but the next bounded live run failed full Ajv/semantic validation; no recipe accepted",
       "files": 1,
       "tests": 1,
-      "testDurationSeconds": 13.927,
+      "testDurationSeconds": 18.634,
       "observedModel": "not_observed_by_codex_jsonl",
-      "tokenMetric": "positive usage asserted; exact value was not retained in this first smoke and must be captured by the committed logging on rerun"
+      "tokenMetric": {"input":11747,"cachedInput":0,"output":294,"reasoningOutput":64}
     }
   ],
   "separation": {
