@@ -29,7 +29,7 @@ export async function main(): Promise<void> {
   const catalog = createProductionCatalog(store, { publicationKeyId: config.publicationKeyId, publicationPrivateKey: publicationPrivateKeyFromPem(config.publicationPrivateKeyPem) });
   const generation = createProductionGenerationProcessor({ store, catalog, planner: { executable: config.planner.executable, executableSha256: config.planner.executableSha256, model: config.planner.model, allowedModels: config.planner.allowedModels,
     isolatedCwd: config.planner.isolatedCwd, outputSchemaPath: config.planner.outputSchemaPath, timeoutMs: config.planner.timeoutMs, maxOutputBytes: config.planner.maxOutputBytes,
-    maxReportedInputTokens: config.planner.maxInputTokens, environment: plannerEnvironment() }, workerLeaseSeconds: Math.min(config.workerLeaseSeconds, 300), maxAttempts: 3, totalTokenBudget: 409_152n, costBudgetMicros: 1n });
+    maxInputTokens: config.planner.maxInputTokens, environment: plannerEnvironment() }, workerLeaseSeconds: Math.min(config.workerLeaseSeconds, 300), maxAttempts: 3, totalTokenBudget: 409_152n, costBudgetMicros: 0n });
   const worker = new WorkerImplementation({ store: storage, connector: new SignedBridgeConnector(new ConfiguredHostRegistry(config.hosts)), authority: new StrictEffectAuthority(), generation });
   const controller = new AbortController(); const stop = () => controller.abort(); process.once("SIGINT", stop); process.once("SIGTERM", stop);
   try { await startWorker(worker, { workerId: config.workerId, signal: controller.signal, concurrency: config.workerGlobalCap }); } finally { await pool.end(); }
