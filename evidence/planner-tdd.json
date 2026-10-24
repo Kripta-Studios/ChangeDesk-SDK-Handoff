@@ -69,6 +69,14 @@
     {
       "command": "tsc -b packages/contracts/tsconfig.json apps/service/tsconfig.json --pretty false",
       "result": "PASS"
+    },
+    {
+      "command": "vitest run tests/planner --reporter dot",
+      "result": "PASS",
+      "files": 5,
+      "tests": 28,
+      "durationSeconds": 9.48,
+      "note": "post-merge verification with durable storage budget and ACL-first catalog migrations"
     }
   ],
   "separation": {
