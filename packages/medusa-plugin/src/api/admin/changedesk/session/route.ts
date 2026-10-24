@@ -31,8 +31,7 @@ const handle = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
 
   await updateUsersWorkflow(req.scope).run({
     input: {
-      selector: { id: actorId },
-      update: { metadata: { changedesk: { ...policy, hostSessionId } } },
+      updates: [{ id: actorId, metadata: { changedesk: { ...policy, hostSessionId } } }],
     },
   })
   const { ticket, claims } = service.issueBootstrapTicket({
