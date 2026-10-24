@@ -1,11 +1,11 @@
 {
   "date": "2026-10-24",
-  "status": "PASS_WITH_BROWSER_LIMITATION",
+  "status": "PASS",
   "artifacts": {
     "sdk": {
       "file": "changedesk-react-0.0.0.tgz",
-      "bytes": 37496,
-      "sha256": "50C9D22996D61DBD71DE2A552364EC35D34CD90AF73702945CA9E81CF11C16C5"
+      "bytes": 38386,
+      "sha256": "53B9BE8053FBE421220594531D59856809D91166F4AB7BB275A37F43DC022222"
     },
     "contractsPeer": {
       "file": "changedesk-contracts-0.0.0.tgz",
@@ -14,15 +14,15 @@
     }
   },
   "cleanConsumer": {
-    "location": ".tools/frontend-tarball-smoke-clean3 (gitignored)",
-    "install": "PASS, pnpm 11.22.0, 11.1s, exact allowBuilds esbuild:true",
-    "typecheck": "PASS, TypeScript 5.9.3",
-    "build": "PASS, Vite 7.3.7, 7.33s",
+    "location": ".tools/frontend-tarball-smoke-clean4 (gitignored)",
+    "install": "PASS, pnpm 11.22.0, 10.74s, exact allowBuilds esbuild:true",
+    "typecheck": "PASS, TypeScript 5.9.3, 10.89s; installed index.d.ts present",
+    "build": "PASS, Vite 7.3.7, 4.87s",
     "output": {
-      "entryRawBytes": 149600,
-      "entryGzipBytes": 49030,
+      "entryRawBytes": 150099,
+      "entryGzipBytes": 49261,
       "lazyPanelRawBytes": 26030,
-      "lazyPanelGzipBytes": 8480
+      "lazyPanelGzipBytes": 8485
     },
     "dependencyInspection": {
       "react": "18.3.1 (one resolved instance)",
@@ -32,18 +32,15 @@
     }
   },
   "browserWaterfall": {
-    "browser": "installed system Chrome driven by Playwright 1.64.1",
-    "idleAssets": ["/", "/assets/index-D5DAwTn1.js"],
+    "browser": "Playwright 1.64.1 managed Chromium/Headless Shell 156.0.8078.4 revision 1248",
+    "idleAssets": ["/", "/assets/index-C7rBF0Aw.js"],
     "idlePanelRequests": 0,
     "idleApiRequests": 0,
-    "afterOpenAssets": ["/assets/InternalPanel-BLPM-Lp--4AIYjx9B.js"],
+    "afterOpenAssets": ["/assets/InternalPanel-CG7szjfF-Daf0uV9f.js"],
     "afterOpenApiRequests": 1,
     "postUnmountRequestGrowthAfter2500Ms": 0,
     "dialogAfterClose": 0,
     "computedStyles": { "launcherBackground": "rgb(239, 255, 122)", "panelDisplay": "grid", "panelBackground": "rgb(244, 241, 232)", "backdropPosition": "fixed" }
   },
-  "limitations": [
-    "The pinned Playwright-managed Chromium executable is not installed; the waterfall diagnostic used installed system Chrome. The release browser matrix remains BLOCKED until environment installs the pinned browser.",
-    "This proves package consumption, lazy loading, idle network behavior and unmount cleanup, not real Medusa authorization or backend effects."
-  ]
+  "limitations": ["This proves package consumption, lazy loading, idle network behavior and unmount cleanup, not real Medusa authorization or backend effects."]
 }
