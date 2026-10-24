@@ -26,23 +26,27 @@ const handle = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
     throw new BridgeError(401, "host_session_required", "A Medusa cookie session is required")
   }
   const service = req.scope.resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService
-  const policy = await readActorPolicy(req.scope as never, actorId)
-  const hostSessionId = hashSessionId(sessionId)
-
-  await updateUsersWorkflow(req.scope).run({
-    input: {
-      updates: [{ id: actorId, metadata: { changedesk: { ...policy, hostSessionId } } }],
-    },
-  })
-  const { ticket, claims } = service.issueBootstrapTicket({
-    actorId,
-    hostSessionId,
-    policyVersion: policy.policyVersion,
-    origin,
-    now: Math.floor(Date.now() / 1000),
-  })
-  res.setHeader("Cache-Control", "no-store")
-  return res.status(200).json({ ticket, expiresAt: new Date(claims.exp * 1000).toISOString() })
+  const release = await service.acquireResourceLocks(["authority-mutator"])
+  try {
+    const policy = await readActorPolicy(req.scope as never, actorId)
+    const hostSessionId = hashSessionId(sessionId)
+    await updateUsersWorkflow(req.scope).run({
+      input: {
+        updates: [{ id: actorId, metadata: { changedesk: { ...policy, hostSessionId } } }],
+      },
+    })
+    const { ticket, claims } = service.issueBootstrapTicket({
+      actorId,
+      hostSessionId,
+      policyVersion: policy.policyVersion,
+      origin,
+      now: Math.floor(Date.now() / 1000),
+    })
+    res.setHeader("Cache-Control", "no-store")
+    return res.status(200).json({ ticket, expiresAt: new Date(claims.exp * 1000).toISOString() })
+  } finally {
+    release()
+  }
 }
 
 export const POST = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
