@@ -12,7 +12,8 @@ function read(relativePath: string): string {
 describe("local environment contract", () => {
   it("declares exactly the four normative source workspaces", () => {
     const workspace = read("pnpm-workspace.yaml");
-    const entries = [...workspace.matchAll(/^\s+-\s+([^\s#]+)\s*$/gm)].map((match) => match[1]);
+    const packagesSection = workspace.match(/^packages:\s*\r?\n([\s\S]*?)(?=^\S)/m)?.[1] ?? "";
+    const entries = [...packagesSection.matchAll(/^\s+-\s+([^\s#]+)\s*$/gm)].map((match) => match[1]);
     expect(entries).toEqual([
       "apps/service",
       "packages/contracts",

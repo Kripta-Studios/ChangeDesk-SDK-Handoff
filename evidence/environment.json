@@ -42,6 +42,20 @@
       "source": "https://github.com/bendlang/bend/releases/download/v2.0.39/bend-2.0.39-linux-x64.tar.gz",
       "status": "PASS_HELP_REPORTS_2.0.39",
       "invocation": "wsl.exe -d Ubuntu-24.04 --exec <workspace .tools Linux path>/bend/bin/bend"
+    },
+    "lean": {
+      "version": "4.34.0",
+      "license": "Apache-2.0",
+      "archiveSha256": "caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b",
+      "source": "https://github.com/leanprover/lean4/releases/download/v4.34.0/lean-4.34.0-linux.tar.zst",
+      "status": "INSTALL_IN_PROGRESS; Bend verdict remains BLOCKED until the checksum-verified archive is extracted and the kernel builds"
+    },
+    "playwrightChromium": {
+      "packageVersion": "1.64.1",
+      "browserVersion": "156.0.8078.4",
+      "revision": "1248",
+      "source": "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1248/chromium-win64.zip",
+      "status": "PASS_INSTALLED_WORKSPACE_LOCAL"
     }
   },
   "packagePins": [
@@ -95,6 +109,11 @@
       "gap": "The exact Medusa 2.22.1 CLI loads ts-node at startup but does not declare it as its own dependency.",
       "alternatives": ["patch third-party resolution", "global ts-node", "exact plugin/host dev dependency"],
       "decision": "ts-node 10.9.2 exact; no global install"
+    },
+    {
+      "gap": "Jest/Vite resolution installs unrs-resolver with a native postinstall selector; leaving its build undecided makes pnpm 11 fail closed.",
+      "alternatives": ["deny and risk a missing native resolver", "approve the exact audited selector"],
+      "decision": "approve unrs-resolver 1.12.2 postinstall; MIT, official unrs source"
     }
   ],
   "toolGaps": [
@@ -104,7 +123,7 @@
   "testEvidence": {
     "red": "evidence/environment-red.txt",
     "green": "evidence/environment-green.txt",
-    "greenExpectation": "4 environment contract tests pass",
+    "greenExpectation": "5 environment contract tests pass",
     "fullProductGates": "NOT_RUN"
   },
   "risks": [

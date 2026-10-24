@@ -10,6 +10,7 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: false
   protobufjs: false
+  unrs-resolver: true
 
 minimumReleaseAgeExclude:
   - '@medusajs/admin-bundler@2.22.1'

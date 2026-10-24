@@ -9,7 +9,7 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $envPath = Join-Path $root ".env"
 if (-not $ConfirmLocalDataReset) { throw "Explicit -ConfirmLocalDataReset is required." }
 if (-not (Test-Path -LiteralPath $envPath)) { throw "Missing local .env; refusing reset." }
-$configuredRunId = ((Get-Content -LiteralPath $envPath | Where-Object { $_ -like "CHANGEDESK_RUN_ID=*" }) -split "=", 2)[1]
+$configuredRunId = ((Get-Content -LiteralPath $envPath -Encoding utf8 | Where-Object { $_ -like "CHANGEDESK_RUN_ID=*" }) -split "=", 2)[1]
 if (-not $configuredRunId -or $RunId -ne $configuredRunId) { throw "RunId does not match this workspace." }
 $composeFile = Join-Path $root "infra/compose.yaml"
 $configJson = docker compose --env-file $envPath -f $composeFile config --format json
