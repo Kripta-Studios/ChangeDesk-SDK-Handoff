@@ -5,6 +5,7 @@ import { importPrivateKey, importPublicKey, newJti, signEnvelope } from "../../b
 import { buildBootstrapClaims } from "../../bridge/validation.ts"
 import type { BootstrapClaims, CapabilityId } from "../../bridge/types.ts"
 import type { EffectDelegationClaims } from "../../bridge/types.ts"
+import { buildAuthorityCheckInput } from "../../bridge/authority.ts"
 import DelegationNonce from "./models/delegation-nonce.ts"
 import OperationReceipt from "./models/operation-receipt.ts"
 
@@ -105,26 +106,7 @@ export default class ChangeDeskModuleService extends MedusaService({
           "content-type": "application/json",
           "x-changedesk-host-credential": this.options_.authorityCredential,
         },
-        body: JSON.stringify({
-          tenantId: claims.tenantId,
-          actorId: claims.actorId,
-          executionId: claims.executionId,
-          jobId: claims.jobId,
-          leaseOwner: claims.leaseOwner,
-          rowId: claims.rowId,
-          stepId: claims.stepId,
-          operationKey: claims.operationKey,
-          fence: claims.fence,
-          policyVersion: claims.policyVersion,
-          planId: claims.planId,
-          planVersion: claims.planVersion,
-          planHash: claims.planHash,
-          approvalId: claims.approvalId,
-          approvalExpiresAt: claims.approvalExpiresAt,
-          capability: claims.capability,
-          argsHash: claims.argsHash,
-          semanticInputHash: claims.semanticInputHash,
-        }),
+        body: JSON.stringify(buildAuthorityCheckInput(claims)),
       })
     } catch {
       throw new BridgeError(503, "authority_unavailable", "Current execution authority is unavailable")

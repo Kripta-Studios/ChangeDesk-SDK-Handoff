@@ -23,15 +23,22 @@
     "./*": "./.medusa/server/src/*.js"
   },
   "peerDependencies": {
+    "@medusajs/admin-sdk": "2.22.1",
+    "@medusajs/cli": "2.22.1",
     "@medusajs/core-flows": "2.22.1",
     "@medusajs/framework": "2.22.1",
-    "@medusajs/medusa": "2.22.1"
+    "@medusajs/medusa": "2.22.1",
+    "@medusajs/test-utils": "2.22.1",
+    "react": "^18.3.1",
+    "react-router-dom": "^6.30.4 || ^7.0.0"
   },
   "dependencies": {
     "@changedesk/react": "workspace:*",
     "canonicalize": "5.1.0"
   },
   "devDependencies": {
+    "@medusajs/admin-sdk": "2.22.1",
+    "@medusajs/admin-shared": "2.22.1",
     "@medusajs/cli": "2.22.1",
     "@medusajs/core-flows": "2.22.1",
     "@medusajs/framework": "2.22.1",
