@@ -12,7 +12,7 @@ describe("StorageApiOperations presentation DTOs", () => {
   });
 
   it("returns policy permissions rather than role names", async () => {
-    const store = { withTenant: vi.fn(async (_scope, work) => work({ listInstallations: vi.fn().mockResolvedValue([]) })) };
+    const store = { withTenant: vi.fn(async (_scope, work) => work({ listInstallationDetails: vi.fn().mockResolvedValue([]) })) };
     const operations = new StorageApiOperations(store as any, {} as any, {});
 
     const result = await operations.getInstallations(actor) as { permissions: string[] };
