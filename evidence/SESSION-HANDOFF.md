@@ -33,3 +33,7 @@ Security completó tests acotados antes de dos rechazos filtro runtime, incluido
 ## Siguiente
 
 Integrar checkpoints anteriores, migrate/seed8actores, arrancar Atlas9001/Boreal9002/API4100/worker con PIDs propios/readiness. E2E fake y Codex separados, reutilización mismo hash/bindings distintos, verificaciones funcionales pendientes. Completar Bend y medidas/CI/runbook limpio; abrir demo real/capturas. Crear acceptance.json y FINAL-REPORT con todos ACC PASS/FAIL/BLOCKED/NOT_RUN. Reviewer Astra fresco read-only al final y corregir hallazgos. No terminar por existencia de código ni compacción.
+
+## Última instrucción del usuario: prioridad funcional
+
+El usuario excluye expresamente TODO objetivo de rendimiento. ADR012 prevalece: no más benchmarks/optimización perf; ACC015 NOT_APPLICABLE por instrucción del usuario. Conservar FAIL históricos. Prioridad inmediata finalizar app y features funcionando, dos hosts/chat/generación/aprobación/ejecución/reuse. Mantener tests funcionales/permisos y límites de gasto, sin esperar medidas de rendimiento para cerrar.

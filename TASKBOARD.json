@@ -230,7 +230,7 @@
       "id": "T12",
       "phase": "P7",
       "ownerRole": "performance",
-      "title": "Costs overhead fairness and clean integration",
+      "title": "Functional clean integration; performance objectives excluded by user",
       "dependsOn": [
         "T09",
         "T10"
@@ -242,9 +242,10 @@
         "evidence/p8-performance-after-index.json",
         "evidence/p8-performance-runs.md"
       ],
-      "blocker": "Full PostgreSQL benchmark FAIL: catalog p95 1191.1576 ms and admission p95 426.0304 ms; host overhead/fairness measurements still pending.",
+      "blocker": null,
       "model": "gpt-6.1-sol",
-      "reasoningEffort": "high"
+      "reasoningEffort": "high",
+      "scopeExclusion": "Performance thresholds/benchmarks removed by explicit user instruction; ADR-012. Historical FAIL retained, not PASS."
     },
     {
       "id": "T13",
