@@ -1,6 +1,6 @@
 # Personalización del storefront — entrega de integración
 
-La ampliación vive en `feat/buyer-storefront`, worktree `.worktrees/buyer-storefront`. El coordinador fijó alcance y contratos antes de delegar implementación. Backend y UI tuvieron propietarios y worktrees separados; los cambios UI se integran mediante commits. No se ha fusionado sobre el `master` activo de la otra sesión.
+La ampliación se implementó en `feat/buyer-storefront`, worktree `.worktrees/buyer-storefront`, tras fijar alcance y contratos. Por instrucción posterior explícita del usuario se integró en `main`, worktree `.worktrees/buyer-storefront-main`, junto al trabajo de la sesión principal hasta `eddfac1`. El merge de código final es `ad550e9`. Se preservaron los cambios sin commit del worktree original; no se forzó historial. Ver [la verificación final](final-verification.json).
 
 ## Funcionalidad
 
@@ -14,7 +14,7 @@ Contrato normativo y decisiones: [docs15](../../docs/15-BUYER-STOREFRONT.md), ap
 
 ## Coordinación de integración
 
-Baseline congelado: `6adbb2f`. La rama ya absorbió snapshots anteriores del SDK principal; no aplicar a ciegas todos los commits históricos como cherry-picks. Revisar `git diff 6adbb2f..feat/buyer-storefront` y resolver contra el HEAD vigente de la sesión principal en un punto limpio.
+Baseline de la feature: `6adbb2f`; fuente aceptada por reviewer fresco: `eea53a4`. Merge en main `ab4b247`: conflictos en `api.ts` y `vitest.config.ts` resueltos preservando proofRequired, modo fake/live y gates existentes. La resolución obtuvo revisión read-only `ship`. Se incorporaron después actualizaciones de la sesión principal hasta `eddfac1`. No repetir cherry-picks de estos commits sobre main.
 
 Archivos compartidos que necesitan revisión del integrador:
 
@@ -48,6 +48,10 @@ PostgreSQL se probó tras implementar persistencia: no se presenta como storage 
 El tarball se probó sobre el SDK integrado de e63f497, antes de ajustes posteriores de textos e invalidación admin. Acredita instalación y exports; no es un artefacto publicado ni una prueba live de esa revisión final. Ver los SHA de los tarballs en su evidencia.
 
 Primera revisión fresca read-only sobre e8a4e5b: `fix-first`; encontró limpieza del panel admin, falta de límite/barrido de sesiones buyer y revisiones negativas. Informe conservado en `review-1.json`. Los arreglos y el veredicto final se registran por separado, sin sobrescribir el fallo inicial.
+
+Revisiones2/3 encontraron invalidación ante401, Retry-After, evicción de referencias nativas activas e IDs inválidos. Todo quedó corregido con RED/GREEN; cuarta revisión fresca: `ship`, sin hallazgos accionables. En main, verificación independiente final: **58/58 tests, 12 archivos**, tipos servicio/SDK PASS y build Vite/declaraciones PASS. Las pruebas con Medusa real siguen separadas; el build completo del plugin quedó bloqueado por la instalación compartida incompleta de `@medusajs/utils`.
+
+Montaje buyer: crear `createStorefrontClient({ endpoint, getSession })`. `getSession` solicita ticket con cookie a `/store/customers/me/changedesk/session`, header `X-ChangeDesk-CSRF: 1`, y lo intercambia en `/v1/storefront/session/exchange` con Idempotency-Key UUID. Envolver catálogo/panel con `StorefrontProvider` y `StorefrontRoot`; usar las clases `changedesk-storefront-products` y `changedesk-storefront-product` para aplicar grid/list y densidad. Importar `@changedesk/react/storefront.css`. El host debe llamar `client.clearSession()` al logout/cambio de customer y cambiar `sessionKey` al autenticar de nuevo. El cliente también invalida inmediatamente ante401. La página admin ya renueva al recuperar foco/visibilidad y cada60s visible; no promete notificación cross-tab instantánea.
 
 ## Reproducción local
 

@@ -1,0 +1,43 @@
+{
+  "recordedAt": "2026-10-24T16:00:18+02:00",
+  "branch": "main",
+  "codeHead": "ad550e99ea14baeb382a00317926df9aba318b11",
+  "primarySessionIntegratedThrough": "eddfac1",
+  "featureHead": "eea53a40054486b1c5333cb64f2d520083647d87",
+  "featureBaseline": "6adbb2f",
+  "review": {
+    "agent": "/root/buyer_storefront_review4",
+    "requestedModel": "gpt-6-astra",
+    "requestedReasoning": "high",
+    "forkTurns": "none",
+    "mode": "fresh behaviorally read-only source review",
+    "featureVerdict": "ship",
+    "featureFindings": [],
+    "mergeResolutionHead": "ab4b247900df42219f25f9d78237118dfdee877d",
+    "mergeResolutionVerdict": "ship",
+    "mergeResolution": "Preserves master proofRequired/fake-live wiring and live-lane exclusions while adding storefront dependencies and its explicit PostgreSQL lane.",
+    "scope": "Feature and its conflict resolutions; does not claim independent review of all unrelated primary-session changes."
+  },
+  "parentVerification": {
+    "command": "Node 22.23.4 node_modules/vitest/vitest.mjs run tests/storefront tests/medusa/native-guard.test.ts tests/medusa/storefront-logout-middleware.test.ts tests/planner/generation-worker.test.ts apps/service/tests/runtime/storage-adapter.test.ts --reporter=dot --pool=threads --maxWorkers=1",
+    "tests": { "passed": 58, "failed": 0, "files": 12, "seconds": 7.52 },
+    "serviceTypes": "PASS on final code head",
+    "sdkTypes": "PASS on integrated source; no later SDK changes",
+    "sdkBuildAndDeclarations": "PASS on integrated source; no later SDK changes",
+    "postgres": "7/7 PASS independently on e8a4e5b; no storefront repository or migration source changed afterwards; scoped database and role cleaned",
+    "schemaCopies": "Both storefront schemas byte-identical to packaged copies",
+    "sourceWorkspaces": 4,
+    "dependenciesAddedByFeature": []
+  },
+  "failedAttemptsPreserved": [
+    "Three fix-first reviews are preserved in review-1.json through review-3.json with subsequent regression evidence.",
+    "A parent rerun failed to resolve fastify/ajv/canonicalize after concurrent shared environment changes. Ignored local junctions to existing pinned installations restored resolution without dependency installation.",
+    "Initial main integration tests required an explicit fake-test fixture after the main planner default changed to Codex, plus local resolution of the built storefront SDK. Fixture-only commit dfb7303 preserves production defaults; final rerun passed."
+  ],
+  "LOCAL_VERIFIED": false,
+  "LIVE_VERIFIED": false,
+  "blocked": ["Real Atlas/Boreal customer authentication, native logout and browser E2E", "Full Medusa plugin build against the incomplete shared @medusajs/utils installation"],
+  "limitations": ["Browser captures use fixtures", "Actual tarball consumer evidence predates later behavior fixes", "Passive admin host session changes are detected on focus/visibility or within 60 seconds while visible; observed 401 invalidates immediately", "In-memory host and service authentication fail closed after restart; multi-instance behavior is not accredited"],
+  "performance": "Excluded by explicit user instruction; no benchmark gate blocks this delivery.",
+  "publication": "User explicitly authorized commit and push main to https://github.com/Kripta-Studios/ChangeDesk-SDK-Handoff; push result is reported separately after this evidence commit."
+}
