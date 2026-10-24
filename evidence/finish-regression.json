@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "recordedAt": "2026-10-24T16:46:08+02:00",
+  "status": "FAIL",
+  "scope": "Functional runtime recovery, direct authorization, proof binding and evidence-verifier regressions",
+  "testCommits": [
+    "276780050302130cc1c96d57e1ef64faa335a9c2",
+    "97c52f03e29e55e1a9f90925c3c0cce85f309db3",
+    "b3126580f6a24740e0c0219a0f6d39d4526bc79a",
+    "9ae3b9a09a67ebb93c04f78503e5a7229ff7423b",
+    "9cf3db9f48975cdc94563821b6cd9900973b6784",
+    "4dbbba5062843f94dc7a9cfb075085e9db3dddfd"
+  ],
+  "postgresRun": {
+    "runId": "changedesk_test_finishlab_20261024e",
+    "isolation": "Dedicated database; cleaned after run; no credentials recorded",
+    "command": "<pinned-node-22.23.4> scripts/verify-ci.mjs --lane postgres",
+    "integratedState": "finish-lab local 5c6f1a3: master e40a83f plus fixture 4dbbba5 and serialized lane",
+    "result": "19 passed, 3 failed, 22 tests across 4 files",
+    "failures": [
+      "runtime vertical direct",
+      "runtime vertical installation",
+      "storage ACC-008 preserves attempt state across recovery and requires fenced business transitions"
+    ],
+    "sharedCause": "storage.claimNext at apps/service/src/storage/jobs.ts:11 raised PostgreSQL duplicate key capacity_leases_scope_type_scope_id_job_id_key after recovery",
+    "diagnosis": "recover_expired_jobs recovered an expired job but retained future-dated capacity rows for that exact job; reclaim collided with the unique job/scope key",
+    "candidateFix": "59f40107b525ca5b48ecfe5b2dcf65970d94b4d6 adds migration 015 cleanup by exact recovered job IDs under the scheduler advisory lock",
+    "candidateFixVerification": "NOT_RUN: closure requested before a fresh isolated rerun; preserve FAIL until rerun"
+  },
+  "coveredBeforeFailure": [
+    "Fastify session/request/candidate flow reached direct proof-required plan creation",
+    "Controlled verifier results were explicitly labeled non-kernel and bound to the exact plan request",
+    "Direct and installed plan branches entered real PostgreSQL durable scheduling",
+    "Worker lane survival test is independent of the PostgreSQL recovery failure"
+  ],
+  "notAccredited": [
+    "Recovered execution completion after migration 015",
+    "Post-recovery cancellation, expired resume and revocation assertions in the combined vertical",
+    "A combined real Bend-kernel plus PostgreSQL plan-evidence run"
+  ],
+  "assumptionChallenged": "A recovered job was assumed to have capacity-lease timestamps synchronized with its job lease. Existing ACC-008 and the new crash regression disproved that assumption; recovery must release capacity by exact recovered job identity."
+}
