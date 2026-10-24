@@ -53,7 +53,9 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
   const routeErrorHandler = (error: Error & { statusCode?: number }, _request: FastifyRequest, reply: FastifyReply) => {
     const tooLarge = error.statusCode === 413;
     const controlled = typeof error.statusCode === "number" && "code" in error;
-    return fail(reply, tooLarge ? 413 : controlled ? error.statusCode! : 503, tooLarge ? "body_too_large" : controlled ? String((error as {code:unknown}).code).toLowerCase() : "storefront_unavailable", tooLarge ? "Request body exceeds 64 KiB" : controlled ? error.message : "Storefront dependency unavailable", nextRequestId(), controlled ? Boolean((error as {retryable?:unknown}).retryable) : !tooLarge);
+    const retryable = controlled ? Boolean((error as {retryable?:unknown}).retryable) : !tooLarge;
+    if (controlled && error.statusCode === 429 && retryable) void reply.header("Retry-After", "60");
+    return fail(reply, tooLarge ? 413 : controlled ? error.statusCode! : 503, tooLarge ? "body_too_large" : controlled ? String((error as {code:unknown}).code).toLowerCase() : "storefront_unavailable", tooLarge ? "Request body exceeds 64 KiB" : controlled ? error.message : "Storefront dependency unavailable", nextRequestId(), retryable);
   };
   const readOptions = { errorHandler: routeErrorHandler };
   const mutationOptions = { bodyLimit: 65_536, errorHandler: routeErrorHandler };
