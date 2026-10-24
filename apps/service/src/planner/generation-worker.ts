@@ -66,19 +66,19 @@ export class PlannerGenerationProcessor implements GenerationProcessor {
     if(!generationToken)return this.finishState(lease,bundle.request.id,"error","provider_call_budget_exhausted");
     const result=await this.options.planner.plan(input,signal),scope={tenantId:lease.tenantId,actorId:lease.actorId},totals=usageTotals(result.usage);
     if(result.kind==="provider_unavailable"){
-      if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:result.retryable,success:false}))return{kind:"failed",reason:"generation_reservation_stale"};
+      const recorded=await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:result.retryable,success:false});if(!recorded.recorded||!recorded.withinBudget)return{kind:"failed",reason:recorded.recorded?"generation_budget_exceeded":"generation_reservation_stale"};
       return result.retryable?{kind:"waiting_reconciliation",reason:result.code}:this.finishState(lease,bundle.request.id,"error",result.code);
     }
     if(result.kind==="needs_clarification"){
-      if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:false,success:false}))return{kind:"failed",reason:"generation_reservation_stale"};
+      const recorded=await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:false,success:false});if(!recorded.recorded||!recorded.withinBudget)return{kind:"failed",reason:recorded.recorded?"generation_budget_exceeded":"generation_reservation_stale"};
       return this.finishState(lease,bundle.request.id,"needs_clarification","needs_clarification");
     }
     if(result.kind==="unsupported"){
       const retryable=result.usage.length>0&&result.safeMessage.includes("did not produce a valid recipe");
-      if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable,success:false}))return{kind:"failed",reason:"generation_reservation_stale"};
+      const recorded=await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable,success:false});if(!recorded.recorded||!recorded.withinBudget)return{kind:"failed",reason:recorded.recorded?"generation_budget_exceeded":"generation_reservation_stale"};
       return retryable?{kind:"waiting_reconciliation",reason:"provider_output_invalid"}:this.finishState(lease,bundle.request.id,"rejected","unsupported_request");
     }
-    if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:false,success:true}))return{kind:"failed",reason:"generation_reservation_stale"};
+    const recorded=await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:false,success:true});if(!recorded.recorded||!recorded.withinBudget)return{kind:"failed",reason:recorded.recorded?"generation_budget_exceeded":"generation_reservation_stale"};
     const recipe=sanitizeRecipeForPublication(result.recipe);
     const artifactHash=await this.options.identity.hash(recipe);
     const candidate:Candidate={id:this.options.newId("candidate"),artifactHash,recipeKey:recipe.recipeKey,displayName:recipe.displayName,version:"1",requiredCapabilities:recipe.requiredCapabilities,missingParameters:Object.keys(recipe.parameters) as Candidate["missingParameters"],compatibility:"compatible",evidenceStatus:"not_run",estimatedCost:latestUsd(result.usage)};
