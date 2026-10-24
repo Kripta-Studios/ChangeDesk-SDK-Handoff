@@ -33,6 +33,12 @@
       "decision": "Set rootDir to the plugin project root so the official build emits .medusa/server/src/... and Medusa discovers the module."
     }
   },
+  "generatedMigration": {
+    "command": "Medusa 2.22.1 db:generate changedesk against the integrated Atlas host",
+    "generatedArtifactSha256": "fccfafb7b9979085de1fae1c29677066af5077a5bca83ae5469a1faf1b3880e0",
+    "source": "packages/medusa-plugin/src/modules/changedesk/migrations/Migration20261024132601.ts",
+    "review": "Creates only plugin nonce and durable receipt tables plus soft-delete and unique indexes. Initial alter-table drop-constraint-if-exists statements are generator output: no-op on first install and replace legacy table constraints with partial unique indexes on upgrade. No Medusa business tables are written."
+  },
   "runtime": {
     "observedNode": "22.23.4",
     "requiredNode": ">=22.22.0 <23",
