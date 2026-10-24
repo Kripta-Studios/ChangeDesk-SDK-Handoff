@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 type Tenant = "atlas" | "boreal";
 type Credentials = Record<string, { email: string; password: string }>;
-const storefront = "http://127.0.0.1:8000";
+const storefront = "http://127.0.0.1:8001";
 const service = "http://127.0.0.1:4100";
 const hosts: Record<Tenant, string> = { atlas: "http://127.0.0.1:9001", boreal: "http://127.0.0.1:9002" };
 const privateDir = resolve("examples/medusa/.local");

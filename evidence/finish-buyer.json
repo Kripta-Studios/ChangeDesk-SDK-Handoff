@@ -33,7 +33,7 @@
   },
   "liveGate": {
     "status": "NOT_RUN",
-    "reason": "The lab owner must integrate this commit, provision buyer-only fixtures and start the tracked port-8000 lifecycle before the destructive/external-state browser lane can run.",
+    "reason": "The lab owner must integrate this commit, provision buyer-only fixtures and start the tracked port-8001 lifecycle before the destructive/external-state browser lane can run. Port 8000 was replaced because an unrelated HTTP.sys PID 4 reservation owns it and must not be disturbed.",
     "command": "node node_modules/@playwright/test/cli.js test tests/e2e/storefront.spec.ts --workers=1",
     "covers": [
       "two buyers and two tenants",
