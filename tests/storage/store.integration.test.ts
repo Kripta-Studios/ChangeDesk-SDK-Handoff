@@ -195,6 +195,10 @@ describe("PostgreSQL storage integration", () => {
     expect((await store.withTenant({tenantId:recipient,actorId:"admin"},(tx)=>tx.listDiscoverableCatalog({adapter:"medusa-v2",capabilityContract:"1",limit:20}))).map(row=>row.id)).toContain(artifact.id);
     expect(await store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash))).toBeNull();
     await expect(store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.insertEvidence({id:randomUUID(),artifactHash,environmentDigest:"guess",suiteVersion:"1",status:"not_run",artifactRefs:{},privacyScope:"private"}))).rejects.toThrow("not authorized");
+    await migrator.query("UPDATE storage.artifact_grants SET expires_at=clock_timestamp()-interval '1 second' WHERE artifact_id=$1",[artifact.id]);
+    expect(await store.withTenant({tenantId:recipient,actorId:"admin"},(tx)=>tx.listDiscoverableCatalog({adapter:"medusa-v2",capabilityContract:"1",limit:20}))).toEqual([]);
+    await migrator.query("UPDATE storage.recipe_artifacts SET state='security_revoked' WHERE id=$1",[artifact.id]);
+    expect(await store.withTenant({tenantId:owner,actorId:"admin"},(tx)=>tx.listDiscoverableCatalog({adapter:"medusa-v2",capabilityContract:"1",limit:20}))).toEqual([]);
   });
 
   it("DATA-01 reserves generation budget durably and fences completion",async()=>{
@@ -206,6 +210,10 @@ describe("PostgreSQL storage integration", () => {
     const artifact=await store.withTenant({tenantId,actorId},(tx)=>tx.getAuthorizedArtifact(ids.artifactHash));
     expect(await store.withTenant({tenantId,actorId},(tx)=>tx.completeGeneration(reservationId,1,{artifactId:artifact!.id,usedTokens:10n,usedCostMicros:20n}))).toBe(true);
     expect(await store.withTenant({tenantId,actorId},(tx)=>tx.reserveGeneration({id:randomUUID(),actorId,intentHash,contractVersion:"1",requestId:ids.requestId,maxAttempts:2,tokenBudget:1000n,costBudgetMicros:5000n,provider:"test",model:"test"}))).toMatchObject({state:"existing",id:reservationId,status:"completed",artifactId:artifact!.id});
+    const scope={tenantId,actorId};
+    const capped=await store.withTenant(scope,(tx)=>tx.reserveCall({...scope,requestId:ids.requestId,intentHash:"e".repeat(64),contractVersion:"1",provider:"test",model:"test",maxAttempts:1,tokenBudget:5n,costBudgetMicros:5n,leaseOwner:"budget-test",leaseSeconds:30}));
+    expect(await store.withTenant(scope,(tx)=>tx.recordCall(scope,capped!,{inputTokens:4n,outputTokens:4n,usedCostMicros:7n,retryable:false,success:true}))).toEqual({recorded:true,withinBudget:false});
+    expect(await store.withTenant(scope,(tx)=>tx.completeGeneration(scope,capped!,{artifactId:artifact!.id}))).toBe(false);
   });
 
   it("ACC-006 creates an installed-action audit request without a generation job",async()=>{
@@ -299,7 +307,7 @@ describe("PostgreSQL storage integration", () => {
     const scope={tenantId,actorId};
     const reservation=await workerStore.withTenant(scope,(tx)=>tx.reserveGenerationCall({...scope,requestId,intentHash:"5".repeat(64),contractVersion:"1",provider:"test",model:"test",maxAttempts:2,tokenBudget:1000n,costBudgetMicros:5000n,leaseOwner:targetLease!.leaseOwner,leaseSeconds:30}));
     expect(reservation).toMatchObject({attempt:1,fence:1n});
-    expect(await workerStore.withTenant(scope,(tx)=>tx.recordGenerationCall(scope,reservation!,{inputTokens:10n,outputTokens:20n,usedCostMicros:30n,retryable:false,success:true}))).toBe(true);
+    expect(await workerStore.withTenant(scope,(tx)=>tx.recordGenerationCall(scope,reservation!,{inputTokens:10n,outputTokens:20n,usedCostMicros:30n,retryable:false,success:true}))).toEqual({recorded:true,withinBudget:true});
     expect(await workerStore.withTenant(scope,(tx)=>tx.persistGeneratedCandidate(targetLease!,{requestId,artifact:{id:randomUUID(),artifactHash:generatedHash,schemaVersion:"1",canonicalBody:{recipeKey:candidate.recipeKey}},candidate,generationToken:reservation!}))).toBe(true);
     expect(await workerStore.withTenant(scope,(tx)=>tx.reserveGenerationCall({...scope,requestId,intentHash:"5".repeat(64),contractVersion:"1",provider:"test",model:"test",maxAttempts:2,tokenBudget:1000n,costBudgetMicros:5000n,leaseOwner:targetLease!.leaseOwner,leaseSeconds:30}))).toBeNull();
     const reuseCandidates=[randomUUID(),randomUUID()].map(id=>({...candidate,id}));

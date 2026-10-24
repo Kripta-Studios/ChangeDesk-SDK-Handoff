@@ -169,6 +169,7 @@ export type GenerationReservationResult=
   | {readonly state:"exhausted"};
 export interface GenerationUsage {readonly artifactId:string;readonly usedTokens:bigint;readonly usedCostMicros:bigint}
 export interface GenerationReservationToken {readonly reservationId:string;readonly fence:bigint}
+export interface GenerationCallRecordResult {readonly recorded:boolean;readonly withinBudget:boolean}
 export interface GenerationScope {readonly tenantId:string;readonly actorId:string}
 export interface GenerationCallReservationInput extends GenerationScope {
   readonly requestId:string;readonly intentHash:string;readonly contractVersion:"1";readonly provider:string;readonly model:string;

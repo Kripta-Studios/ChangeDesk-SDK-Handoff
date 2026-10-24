@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "recordedAt": "2026-10-24T15:09:30+02:00",
+  "database": "PostgreSQL 17.11",
+  "role": "changedesk_runtime (non-owner, NOSUPERUSER, NOBYPASSRLS)",
+  "fixtureRunId": "eb9a43d4-24f7-4722-9580-d8bbca8e0dc3",
+  "fixture": {
+    "authorizedArtifacts": 1000,
+    "authorization": "explicit recipient tenant grants with read/install rights",
+    "queryLimit": 20,
+    "adapter": "medusa-v2",
+    "capabilityContract": "1"
+  },
+  "before": {
+    "executionTimeMs": 141.939,
+    "sharedHitBlocks": 12274,
+    "artifactRowsVisited": 2045,
+    "authorizedRows": 1000,
+    "finding": "Sequential artifact scan evaluated the RLS grant subplan for 2,045 rows and a duplicate explicit grant subplan for 1,000 authorized rows before top-N sorting."
+  },
+  "after": {
+    "executionTimeMs": 29.914,
+    "sharedHitBlocks": 6186,
+    "sharedReadBlocks": 16,
+    "returnedRows": 20,
+    "improvementPercent": 78.93,
+    "finding": "The SECURITY DEFINER function validates live tenant/actor scope, materializes only owner or positive unexpired grant IDs, excludes inactive artifacts, limits to 20, then joins publication metadata."
+  },
+  "securityProperties": [
+    "No global-public artifact path was added.",
+    "Expired grants and security_revoked artifacts are excluded by real PostgreSQL tests.",
+    "Tenant and actor are read only from transaction-local settings and validated active before returning rows.",
+    "The caller receives only the existing catalog return columns; no grant rows or scheduler payloads are exposed."
+  ]
+}
