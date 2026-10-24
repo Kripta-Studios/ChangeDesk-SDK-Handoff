@@ -19,14 +19,18 @@
       "versionChangeBehavior": "BLOCKED_TOOL_ISOLATION"
     },
     "liveSchemaSmoke": {
-      "status": "passed",
+      "status": "blocked_invalid_recipe",
       "configuredModel": "gpt-6.1-sol",
       "observedModel": null,
       "price": null,
       "reasonPriceNull": "local subscription CLI does not surface a price",
-      "testDurationSeconds": 13.927,
-      "exactTokens": null,
-      "evidenceLimitation": "first successful smoke asserted reported input tokens > 0 but did not print the value; logging is now committed for the next bounded run"
+      "testDurationSeconds": 18.634,
+      "inputTokens": 11747,
+      "cachedInputTokens": 0,
+      "outputTokens": 294,
+      "reasoningOutputTokens": 64,
+      "providerLatencyMs": 11843.4114,
+      "evidenceLimitation": "transport and effective tool denial passed, but the candidate failed recipe JSON Schema and semantic acceptance; no executable recipe was accepted"
     }
   },
   "futureApiConfigurations": [
