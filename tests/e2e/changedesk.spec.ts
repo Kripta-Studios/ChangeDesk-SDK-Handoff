@@ -10,6 +10,9 @@ type Credentials = Record<string,{email:string;password:string}>;
 const hosts:Record<Tenant,string>={atlas:"http://127.0.0.1:9001",boreal:"http://127.0.0.1:9002"};
 const privateDir=resolve("examples/medusa/.local");
 const seedDir=resolve("evidence/local");
+const expectedProvider=process.env.CHANGEDESK_EXPECTED_PROVIDER??"live";
+if(expectedProvider!=="live"&&expectedProvider!=="fake") throw new Error("CHANGEDESK_EXPECTED_PROVIDER must be live or fake");
+const providerLabel=expectedProvider==="live"?"Proveedor real":"Proveedor simulado";
 
 function json<T>(path:string):T { if(!existsSync(path)) throw new Error(`E2E_BLOCKED_PRIVATE_FIXTURE: ${path.replace(privateDir,"examples/medusa/.local")}`); return JSON.parse(readFileSync(path,"utf8")) as T; }
 async function authenticate(page:Page,tenant:Tenant,role:Role) {
@@ -26,7 +29,7 @@ async function openSelection(page:Page,tenant:Tenant,map:SeedMap) {
 }
 async function preview(page:Page,tenant:Tenant,map:SeedMap) {
   await openSelection(page,tenant,map); await page.getByLabel("¿Qué necesitas cambiar?").fill("Añade la categoría y el canal de campaña conservando todas las asociaciones existentes.");
-  await page.getByRole("button",{name:"Buscar una función"}).click(); await expect(page.getByText("Proveedor real")).toBeVisible();
+  await page.getByRole("button",{name:"Buscar una función"}).click(); await expect(page.getByText(providerLabel)).toBeVisible();
   await page.getByRole("button",{name:/Usar esta función|Adaptar/}).first().click(); await page.getByLabel("Categoría").selectOption(map.categories.campaign); await page.getByLabel("Canal").selectOption(map.channels.campaign);
   const planResponse=page.waitForResponse(response=>response.request().method()==="GET"&&/\/v1\/plans\/[A-Za-z0-9._:-]+$/.test(new URL(response.url()).pathname)&&response.ok()); await page.getByRole("button",{name:"Preparar preview"}).click(); const summary=page.locator(".cd-summary"); await expect(summary).toContainText(/6[\s\S]*Adiciones reales/); await expect(summary).toContainText(/5[\s\S]*Elegibles/); await expect(summary).toContainText(/3[\s\S]*Excluidos/); return ((await (await planResponse).json()) as {plan:{artifactHash:string}}).plan.artifactHash;
 }
