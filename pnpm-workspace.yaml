@@ -1,0 +1,8 @@
+packages:
+  - apps/service
+  - packages/contracts
+  - packages/sdk-react
+  - packages/medusa-plugin
+
+allowBuilds:
+  esbuild: true
