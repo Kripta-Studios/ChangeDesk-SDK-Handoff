@@ -1,0 +1,9 @@
+{
+  "recordedAt": "2026-10-24T14:39:05+02:00",
+  "scope": "separate buyer ticket/session authority domain",
+  "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/buyer-auth.test.ts --pool=threads --maxWorkers=1",
+  "result": "failed_as_expected",
+  "summary": { "testsFailed": 2 },
+  "expectedFailure": "Existing storefront session stub returned buyer_session_not_implemented for valid exchange/authentication and typed rejection cases.",
+  "setupFailure": false
+}
