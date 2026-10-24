@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import type {
-  ApprovalRecord, AttemptIntent, AttemptRecord, AttemptState, CatalogArtifact, CatalogQuery, ExecutionAdmission, ExecutionBundle, ExecutionRecord, GenerationBundle, InstallationRecord, JobLease,
-  NewApproval, NewExecutionRow, NewPlan, NewRequest, PlanRecord, PublicationKey, PublicationRecord, RequestMessageRecord, RequestRecord, SessionRecord, TenantContext,
+  ApprovalRecord, AttemptIntent, AttemptRecord, AttemptState, CatalogArtifact, CatalogQuery, EffectClaimDecision, EvidenceRecord, ExecutionAdmission, ExecutionBundle, ExecutionRecord, GenerationBundle, InstallationRecord, JobLease,
+  NewApproval, NewExecutionRow, NewPlan, NewRequest, PlanRecord, PublicationKey, PublicationRecord, RequestCandidateRecord, RequestMessageRecord, RequestRecord, SessionRecord, TenantContext,
 } from "./types.js";
 
 export class StorageConflictError extends Error {
@@ -123,6 +123,45 @@ export class TenantTx {
         AND j.lease_owner=$4 AND j.fence=$5 AND j.status='leased'`,
       [this.context.tenantId,requestId,lease.jobId,lease.leaseOwner,lease.fence,state]);
     return result.rowCount===1;
+  }
+
+  async addRequestCandidates(lease:JobLease,requestId:string,candidates:readonly Omit<RequestCandidateRecord,"requestId"|"state"|"selectedChoice">[]):Promise<boolean> {
+    const result=await this.client.query<{valid:boolean}>(`WITH valid AS(
+      SELECT 1 FROM storage.jobs j WHERE j.id=$1 AND j.tenant_id=$2 AND j.request_id=$3 AND j.kind='generation'
+        AND j.status='leased' AND j.lease_owner=$4 AND j.fence=$5 AND j.lease_until>clock_timestamp()
+    ), input AS(
+      SELECT * FROM jsonb_to_recordset($6::jsonb) AS c(id text,version text,artifact_hash text,recipe_key text,display_name text,
+        required_capabilities jsonb,compatibility text,evidence_status text,estimated_cost jsonb,safe_metadata jsonb)
+    ), inserted AS(
+      INSERT INTO storage.request_candidates(tenant_id,request_id,id,version,artifact_hash,recipe_key,display_name,required_capabilities,
+        compatibility,evidence_status,estimated_cost,safe_metadata)
+      SELECT $2,$3,c.id,c.version,c.artifact_hash,c.recipe_key,c.display_name,c.required_capabilities,c.compatibility,c.evidence_status,c.estimated_cost,c.safe_metadata
+      FROM input c,valid ON CONFLICT(tenant_id,request_id,id,version) DO NOTHING RETURNING 1
+    ) SELECT EXISTS(SELECT 1 FROM valid) valid`,[lease.jobId,this.context.tenantId,requestId,lease.leaseOwner,lease.fence,JSON.stringify(candidates.map(candidateDbInput))]);
+    return result.rows[0]?.valid===true;
+  }
+
+  async listRequestCandidates(requestId:string):Promise<RequestCandidateRecord[]> {
+    const result=await this.client.query<CandidateRow>(`SELECT id,request_id,version,artifact_hash,recipe_key,display_name,required_capabilities,
+      compatibility,evidence_status,estimated_cost,safe_metadata,state,selected_choice FROM storage.request_candidates
+      WHERE tenant_id=$1 AND request_id=$2 ORDER BY created_at,id`,[this.context.tenantId,requestId]);
+    return result.rows.map(candidateRecord);
+  }
+
+  async selectRequestCandidate(input:{requestId:string;candidateId:string;version:string;choice:"reuse"|"adapt";idempotencyKey:string;requestHash:string}):Promise<RequestCandidateRecord|null> {
+    const replay=await this.reserveIdempotency("requests.candidate.select",input.idempotencyKey,input.requestHash);
+    if(replay) {
+      const rows=await this.listRequestCandidates(input.requestId);
+      return rows.find(candidate=>candidate.id===replay && candidate.version===input.version) ?? null;
+    }
+    await this.client.query("UPDATE storage.request_candidates SET state='offered',selected_choice=NULL,selected_at=NULL WHERE tenant_id=$1 AND request_id=$2 AND state='selected'",[this.context.tenantId,input.requestId]);
+    const result=await this.client.query<CandidateRow>(`UPDATE storage.request_candidates SET state='selected',selected_choice=$5,selected_at=clock_timestamp()
+      WHERE tenant_id=$1 AND request_id=$2 AND id=$3 AND version=$4 AND compatibility<>'incompatible'
+      RETURNING id,request_id,version,artifact_hash,recipe_key,display_name,required_capabilities,compatibility,evidence_status,estimated_cost,safe_metadata,state,selected_choice`,
+      [this.context.tenantId,input.requestId,input.candidateId,input.version,input.choice]);
+    if(result.rowCount!==1) return null;
+    await this.bindIdempotency("requests.candidate.select",input.idempotencyKey,input.candidateId);
+    return candidateRecord(result.rows[0]!);
   }
 
   async createPlan(input: NewPlan): Promise<PlanRecord> {
@@ -366,6 +405,7 @@ export class TenantTx {
       revoked_at=CASE WHEN $2='security_revoked' THEN clock_timestamp() ELSE revoked_at END
       WHERE id=$1 AND publisher_tenant_id=$3 AND publisher_actor_id=$4 RETURNING *`,[id,state,this.context.tenantId,this.context.actorId]);
     if(result.rowCount!==1) return null;
+    if(state==="security_revoked") await this.client.query("UPDATE storage.recipe_artifacts SET state='security_revoked' WHERE id=$1 AND owner_tenant_id=$2",[result.rows[0]!.artifact_id,this.context.tenantId]);
     await this.bindIdempotency(operation,control.idempotencyKey,id);
     return publicationRecord(result.rows[0]!);
   }
@@ -450,6 +490,12 @@ export class TenantTx {
       VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[input.id,this.context.tenantId,input.artifactHash,input.environmentDigest,input.suiteVersion,input.status,input.artifactRefs,input.privacyScope]);
   }
 
+  async getEvidence(id:string):Promise<EvidenceRecord|null> {
+    const result=await this.client.query<EvidenceRow>(`SELECT id,status,artifact_hash,environment_digest,suite_version,privacy_scope,created_at
+      FROM storage.evidence_bundles WHERE id=$1`,[id]);
+    return result.rowCount===1?evidenceRecord(result.rows[0]!):null;
+  }
+
   async recordAttemptIntent(lease:JobLease,input:AttemptIntent):Promise<AttemptRecord|null> {
     const result=await this.client.query<AttemptRow>(`WITH valid AS (
       SELECT 1 FROM storage.jobs j WHERE j.id=$9 AND j.tenant_id=$1 AND j.execution_id=$2 AND j.status='leased'
@@ -477,6 +523,37 @@ export class TenantTx {
       RETURNING a.idempotency_key,a.attempt_no,a.state,a.receipt_ref,a.observation_ref,a.error_code,false inserted`,
       [this.context.tenantId,input.executionId,input.rowId,input.stepId,input.attemptNo,input.semanticInputHash,input.operationKey,lease.fence,lease.jobId,lease.leaseOwner]);
     return result.rowCount===1?attemptRecord(result.rows[0]!):null;
+  }
+
+  async authorizeEffectClaim(input:{executionId:string;planHash:string;planVersion:number;approvalId:string;operationKey:string;jobId:string;leaseOwner:string;fence:number;hostSessionId:string;policyVersion:string}):Promise<EffectClaimDecision> {
+    const result=await this.client.query<EffectClaimRow>(`SELECT e.id execution_id,e.approval_id,p.plan_hash,p.plan_version,e.actor_id,
+      a.host_session_id,t.policy_version
+      FROM storage.executions e
+      JOIN storage.plans p ON p.tenant_id=e.tenant_id AND p.id=e.plan_id AND p.plan_version=e.plan_version
+      JOIN storage.approvals a ON a.tenant_id=e.tenant_id AND a.id=e.approval_id
+      JOIN storage.sessions s ON s.tenant_id=e.tenant_id AND s.id=a.host_session_id AND s.actor_id=e.actor_id
+      JOIN storage.actors ac ON ac.tenant_id=e.tenant_id AND ac.actor_id=e.actor_id
+      JOIN storage.tenants t ON t.id=e.tenant_id
+      JOIN storage.recipe_artifacts ra ON ra.artifact_hash=p.artifact_hash
+      LEFT JOIN storage.installations i ON i.tenant_id=p.tenant_id AND i.id=p.installation_id
+      JOIN storage.jobs j ON j.tenant_id=e.tenant_id AND j.execution_id=e.id
+      JOIN storage.step_attempts sa ON sa.tenant_id=e.tenant_id AND sa.execution_id=e.id
+      WHERE e.tenant_id=$1 AND e.actor_id=$2 AND e.id=$3 AND e.state='running'
+        AND p.plan_hash=$4 AND p.plan_version=$5 AND p.state='ready' AND p.expires_at>clock_timestamp()
+        AND p.policy_version=$12 AND t.policy_version=$12 AND t.status='active'
+        AND a.id=$6 AND a.plan_hash=p.plan_hash AND a.plan_version=p.plan_version AND a.actor_id=e.actor_id
+        AND a.consumed_execution_id=e.id AND a.expires_at>clock_timestamp() AND a.host_session_id=$10
+        AND s.id=$10 AND s.policy_version=$12 AND s.expires_at>clock_timestamp() AND s.revoked_at IS NULL
+        AND ac.state='enabled' AND ac.last_policy_version=$12
+        AND ra.state<>'security_revoked' AND (p.installation_id IS NULL OR i.status='active')
+        AND NOT EXISTS(SELECT 1 FROM storage.publications revoked WHERE revoked.artifact_hash=p.artifact_hash AND revoked.state='security_revoked')
+        AND j.id=$8 AND j.lease_owner=$9 AND j.fence=$11 AND j.status='leased' AND j.lease_until>clock_timestamp()
+        AND sa.idempotency_key=$7 AND sa.fence=$11 AND sa.state='intent_recorded'
+      LIMIT 1`,
+      [this.context.tenantId,this.context.actorId,input.executionId,input.planHash,input.planVersion,input.approvalId,input.operationKey,input.jobId,input.leaseOwner,input.hostSessionId,input.fence,input.policyVersion]);
+    if(result.rowCount!==1) return {authorized:false,reasonCode:"claim_invalid"};
+    const row=result.rows[0]!;
+    return {authorized:true,executionId:row.execution_id,approvalId:row.approval_id,planHash:row.plan_hash,planVersion:row.plan_version,actorId:row.actor_id,hostSessionId:row.host_session_id,policyVersion:row.policy_version};
   }
 
   async transitionAttempt(lease:JobLease,input:AttemptIntent,state:Exclude<AttemptState,"intent_recorded">,receiptRef?:string,observationRef?:string,errorCode?:string):Promise<boolean> {
@@ -522,6 +599,7 @@ export class TenantTx {
 interface RequestRow extends QueryResultRow { id:string;actor_id:string;state:RequestRecord["state"];created_at:Date }
 interface MessageRow extends QueryResultRow { id:string;request_id:string;actor_id:string;client_request_id:string;redacted_text:string;created_at:Date }
 interface GenerationBundleRow extends QueryResultRow { id:string;actor_id:string;redacted_text:string;context_ref:GenerationBundle["request"]["contextRef"];budget:GenerationBundle["request"]["budget"];state:RequestRecord["state"];created_at:Date;policy_version:string;backend_key:string;manifest_id:string;manifest_hash:string;adapter_version:string;manifest_body:GenerationBundle["capabilityManifest"]["body"] }
+interface CandidateRow extends QueryResultRow { id:string;request_id:string;version:string;artifact_hash:string|null;recipe_key:string;display_name:string;required_capabilities:string[];compatibility:RequestCandidateRecord["compatibility"];evidence_status:RequestCandidateRecord["evidenceStatus"];estimated_cost:RequestCandidateRecord["estimatedCost"];safe_metadata:RequestCandidateRecord["safeMetadata"];state:RequestCandidateRecord["state"];selected_choice:RequestCandidateRecord["selectedChoice"] }
 interface PlanRow extends QueryResultRow { id:string;actor_id:string;plan_version:number;plan_hash:string;state:PlanRecord["state"];expires_at:Date }
 interface ApprovalRow extends QueryResultRow { id:string;plan_id:string;plan_version:number;plan_hash:string;actor_id:string;host_session_id:string|null;expires_at:Date;consumed_execution_id:string|null }
 interface ExecutionRow extends QueryResultRow { id:string;plan_id:string;plan_version:number;approval_id:string;actor_id:string;prior_execution_id:string|null;state:ExecutionRecord["state"];revision:string|number }
@@ -533,9 +611,13 @@ interface InstallationRow extends QueryResultRow { id:string;artifact_id:string;
 interface KeyRow extends QueryResultRow { id:string;algorithm:"Ed25519";public_key:Buffer;status:string }
 interface SessionRow extends QueryResultRow { id:string;actor_id:string;ticket_id:string;policy_version:string;expires_at:Date }
 interface AttemptRow extends QueryResultRow { idempotency_key:string;attempt_no:number;state:AttemptState;receipt_ref:string|null;observation_ref:string|null;error_code:string|null;inserted:boolean }
+interface EffectClaimRow extends QueryResultRow { execution_id:string;approval_id:string;plan_hash:string;plan_version:number;actor_id:string;host_session_id:string;policy_version:string }
+interface EvidenceRow extends QueryResultRow { id:string;status:EvidenceRecord["status"];artifact_hash:string;environment_digest:string;suite_version:string;privacy_scope:EvidenceRecord["privacyScope"];created_at:Date }
 function one<T extends QueryResultRow>(result:{rowCount:number|null;rows:T[]}):T { if(result.rowCount!==1) throw new StorageInvariantError("Expected exactly one row"); return result.rows[0]!; }
 const requestRecord=(r:RequestRow):RequestRecord=>({id:r.id,actorId:r.actor_id,state:r.state,createdAt:r.created_at});
 const messageRecord=(r:MessageRow):RequestMessageRecord=>({id:r.id,requestId:r.request_id,actorId:r.actor_id,clientRequestId:r.client_request_id,redactedText:r.redacted_text,createdAt:r.created_at});
+const candidateRecord=(r:CandidateRow):RequestCandidateRecord=>({id:r.id,requestId:r.request_id,version:r.version,artifactHash:r.artifact_hash,recipeKey:r.recipe_key,displayName:r.display_name,requiredCapabilities:r.required_capabilities,compatibility:r.compatibility,evidenceStatus:r.evidence_status,estimatedCost:r.estimated_cost,safeMetadata:r.safe_metadata,state:r.state,selectedChoice:r.selected_choice});
+const candidateDbInput=(c:Omit<RequestCandidateRecord,"requestId"|"state"|"selectedChoice">)=>({id:c.id,version:c.version,artifact_hash:c.artifactHash,recipe_key:c.recipeKey,display_name:c.displayName,required_capabilities:c.requiredCapabilities,compatibility:c.compatibility,evidence_status:c.evidenceStatus,estimated_cost:c.estimatedCost,safe_metadata:c.safeMetadata});
 const planRecord=(r:PlanRow):PlanRecord=>({id:r.id,actorId:r.actor_id,planVersion:r.plan_version,planHash:r.plan_hash,state:r.state,expiresAt:r.expires_at});
 const approvalRecord=(r:ApprovalRow):ApprovalRecord=>({id:r.id,planId:r.plan_id,planVersion:r.plan_version,planHash:r.plan_hash,actorId:r.actor_id,hostSessionId:r.host_session_id,expiresAt:r.expires_at,consumedExecutionId:r.consumed_execution_id});
 const executionRecord=(r:ExecutionRow):ExecutionRecord=>({id:r.id,planId:r.plan_id,planVersion:r.plan_version,approvalId:r.approval_id,actorId:r.actor_id,priorExecutionId:r.prior_execution_id,state:r.state,revision:Number(r.revision)});
@@ -543,3 +625,4 @@ const catalogRecord=(r:CatalogRow):CatalogArtifact=>({id:r.id,ownerTenantId:r.ow
 const publicationRecord=(r:PublicationRow):PublicationRecord=>({id:r.id,publisherTenantId:r.publisher_tenant_id,publisherActorId:r.publisher_actor_id,artifactId:r.artifact_id,artifactHash:r.artifact_hash,signingKeyId:r.signing_key_id,signature:r.signature,visibility:r.visibility,state:r.state,reviewedMetadata:r.reviewed_metadata});
 const installationRecord=(r:InstallationRow):InstallationRecord=>({id:r.id,artifactId:r.artifact_id,artifactHash:r.artifact_hash,status:r.status,policyVersion:r.policy_version});
 const attemptRecord=(r:AttemptRow):AttemptRecord=>({operationKey:r.idempotency_key,attemptNo:r.attempt_no,state:r.state,receiptRef:r.receipt_ref,observationRef:r.observation_ref,errorCode:r.error_code,inserted:r.inserted});
+const evidenceRecord=(r:EvidenceRow):EvidenceRecord=>({id:r.id,status:r.status,artifactHash:r.artifact_hash,environmentDigest:r.environment_digest,suiteVersion:r.suite_version,privacyScope:r.privacy_scope,createdAt:r.created_at});
