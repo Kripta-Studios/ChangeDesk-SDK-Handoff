@@ -1,7 +1,7 @@
 import { batchLinkProductsToCategoryWorkflow, linkProductsToSalesChannelWorkflow } from "@medusajs/core-flows"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { BridgeError } from "./errors.ts"
-import { protectedProductFingerprint, type ProtectedProduct } from "./protected-state.ts"
+import { productStepPreconditionFingerprint, protectedProductFingerprint, type ProtectedProduct } from "./protected-state.ts"
 import type { BridgeCommand, EffectDelegationClaims } from "./types.ts"
 import type { ActorPolicy } from "./types.ts"
 import { readActorPolicy } from "./actor.ts"
@@ -141,7 +141,7 @@ export const executeEffect = async (scope: Scope, command: BridgeCommand, claims
     }
 
     const before = await getProduct(scope, productId)
-    if (before.protectedDigest !== claims.preconditions.preconditionFingerprint) {
+    if (productStepPreconditionFingerprint(before) !== claims.preconditions.preconditionFingerprint) {
       throw new BridgeError(409, "precondition_failed", "Protected product state changed after approval")
     }
     if (before.status !== "published" || before.metadata?.changedesk_locked === true) {

@@ -39,6 +39,14 @@ export const sha256ProtectedState = (value: unknown) =>
     .update(stableJson(value), "utf8")
     .digest("hex")
 
+export const sha256StepPrecondition = (value: unknown) =>
+  createHash("sha256")
+    .update("changedesk\0medusa-step-precondition\0", "utf8")
+    .update("1", "utf8")
+    .update("\0", "utf8")
+    .update(stableJson(value), "utf8")
+    .digest("hex")
+
 export const importPrivateKey = (pem: string): KeyObject => createPrivateKey(pem)
 export const importPublicKey = (pem: string): KeyObject => createPublicKey(pem)
 
