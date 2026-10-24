@@ -1,4 +1,5 @@
 export * from "./api-provider.js";
+export * from "./bootstrap.js";
 export * from "./catalog-repository.js";
 export * from "./catalog.js";
 export * from "./codex-cli-provider.js";
