@@ -3,18 +3,18 @@
   "command": "vite build; CHANGEDESK_ALL_IN=1 vite build; node zlib.gzipSync per emitted JS/CSS file",
   "status": "PASS",
   "peerExternalized": {
-    "launcher": { "javascriptGzipBytes": 3084, "cssGzipBytes": 0, "totalGzipBytes": 3084, "limitGzipBytes": 15360 },
-    "lazyPanel": { "javascriptGzipBytes": 9220, "cssGzipBytes": 0, "totalGzipBytes": 9220, "limitGzipBytes": 153600 }
+    "launcher": { "javascriptGzipBytes": 3338, "cssGzipBytes": 0, "totalGzipBytes": 3338, "limitGzipBytes": 15360 },
+    "lazyPanel": { "javascriptGzipBytes": 9219, "cssGzipBytes": 0, "totalGzipBytes": 9219, "limitGzipBytes": 153600 }
   },
   "allInDiagnostic": {
     "includedPeerModules": ["react", "react/jsx-runtime"],
     "reactDomImportedBySdk": false,
-    "sharedReactAndLauncherGzipBytes": 21780,
+    "sharedReactAndLauncherGzipBytes": 22050,
     "launcherStubGzipBytes": 210,
     "launcherCssGzipBytes": 0,
-    "lazyPanelJavascriptGzipBytes": 9197,
+    "lazyPanelJavascriptGzipBytes": 9198,
     "lazyPanelCssGzipBytes": 0,
-    "aggregateEmittedGzipBytes": 31187
+    "aggregateEmittedGzipBytes": 31458
   },
   "notes": [
     "React and react-dom are peer dependencies in the accepted SDK build.",
