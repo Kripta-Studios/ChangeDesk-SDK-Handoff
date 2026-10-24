@@ -1,0 +1,48 @@
+{
+  "recordedAt": "2026-10-24T14:52:00+02:00",
+  "scope": "storefront SDK mock/DOM and package build; not Medusa E2E",
+  "environment": {
+    "node": "22.23.4",
+    "vitest": "4.0.16",
+    "vite": "7.3.7",
+    "typescript": "5.9.3",
+    "dependencySource": ".worktrees/environment/node_modules (existing, no install)"
+  },
+  "checks": [
+    {
+      "command": "vitest run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx",
+      "status": "passed",
+      "result": "2 files, 10 tests passed"
+    },
+    {
+      "command": "tsc -p packages/sdk-react/tsconfig.json --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "vite build (cwd packages/sdk-react)",
+      "status": "passed",
+      "result": "dist/index.js 5.55 kB (2.16 gzip); dist/storefront.js 18.11 kB (5.13 gzip); dist/storefront.css 5.89 kB (1.67 gzip)"
+    },
+    {
+      "command": "tsc -p packages/sdk-react/tsconfig.json --emitDeclarationOnly",
+      "status": "passed",
+      "result": "dist/storefront/index.d.ts imports public @changedesk/contracts"
+    },
+    {
+      "command": "node import('./packages/sdk-react/dist/storefront.js')",
+      "status": "passed",
+      "result": "StorefrontAdminPanel, StorefrontAdminReview, StorefrontApiError, StorefrontPreferencesPanel, StorefrontProvider, StorefrontRoot, createStorefrontAdminClient, createStorefrontClient, useStorefront"
+    }
+  ],
+  "covered": [
+    "fixed HTTPS/localhost endpoint and memory-only short session cache",
+    "buyer/admin API separation, exact route/body mapping and UUID idempotency",
+    "closed response parsing and uniform 409 surface",
+      "clearSession direct invalidation plus sessionKey abort, visible state clearing and late-response rejection",
+      "partial overrides use explicit inherited globals, complete proposal values and explicit save/reset/propose",
+    "theme, density and grid/list consumption by opt-in root",
+    "admin current-to-proposed review, precedence notice, explicit approve/reject",
+    "keyboard labels, focus path, live status and error roles"
+  ],
+  "notClaimed": ["Medusa real E2E", "live customer auth", "PostgreSQL/RLS", "production security certification"]
+}

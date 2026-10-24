@@ -1,0 +1,11 @@
+{
+  "recordedAt": "2026-10-24T14:42:00+02:00",
+  "scope": "buyer/admin storefront SDK transport, session isolation and React UI",
+  "command": "Node 22.23.4; vitest 4.0.16 run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx",
+  "result": "failed_as_expected",
+  "behaviorFailures": {
+    "client": "4/4 failed against deliberate 501 stubs: PUT/idempotency/409, clearSession race, endpoint+closed response validation, buyer/admin route separation",
+    "ui": "stub components lacked controls, consuming root and administrator preview"
+  },
+  "environmentObservation": "The first combined rerun also found the ancestor repository node_modules missing dom-accessibility-api/dist/polyfills/SetLike. Subsequent authoritative runs used the already provisioned .worktrees/environment node_modules junction; no dependency was installed or upgraded."
+}

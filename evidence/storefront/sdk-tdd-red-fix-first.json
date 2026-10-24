@@ -1,0 +1,18 @@
+{
+  "recordedAt": "2026-10-24T15:02:00+02:00",
+  "scope": "review-discovered inheritance and same-client logout defects",
+  "command": "vitest run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx",
+  "result": "failed_as_expected",
+  "firstRun": {
+    "tests": "2 failed, 7 passed",
+    "failures": [
+      "createStorefrontClient had no subscribeSessionInvalidation contract",
+      "StorefrontProvider retained visible preferences after clearSession() on the same client"
+    ]
+  },
+  "secondRunAfterADR_SF_004": {
+    "tests": "1 failed, 9 passed",
+    "failure": "removing an existing dark personal override previewed effective=dark instead of inherited global=light"
+  },
+  "resolutionTarget": "client invalidation listener plus provider epoch/abort; parse inherited and derive preview as inherited merged with draft overrides"
+}
