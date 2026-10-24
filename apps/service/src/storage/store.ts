@@ -423,7 +423,10 @@ export class TenantTx {
        JOIN storage.approvals a ON a.tenant_id=e.tenant_id AND a.id=e.approval_id
        JOIN storage.actors ac ON ac.tenant_id=e.tenant_id AND ac.actor_id=e.actor_id
        LEFT JOIN storage.installations i ON i.tenant_id=p.tenant_id AND i.id=p.installation_id
-       LEFT JOIN storage.recipe_artifacts ra ON ra.id=i.artifact_id
+       LEFT JOIN storage.recipe_artifacts ra ON (
+         (p.installation_id IS NULL AND ra.owner_tenant_id=p.tenant_id AND ra.artifact_hash=p.artifact_hash)
+         OR (p.installation_id IS NOT NULL AND ra.id=i.artifact_id)
+       )
        WHERE e.tenant_id=$1 AND e.id=$2`, [this.context.tenantId, executionId],
     );
     if (head.rowCount !== 1) return null;

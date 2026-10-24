@@ -23,12 +23,23 @@ describe("StorageRuntimeAdapter", () => {
       execution: { id: "e", plan_id: "p", state: "running" },
       plan: { installation_id: null, body: { perRecordEffects: [] }, plan_hash: "a".repeat(64), policy_version: "pv" },
       approval: { id: "ap", actor_id: "actor", host_session_id: "hs", expires_at: new Date("2099-01-01T00:00:00Z"), plan_hash: "a".repeat(64) },
-      actor: { state: "enabled" }, installation: null, artifact: null, attempts: [],
+      actor: { state: "enabled" }, installation: null, artifact: { state: "private" }, attempts: [],
     };
     const store = { withTenant: vi.fn(async (_scope, work) => work({ loadExecutionBundle: vi.fn().mockResolvedValue(raw) })) };
     const adapter = new StorageRuntimeAdapter(store as any, {} as any, { workerActorId: "worker", leaseSeconds: 30, globalCap: 1 });
     const lease: JobLease = { jobId: "j", tenantId: "atlas", actorId: "actor", backendKey: "atlas", kind: "execution", executionId: "e", leaseOwner: "w", fence: 1, leaseUntil: "2099-01-01T00:00:00Z", attemptCount: 1 };
 
     await expect(adapter.loadExecutionBundle(lease)).resolves.toMatchObject({ authority: { artifactState: "active" } });
+  });
+
+  it("fails closed when a direct plan has no concrete artifact row", async () => {
+    const raw = {
+      execution: { id: "e", plan_id: "p", state: "running" }, plan: { installation_id: null, body: { perRecordEffects: [] }, plan_hash: "a".repeat(64), policy_version: "pv" },
+      approval: { id: "ap", actor_id: "actor", host_session_id: "hs", expires_at: new Date("2099-01-01T00:00:00Z"), plan_hash: "a".repeat(64) }, actor: { state: "enabled" }, installation: null, artifact: null, attempts: [],
+    };
+    const store = { withTenant: vi.fn(async (_scope, work) => work({ loadExecutionBundle: vi.fn().mockResolvedValue(raw) })) };
+    const adapter = new StorageRuntimeAdapter(store as any, {} as any, { workerActorId: "worker", leaseSeconds: 30, globalCap: 1 });
+    const lease: JobLease = { jobId: "j", tenantId: "atlas", actorId: "actor", backendKey: "atlas", kind: "execution", executionId: "e", leaseOwner: "w", fence: 1, leaseUntil: "2099-01-01T00:00:00Z", attemptCount: 1 };
+    await expect(adapter.loadExecutionBundle(lease)).rejects.toThrow(/artifact state/);
   });
 });

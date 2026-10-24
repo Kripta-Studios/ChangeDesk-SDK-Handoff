@@ -85,10 +85,8 @@ function mapBundle(raw: any): ExecutionBundle {
   const pendingEffects = effects.filter((effect: any) => !attempts.some((a: any) => a.row_id === effect.recordId && a.step_id === effect.stepId && ["sent", "unknown", "confirmed", "no_effect"].includes(a.state)));
   const hostSessionId = raw.approval.host_session_id ?? raw.actor.host_session_id;
   if (typeof hostSessionId !== "string" || !hostSessionId) throw new Error("Execution authority lacks host session binding");
-  // A plan without an installation is the actor-private preview path. Admission and the
-  // JIT claim query bind it to an authorized, non-revoked tenant artifact; there is no
-  // installation row whose status can represent that state.
-  const artifactState = raw.installation?.status ?? (raw.plan.installation_id == null ? "active" : raw.artifact?.state);
+  const persistedArtifactState = raw.artifact?.state;
+  const artifactState = raw.installation?.status ?? (["private", "published"].includes(persistedArtifactState) ? "active" : persistedArtifactState);
   if (!["active", "withdrawn", "security_revoked", "disabled"].includes(artifactState)) throw new Error("Execution authority lacks artifact state");
   const rows = (raw.rows ?? []).map((row: any) => ({ rowId: row.row_id ?? row.rowId, state: row.state }));
   return { execution, plan: { ...plan, planHash: raw.plan.plan_hash ?? raw.plan.planHash }, approval: { id: raw.approval.id, actorId: raw.approval.actor_id ?? raw.approval.actorId, expiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString(), planHash: raw.approval.plan_hash ?? raw.approval.planHash }, authority: { actorEnabled: raw.actor.state === "enabled", hostSessionId, policyVersion: raw.plan.policy_version ?? plan.policyVersion, artifactState, approvalExpiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString() }, pendingEffects, unknownEffects, rows };
