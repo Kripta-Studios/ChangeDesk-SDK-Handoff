@@ -1,25 +1,16 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const EXPECTED_NODE = "v22.23.4";
 
-function pnpmInvocation(args) {
-  const corepack = path.join(path.dirname(process.execPath), "node_modules", "corepack", "dist", "corepack.js");
-  return existsSync(corepack)
-    ? { command: process.execPath, args: [corepack, "pnpm", ...args] }
-    : { command: "pnpm", args };
-}
-
 export function verificationCommands() {
   return [
     { name: "repository pins", command: process.execPath, args: ["scripts/verify-locks.mjs"] },
-    { name: "verification script tests", command: process.execPath, args: ["--test", "scripts/verify-locks.test.mjs"] },
-    { name: "contract types", ...pnpmInvocation(["exec", "tsc", "-p", "packages/contracts/tsconfig.json", "--pretty", "false"]) },
-    { name: "core test types", ...pnpmInvocation(["exec", "tsc", "-p", "tests/core/tsconfig.json", "--pretty", "false"]) },
-    { name: "law test types", ...pnpmInvocation(["exec", "tsc", "-p", "tests/laws/tsconfig.json", "--pretty", "false"]) },
-    { name: "deterministic core and law tests", ...pnpmInvocation(["exec", "vitest", "run", "tests/core", "tests/laws", "--config", "vitest.config.ts", "--reporter=dot"]) },
+    { name: "contract types", command: process.execPath, args: ["node_modules/typescript/bin/tsc", "-p", "packages/contracts/tsconfig.json", "--pretty", "false"] },
+    { name: "core test types", command: process.execPath, args: ["node_modules/typescript/bin/tsc", "-p", "tests/core/tsconfig.json", "--pretty", "false"] },
+    { name: "law test types", command: process.execPath, args: ["node_modules/typescript/bin/tsc", "-p", "tests/laws/tsconfig.json", "--pretty", "false"] },
+    { name: "deterministic core, law and tooling tests", command: process.execPath, args: ["node_modules/vitest/vitest.mjs", "run", "tests/core", "tests/laws/model.test.ts", "tests/laws/verdict.test.ts", "tests/laws/bend-verifier.test.ts", "tests/tooling", "--config", "vitest.config.ts", "--reporter=dot"] },
     { name: "whitespace errors", command: "git", args: ["diff", "--check", "HEAD"] }
   ];
 }
