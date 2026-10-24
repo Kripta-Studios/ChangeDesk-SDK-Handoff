@@ -26,7 +26,7 @@ async function openSelection(page:Page,tenant:Tenant,map:SeedMap) {
 }
 async function preview(page:Page,tenant:Tenant,map:SeedMap) {
   await openSelection(page,tenant,map); await page.getByLabel("¿Qué necesitas cambiar?").fill("Añade la categoría y el canal de campaña conservando todas las asociaciones existentes.");
-  await page.getByRole("button",{name:"Buscar una función"}).click(); await expect(page.getByText(/Proveedor (simulado|real|no disponible)/)).toBeVisible();
+  await page.getByRole("button",{name:"Buscar una función"}).click(); await expect(page.getByText("Proveedor real")).toBeVisible();
   await page.getByRole("button",{name:/Usar esta función|Adaptar/}).first().click(); await page.getByLabel("Categoría").selectOption(map.categories.campaign); await page.getByLabel("Canal").selectOption(map.channels.campaign);
   await page.getByRole("button",{name:"Preparar preview"}).click(); const summary=page.locator(".cd-summary"); await expect(summary).toContainText(/6[\s\S]*Adiciones reales/); await expect(summary).toContainText(/5[\s\S]*Elegibles/); await expect(summary).toContainText(/3[\s\S]*Excluidos/);
 }
