@@ -29,7 +29,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
   beforeAll(async () => { await runMigrations(migrator, migrationsDirectory); });
   afterAll(async () => { await Promise.all([migrator.end(), runtimePool.end(), workerPool.end()]); });
 
-  it("exchanges a ticket and reaches terminal execution rows through durable jobs", async () => {
+  it.each(["direct", "installation"] as const)("exchanges a ticket and executes the %s plan path through durable jobs", async (planPath) => {
     const tenantId = `runtime-${randomUUID()}`, actorId = "admin-operator", hostSessionId = randomUUID();
     await seedTenant(tenantId, actorId);
     const capabilities = ["medusa.products.list", "medusa.products.retrieve", "medusa.product_categories.retrieve", "medusa.sales_channels.retrieve", "medusa.product_categories.products.add", "medusa.sales_channels.products.add"];
@@ -70,7 +70,13 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     const selected = await post(app, `/v1/requests/${requestId}/candidate`, authorization, { candidateId: candidate.id, version: candidate.version, choice: "reuse" });
     expect(selected.statusCode).toBe(200);
 
-    const planCreated = await post(app, "/v1/plans", authorization, { requestId, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
+    let planSource: { requestId: string } | { installationId: string } = { requestId };
+    if (planPath === "installation") {
+      const installed = await post(app, "/v1/installations", authorization, { artifactHash: candidate.artifactHash, configuration: { categoryId: "category-1" } });
+      expect(installed.statusCode).toBe(200);
+      planSource = { installationId: installed.json().installationId };
+    }
+    const planCreated = await post(app, "/v1/plans", authorization, { ...planSource, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
     expect(planCreated.statusCode).toBe(200);
     const planView = await app.inject({ method: "GET", url: `/v1/plans/${planCreated.json().planId}`, headers: readHeaders(authorization) });
     expect(planView.statusCode).toBe(200);
@@ -94,7 +100,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     // and a fresh worker must complete the same durable execution exactly once.
     const [abandoned] = await jobs.claimNext({ workerId: "crashed-worker", leaseSeconds: 5, globalCap: 2, limit: 1 });
     expect(abandoned?.executionId).toBe(execution.json().executionId);
-    await expireLease(abandoned!.jobId);
+    await expireLease(tenantId, actorId, abandoned!.jobId);
     expect(await adapter.recoverOrphanedLeases(1)).toBe(1);
     await runWorkerUntil(worker, async () => (await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.getExecution(execution.json().executionId)))?.state === "succeeded", "execution");
 
@@ -104,14 +110,17 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     expect(connector.executeAuthorized).toHaveBeenCalledOnce();
 
     // Cancellation is durable and prevents the queued ledger from sending effects.
-    const cancelledPlanResponse = await post(app, "/v1/plans", authorization, { requestId, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
+    const cancelledPlanResponse = await post(app, "/v1/plans", authorization, { ...planSource, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
     expect(cancelledPlanResponse.statusCode).toBe(200);
     const cancelledPlanView = await app.inject({ method: "GET", url: `/v1/plans/${cancelledPlanResponse.json().planId}`, headers: readHeaders(authorization) });
+    expect(cancelledPlanView.statusCode).toBe(200);
     const cancelledPlan = cancelledPlanView.json().plan;
     const cancelledApprovalKey = randomUUID();
     const cancelledApproval = await post(app, "/v1/approvals", authorization, { planId: cancelledPlan.id, planHash: cancelledPlan.planHash, expectedPlanVersion: cancelledPlan.planVersion, idempotencyKey: cancelledApprovalKey }, cancelledApprovalKey);
+    expect(cancelledApproval.statusCode).toBe(200);
     const cancelledExecutionKey = randomUUID();
     const cancelledExecution = await post(app, "/v1/executions", authorization, { approvalId: cancelledApproval.json().approvalId, idempotencyKey: cancelledExecutionKey }, cancelledExecutionKey);
+    expect(cancelledExecution.statusCode).toBe(200);
     const cancelKey = randomUUID();
     const cancelled = await post(app, `/v1/executions/${cancelledExecution.json().executionId}/cancel`, authorization, {}, cancelKey);
     expect(cancelled.statusCode).toBe(200);
@@ -120,14 +129,18 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
 
     // Authority is checked by the worker, not only at admission. Expiration after
     // admission prevents effects, and resume cannot revive the stale approval.
-    const expiredPlanResponse = await post(app, "/v1/plans", authorization, { requestId, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
+    const expiredPlanResponse = await post(app, "/v1/plans", authorization, { ...planSource, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
+    expect(expiredPlanResponse.statusCode).toBe(200);
     const expiredPlanView = await app.inject({ method: "GET", url: `/v1/plans/${expiredPlanResponse.json().planId}`, headers: readHeaders(authorization) });
+    expect(expiredPlanView.statusCode).toBe(200);
     const expiredPlan = expiredPlanView.json().plan;
     const expiredApprovalKey = randomUUID();
     const expiredApproval = await post(app, "/v1/approvals", authorization, { planId: expiredPlan.id, planHash: expiredPlan.planHash, expectedPlanVersion: expiredPlan.planVersion, idempotencyKey: expiredApprovalKey }, expiredApprovalKey);
+    expect(expiredApproval.statusCode).toBe(200);
     const expiredExecutionKey = randomUUID();
     const expiredExecution = await post(app, "/v1/executions", authorization, { approvalId: expiredApproval.json().approvalId, idempotencyKey: expiredExecutionKey }, expiredExecutionKey);
-    await expireApproval(expiredApproval.json().approvalId);
+    expect(expiredExecution.statusCode).toBe(200);
+    await expireApproval(tenantId, actorId, expiredApproval.json().approvalId);
     await runWorkerUntil(worker, async () => (await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.getExecution(expiredExecution.json().executionId)))?.state === "failed", "expired authority");
     expect(connector.executeAuthorized).toHaveBeenCalledOnce();
     const resumeKey = randomUUID();
@@ -143,14 +156,26 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     try { await client.query("BEGIN"); await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.actor_id',$2,true)", [tenantId, actorId]); await client.query("INSERT INTO storage.tenants(id,app_kind,backend_key,status,policy_version) VALUES($1,'medusa',$1,'active','1')", [tenantId]); await client.query("INSERT INTO storage.actors(tenant_id,actor_id,host_subject,role,state,last_policy_version) VALUES($1,$2,$2,'admin','enabled','1')", [tenantId, actorId]); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
   }
 
-  async function expireLease(jobId: string) {
-    const result = await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1 AND status='leased'", [jobId]);
-    expect(result.rowCount).toBe(1);
+  async function expireLease(tenantId: string, actorId: string, jobId: string) {
+    await scopedAdminUpdate(tenantId, actorId, "UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE tenant_id=$1 AND id=$2 AND status='leased'", [tenantId, jobId]);
   }
 
-  async function expireApproval(approvalId: string) {
-    const result = await migrator.query("UPDATE storage.approvals SET expires_at=clock_timestamp()-interval '1 second' WHERE id=$1", [approvalId]);
-    expect(result.rowCount).toBe(1);
+  async function expireApproval(tenantId: string, actorId: string, approvalId: string) {
+    await scopedAdminUpdate(tenantId, actorId, "UPDATE storage.approvals SET expires_at=clock_timestamp()-interval '1 second' WHERE tenant_id=$1 AND id=$2", [tenantId, approvalId]);
+  }
+
+  async function scopedAdminUpdate(tenantId: string, actorId: string, sql: string, parameters: readonly string[]) {
+    const client = await migrator.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.actor_id',$2,true)", [tenantId, actorId]);
+      const result = await client.query(sql, parameters);
+      expect(result.rowCount).toBe(1);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
   }
 });
 
