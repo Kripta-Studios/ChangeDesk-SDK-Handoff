@@ -1,5 +1,7 @@
 # Decisiones vinculantes y alcance
 
+Ampliación autorizada el 2026-10-24: [personalización storefront por compradores](15-BUYER-STOREFRONT.md), ADR-SF-001/002/003. Añade preferencias personales y propuestas globales con aprobación administrativa; mantiene los roles y capacidades de catálogo existentes. La identidad buyer es independiente, no otro rol administrativo. Este apéndice amplía el alcance sin acreditar gates ejecutados.
+
 Estado: especificación aprobada para implementación local; resultados aún no medidos. Estas decisiones sustituyen alternativas del diagrama previo si hay discrepancias.
 
 | ID | Decisión | Motivo / consecuencia |

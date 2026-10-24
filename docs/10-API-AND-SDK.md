@@ -1,5 +1,7 @@
 # API pública y SDK
 
+La ampliación storefront v1 y sus rutas/identidades separadas se especifican en [15-BUYER-STOREFRONT.md](15-BUYER-STOREFRONT.md). Export SDK opt-in `@changedesk/react/storefront`; no cambia la autoridad ni contratos de catálogo de las rutas siguientes.
+
 Contrato normativo propuesto. Una implementación futura debe producir OpenAPI 3.1 real a partir de las rutas y validadores. No inventar una OpenAPI completa que parezca ejecutable antes de construir los handlers.
 
 ## SDK React v1
