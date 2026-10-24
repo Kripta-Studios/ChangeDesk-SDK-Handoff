@@ -11,7 +11,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["{apps,packages,infra,tests}/**/*.{test,spec}.{ts,tsx}"],
+    include: process.env.STOREFRONT_POSTGRES_LIVE === "1"
+      ? ["tests/storefront/postgres.live.ts"]
+      : ["{apps,packages,infra,tests}/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["tests/e2e/**", "**/node_modules/**", "**/dist/**"],
     passWithNoTests: false,
     restoreMocks: true,
