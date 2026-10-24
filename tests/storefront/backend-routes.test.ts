@@ -111,10 +111,11 @@ describe("storefront Fastify routes", () => {
     const app = await build();
     const changed = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", "00000000-0000-4000-8000-000000000001"), payload: { expectedRevision: 0, overrides: { theme: "dark" } } });
     expect(changed.statusCode).toBe(200);
+    expect(changed.json()).toMatchObject({ inherited: COMPLETE, effective: { ...COMPLETE, theme: "dark" } });
     expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("buyer-b") })).json().overrides).toEqual({});
     expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("buyer-boreal") })).json().overrides).toEqual({});
     const reset = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", "00000000-0000-4000-8000-000000000002"), payload: { expectedRevision: 1, overrides: {} } });
-    expect(reset.json()).toMatchObject({ overrides: {}, buyerRevision: 2, effective: COMPLETE });
+    expect(reset.json()).toMatchObject({ overrides: {}, inherited: COMPLETE, buyerRevision: 2, effective: COMPLETE });
   });
 
   it("rejects crossed staff/buyer auth even when buyerId equals actorId, unknown fields, null, code and URLs", async () => {
@@ -160,6 +161,7 @@ describe("storefront Fastify routes", () => {
     const approved = await app.inject({ method: "POST", url: `/v1/storefront/admin/global-change-proposals/${id}/approve`, headers: headers("admin-a", crypto.randomUUID()), payload: { expectedProposalRevision: 1, expectedGlobalRevision: 0 } });
     expect(approved.statusCode).toBe(200);
     expect((await repository.getPreferences(buyer("atlas", "same-id"))).effective).toEqual({ theme: "light", density: "compact", productLayout: "list" });
+    expect((await repository.getPreferences(buyer("atlas", "same-id"))).inherited).toEqual({ theme: "dark", density: "compact", productLayout: "list" });
     expect((await app.inject({ method: "POST", url: `/v1/storefront/admin/global-change-proposals/${id}/approve`, headers: headers("admin-a", crypto.randomUUID()), payload: { expectedProposalRevision: 1, expectedGlobalRevision: 0 } })).statusCode).toBe(409);
   });
 

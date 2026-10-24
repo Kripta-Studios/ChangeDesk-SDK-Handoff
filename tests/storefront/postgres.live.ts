@@ -3,6 +3,7 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresStorefrontRepository } from "../../apps/service/src/storefront/postgres-repository.js";
 import { registerStorefrontRoutes } from "../../apps/service/src/storefront/routes.js";
+import { PostgresBuyerTicketReplayStore } from "../../apps/service/src/storefront/buyer-ticket-store.js";
 import type { BuyerContext, StorefrontAdminContext } from "../../apps/service/src/storefront/types.js";
 
 const connectionString = process.env.STOREFRONT_DATABASE_URL;
@@ -56,7 +57,7 @@ describe("storefront HTTP -> PostgreSQL repository -> forced RLS", () => {
     expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("atlas-a") })).json().effective.theme).toBe("light");
     const approved = await app.inject({ method: "POST", url: `/v1/storefront/admin/global-change-proposals/${id}/approve`, headers: headers("admin-atlas", crypto.randomUUID()), payload: { expectedProposalRevision: 1, expectedGlobalRevision: 0 } });
     expect(approved.statusCode).toBe(200);
-    expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("atlas-a") })).json().effective).toEqual({ theme: "light", density: "compact", productLayout: "list" });
+    expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("atlas-a") })).json()).toMatchObject({ inherited: { theme: "dark", density: "compact", productLayout: "list" }, effective: { theme: "light", density: "compact", productLayout: "list" } });
   });
 
   it("enforces SQL constraints, RLS, and non-PUBLIC quota functions under the nonowner role", async () => {
@@ -92,5 +93,15 @@ describe("storefront HTTP -> PostgreSQL repository -> forced RLS", () => {
       await expect(client.query("SELECT storage.storefront_admit_pending('boreal','quota-independent')")).resolves.toBeDefined();
       await client.query("ROLLBACK");
     } finally { client.release(); }
+  });
+
+  it("persists buyer ticket replay without aliasing or requiring a staff actor row", async () => {
+    const replay = new PostgresBuyerTicketReplayStore(pool);
+    const input = { tenantId: "atlas", buyerId: "same-id", ticketId: "ticket-1", issuer: "atlas-host", jti: "jti-buyer-1", audience: "changedesk:storefront", expiresAt: new Date(Date.now() + 60_000) };
+    await expect(replay.consumeTicket(input)).resolves.toBe(true);
+    await expect(replay.consumeTicket(input)).resolves.toBe(false);
+    await expect(replay.consumeTicket({ ...input, buyerId: "other-buyer", ticketId: "ticket-2" })).resolves.toBe(false);
+    // The scoped fixture creates tenants only and intentionally creates no storage.actors rows.
+    // First-use success therefore proves the buyer ledger has no staff actor FK/alias dependency.
   });
 });
