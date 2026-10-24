@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)][ValidateSet("atlas", "boreal")][string]$Tenant,
-  [Parameter(Mandatory = $true)][ValidateSet("build", "migrate", "seed", "start", "develop")][string]$Command
+  [Parameter(Mandatory = $true)][ValidateSet("build", "generate", "migrate", "seed", "start", "develop")][string]$Command
 )
 $ErrorActionPreference = "Stop"
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
@@ -50,7 +50,7 @@ foreach ($value in @($databaseUrl, $jwtSecret, $cookieSecret, $credential, $boot
 
 $categoryId = "bootstrap-placeholder"
 $channelId = "bootstrap-placeholder"
-$seedMap = Join-Path $root "evidence/medusa-seed-map.$Tenant.json"
+$seedMap = Join-Path $root "evidence/local/seed-map.$Tenant.json"
 if (Test-Path -LiteralPath $seedMap) {
   $map = Get-Content -Raw -LiteralPath $seedMap | ConvertFrom-Json
   $categoryId = $map.categories.campaign
@@ -82,6 +82,7 @@ $node = Join-Path $root ".tools/node-v22.23.4-win-x64/node.exe"
 $cli = Join-Path $root "packages/medusa-plugin/node_modules/@medusajs/cli/cli.js"
 $cliArguments = [string[]]@(switch ($Command) {
   "build" { "build" }
+  "generate" { "db:generate"; "changedesk" }
   "migrate" { "db:migrate" }
   "seed" { "exec"; "./src/scripts/seed.ts" }
   "start" { "start" }

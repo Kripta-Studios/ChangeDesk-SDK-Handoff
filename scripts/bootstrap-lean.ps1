@@ -11,7 +11,10 @@ New-Item -ItemType Directory -Force -Path (Split-Path $archive), $destination | 
 if (-not (Test-Path -LiteralPath $archive)) {
   Invoke-WebRequest -Uri $source -OutFile $archive
 }
-$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+$stream = [IO.File]::OpenRead($archive)
+$sha256 = [Security.Cryptography.SHA256]::Create()
+try { $actual = ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace("-", "").ToLowerInvariant() }
+finally { $sha256.Dispose(); $stream.Dispose() }
 if ($actual -ne $expectedSha256) { throw "Lean archive checksum mismatch: $actual" }
 
 $leanExe = Join-Path $destination "lean-$version-linux/bin/lean"
