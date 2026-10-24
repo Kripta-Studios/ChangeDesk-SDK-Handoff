@@ -6,6 +6,9 @@ export interface RuntimeStorePort {
   claimNextJob(workerId: string, now: Date): Promise<JobLease | null>;
   heartbeat(lease: JobLease, now: Date): Promise<boolean>;
   loadExecutionBundle(lease: JobLease): Promise<ExecutionBundle>;
+  prepareExecution(lease: JobLease, bundle: ExecutionBundle): Promise<ExecutionBundle | null>;
+  updateRowState(lease: JobLease, rowId: string, state: "running" | "succeeded" | "unknown" | "failed"): Promise<boolean>;
+  settleExecution(lease: JobLease, outcome: WorkerOutcome): Promise<boolean>;
   recordAttemptIntent(lease: JobLease, input: { rowId: string; stepId: string; operationKey: string; semanticInputHash: string; capability: EffectCapability; argsHash: string }): Promise<Attempt | null>;
   markAttemptSent(lease: JobLease, attemptId: string): Promise<boolean>;
   confirmAttempt(lease: JobLease, attemptId: string, receipt: unknown): Promise<boolean>;

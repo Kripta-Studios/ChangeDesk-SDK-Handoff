@@ -15,7 +15,7 @@ describe("durable worker", () => {
     const worker = new DurableWorker({ store: store as any, connector: {} as any, authority: new StrictEffectAuthority(), generation });
 
     expect(await worker.runOnce("w")).toEqual({ kind: "completed" });
-    expect(generation.process).toHaveBeenCalledWith(generationLease);
+    expect(generation.process).toHaveBeenCalledWith(generationLease, expect.any(AbortSignal));
     expect(store.loadExecutionBundle).not.toHaveBeenCalled();
     expect(store.requeueOrFinish).toHaveBeenCalledWith(generationLease, { kind: "completed" });
   });

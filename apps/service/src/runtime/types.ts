@@ -36,12 +36,13 @@ export interface Attempt {
   operationKey: string; semanticInputHash: string;
 }
 export interface ExecutionBundle {
-  execution: { id: string; planId: string; state: string; cancelRequestedAt?: string };
+  execution: { id: string; planId: string; state: string; revision: number; cancelRequestedAt?: string };
   plan: CompiledPlan;
   approval: { id: string; actorId: string; expiresAt: string; planHash: string };
   authority: { actorEnabled: boolean; hostSessionId: string; policyVersion: string; artifactState: "active" | "withdrawn" | "security_revoked" | "disabled"; approvalExpiresAt: string };
   pendingEffects: readonly PlanEffect[];
   unknownEffects: readonly PlanEffect[];
+  rows: readonly { rowId: string; state: string }[];
 }
 export type WorkerOutcome =
   | { kind: "completed" } | { kind: "cancelled" }

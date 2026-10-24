@@ -23,7 +23,37 @@ export class StorageApiOperations implements ApiOperations {
     }));
     return { resources };
   }
-  async createPlan() { throw new ApiError(503, "ACTIVE_CAPABILITY_MANIFEST_UNAVAILABLE", "Plan compilation requires an active persisted capability manifest", true); }
+  async createPlan(c: MutationContext, b: any) {
+    const source = await this.run(c.actor, async (tx: any) => {
+      const manifest = await tx.getActiveCapabilityManifest();
+      if (!manifest) throw new ApiError(503, "ACTIVE_CAPABILITY_MANIFEST_UNAVAILABLE", "Plan compilation requires an active persisted capability manifest", true);
+      if (b.requestId) {
+        const request = await tx.getRequest(b.requestId); this.owner(c.actor, request?.actorId); if (!request) throw notFound();
+        const candidate = (await tx.listRequestCandidates(b.requestId)).find((item: any) => item.state === "selected");
+        if (!candidate?.artifactHash) throw new ApiError(409, "CANDIDATE_NOT_SELECTED", "A generated or catalog candidate must be selected", false);
+        const artifact = await tx.getAuthorizedArtifact(candidate.artifactHash); if (!artifact) throw notFound();
+        return { requestId: request.id, installationId: undefined, artifact, manifest };
+      }
+      const installed = await tx.getInstallationForPlan(b.installationId); if (!installed || installed.installation.status !== "active") throw notFound();
+      return { requestId: undefined, installationId: installed.installation.id, artifact: installed.artifact, manifest };
+    });
+    const readableProducts = await Promise.all((b.selectedProductIds as string[]).map(async (productId) => parseProduct(productId, await this.connector.readAuthorized({ capability: "medusa.products.retrieve", args: { productId }, actor: c.actor }))));
+    const planId = randomUUID();
+    const requestId = source.requestId ?? randomUUID();
+    const compiled = compilePlan({ planId, tenantId: c.actor.tenantId, actorId: c.actor.actorId, requestId, artifactHash: source.artifact.artifactHash,
+      adapterVersion: "medusa-2.22.1/changedesk-1", policyVersion: c.actor.policyVersion, capabilityManifestHash: source.manifest.manifestHash,
+      recipe: source.artifact.canonicalBody as Recipe, parameters: b.parameters, selectedProductIds: b.selectedProductIds, readableProducts,
+      expiresAt: new Date(this.clock().getTime() + 10 * 60_000).toISOString(), planVersion: 1,
+      ...(b.priorExecutionId ? { priorExecutionId: b.priorExecutionId } : {}), proofPolicy: { proofRequired: false, evidenceStatus: "not_applicable", evidenceRefs: [] } });
+    const { planHash, ...body } = compiled;
+    return this.run(c.actor, async (tx: any) => {
+      if (!source.requestId) await tx.createInstalledActionRequest({ id: requestId, actorId: c.actor.actorId, redactedText: "Installed action preview", contextRef: { source: "installed_action", installationId: source.installationId, selectedProductIds: b.selectedProductIds }, budget: {}, idempotencyKey: c.idempotencyKey, requestHash: c.requestHash });
+      const plan = await tx.createPlan({ id: planId, requestId, ...(source.installationId ? { installationId: source.installationId } : {}), actorId: c.actor.actorId, artifactHash: source.artifact.artifactHash,
+        adapterVersion: compiled.adapterVersion, policyVersion: compiled.policyVersion, capabilityManifestHash: compiled.capabilityManifestHash, body, planHash, planVersion: 1, state: "ready", expiresAt: new Date(compiled.expiresAt), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash });
+      await tx.updateRequestState(requestId, "plan_ready");
+      return { planId: plan.id, status: plan.state };
+    });
+  }
   getPlan(a: ActorContext, id: string) { return this.run(a, async (tx: any) => {
     const detail = await tx.getPlanDetail(id); this.owner(a, detail?.actorId); if (!detail) return null;
     const body = detail.body as Record<string, unknown>;
