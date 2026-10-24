@@ -1,0 +1,31 @@
+{
+  "name": "changedesk-medusa-host-example",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "scripts": {
+    "build": "medusa build",
+    "dev": "medusa develop",
+    "start": "medusa start",
+    "seed": "medusa exec ./src/scripts/seed.ts",
+    "test:integration": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config jest.config.cjs --runInBand --forceExit"
+  },
+  "dependencies": {
+    "@changedesk/medusa-plugin": "file:../../packages/medusa-plugin",
+    "@medusajs/cli": "2.22.1",
+    "@medusajs/core-flows": "2.22.1",
+    "@medusajs/framework": "2.22.1",
+    "@medusajs/medusa": "2.22.1"
+  },
+  "devDependencies": {
+    "@medusajs/test-utils": "2.22.1",
+    "@swc/core": "1.15.3",
+    "@swc/jest": "0.2.39",
+    "jest": "30.2.0",
+    "typescript": "5.9.3"
+  }
+}
