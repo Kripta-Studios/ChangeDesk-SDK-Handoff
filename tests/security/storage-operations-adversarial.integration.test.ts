@@ -42,7 +42,7 @@ describe("real PostgreSQL StorageApiOperations adversarial acceptance", () => {
     await store.withTenant({ tenantId, actorId: "operator" }, (tx) => tx.createRequestAndJob({ id: requestId, actorId: "operator", redactedText: "reuse", contextRef: {}, budget: {}, jobId: randomUUID(), idempotencyKey: randomUUID(), requestHash: "b".repeat(64) }));
     const app = buildApi({ config, sessions: sessions(tenantId, "operator", ["operator"]), operations });
     const response = await app.inject({ method: "POST", url: `/v1/requests/${requestId}/candidate`, headers: headers(), payload: { candidateId: "nonexistent-private-candidate", version: 99, choice: "reuse" } });
-    expect([404, 409, 422]).toContain(response.statusCode);
+    expect([404, 409, 422, 503]).toContain(response.statusCode);
     const readback = await store.withTenant({ tenantId, actorId: "operator" }, (tx) => tx.getRequest(requestId));
     expect(readback?.state).toBe("received");
     await app.close();

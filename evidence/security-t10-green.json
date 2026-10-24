@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "phase": "green",
-  "recordedAt": "2026-10-24T14:21:10+02:00",
+  "recordedAt": "2026-10-24T14:40:12+02:00",
   "commands": [
     {
       "command": "node root/node_modules/vitest/vitest.mjs run tests/security tests/recovery --config vitest.config.ts",
@@ -26,11 +26,32 @@
       "command": "tsc -p apps/service/tsconfig.json --noEmit",
       "exitCode": 1,
       "result": "Existing policy/storage strictness errors outside security ownership; no evaluator errors were reported."
+    },
+    {
+      "command": "vitest run tests/security/storage-operations-adversarial.integration.test.ts with externally loaded PostgreSQL references",
+      "exitCode": 1,
+      "result": "RED: unknown candidate and unvalidated artifact both returned 200 and mutated real PostgreSQL state."
+    },
+    {
+      "command": "same real PostgreSQL adversarial suite after runtime fix 0b410bb",
+      "exitCode": 0,
+      "result": "3 tests passed; private request remained hidden, candidate and invalid installation failed closed with unchanged state."
+    },
+    {
+      "command": "vitest run tests/security tests/recovery tests/core tests/storage/store.integration.test.ts with PostgreSQL references",
+      "exitCode": 0,
+      "result": "13 files passed; 57 tests passed."
+    },
+    {
+      "command": "targeted TypeScript 5.9.3 strict typecheck of apps/service/src/evals",
+      "exitCode": 0,
+      "result": "7 evaluator source files passed."
     }
   ],
   "claims": {
     "unitHarness": "PASS",
-    "actualFastifyAttackRoutes": "NOT_RUN",
+    "actualFastifyAttackRoutes": "PASS_SCOPED",
+    "actualPostgreSqlOperations": "PASS_SCOPED",
     "independentMedusaReadback": "NOT_RUN",
     "liveLlmEvaluation": "BLOCKED",
     "sealedHoldout": "BLOCKED"

@@ -1,11 +1,11 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, InjectOptions } from "fastify";
 import { runApiAttack, type BackendSnapshot, type EffectExpectation } from "./backend-oracle.js";
 
 export interface AttackHttpRequest {
   readonly method: "GET" | "POST" | "OPTIONS";
   readonly url: string;
-  readonly headers?: Readonly<Record<string, string>>;
-  readonly payload?: unknown;
+  readonly headers?: InjectOptions["headers"];
+  readonly payload?: InjectOptions["payload"];
 }
 
 /** Uses the production Fastify router while keeping state capture independent of its response body. */
