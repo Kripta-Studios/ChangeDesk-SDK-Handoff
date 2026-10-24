@@ -12,6 +12,7 @@ import { StorageRuntimeAdapter } from "../../apps/service/src/runtime/storage-ad
 import { DurableWorker } from "../../apps/service/src/runtime/worker.js";
 import { StrictEffectAuthority } from "../../apps/service/src/runtime/authority.js";
 import { startWorker } from "../../apps/service/src/worker.js";
+import type { LawVerificationRequest } from "../../apps/service/src/laws/index.js";
 
 const migratorUrl = process.env.CHANGEDESK_MIGRATOR_DATABASE_URL;
 const runtimeUrl = process.env.CHANGEDESK_RUNTIME_DATABASE_URL;
@@ -25,6 +26,7 @@ const apiStore = new Store(runtimePool);
 const workerStore = new Store(workerPool);
 const jobs = new JobStore(workerPool);
 const migrationsDirectory = new URL("../../apps/service/migrations/", import.meta.url);
+const proofEnvironmentDigest = "0aed1f74bf00de83b25b565a54463767e550692b92fd242dd0397986e222be57";
 
 describe("real PostgreSQL API-to-worker vertical with controlled host/provider fixtures", () => {
   beforeAll(async () => { await runMigrations(migrator, migrationsDirectory); });
@@ -47,6 +49,8 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
   it.each(["direct", "installation"] as const)("exchanges a ticket and executes the %s plan path through durable jobs", async (planPath) => {
     const tenantId = `runtime-${randomUUID()}`, actorId = "admin-operator", hostSessionId = randomUUID();
     await seedTenant(tenantId, actorId);
+    const recipientTenantId = `runtime-recipient-${randomUUID()}`;
+    if (planPath === "direct") await seedTenant(recipientTenantId, "recipient-admin");
     const capabilities = ["medusa.products.list", "medusa.products.retrieve", "medusa.product_categories.retrieve", "medusa.sales_channels.retrieve", "medusa.product_categories.products.add", "medusa.sales_channels.products.add"];
     await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.setCapabilityManifest({ id: randomUUID(), manifestHash: "b".repeat(64), adapterVersion: "medusa-v2", body: { capabilities, capabilityContract: "1", verifiedMedusaVersion: "2.22.1" }, idempotencyKey: randomUUID(), requestHash: "c".repeat(64) }));
 
@@ -55,8 +59,11 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     const sessions = new SessionManager(new StorageSessionPersistence(apiStore), hostIdentity, { audience: "changedesk-test", issuers: ["fixture-host"], origins: ["http://runtime.test"], ticketMaxTtlSeconds: 60, sessionTtlSeconds: 300 });
     const connector = controlledHostFixture();
     const catalog = createProductionCatalog(apiStore, { publicationKeyId: "fixture-publication-key", publicationPrivateKey: publication.privateKey });
-    const operations = new StorageApiOperations(apiStore, connector as any, { [tenantId]: { category: ["category-1"], channel: [] } }, catalog, "fixture-publication-key", undefined, false, "fake");
-    const app = buildApi({ config: testConfig(), sessions, operations });
+    let mismatchProof = false;
+    const verifier = { verify: vi.fn(async (request: LawVerificationRequest) => reviewedProof(request, mismatchProof)) };
+    const proofRequired = planPath === "direct";
+    const operations = new StorageApiOperations(apiStore, connector as any, { [tenantId]: { category: ["category-1"], channel: [] }, ...(proofRequired ? { [recipientTenantId]: { category: [], channel: [] } } : {}) }, catalog, "fixture-publication-key", undefined, proofRequired, "fake", verifier, proofEnvironmentDigest);
+    const app = buildApi({ config: testConfig(proofRequired), sessions, operations });
 
     const now = Math.floor(Date.now() / 1000);
     const claims = { v: 1, typ: "changedesk.bootstrap", iss: "fixture-host", aud: "changedesk-test", sub: actorId, tenantId, hostSessionId, policyVersion: "1", origin: "http://runtime.test", jti: randomUUID(), iat: now, exp: now + 60 } as const;
@@ -98,6 +105,16 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     expect(planView.json().summary).toMatchObject({ selected: 1, eligible: 1, additions: 1, excluded: 0 });
 
     const plan = planView.json().plan;
+    if (proofRequired) {
+      expect(plan.evidenceRefs).toHaveLength(1);
+      expect(verifier.verify).toHaveBeenCalledWith(expect.objectContaining({ artifactHash: candidate.artifactHash, planHash: plan.planHash, policyVersion: "1", scope: "association-set-laws-v1" }));
+      const evidence = await app.inject({ method: "GET", url: `/v1/evidence/${plan.evidenceRefs[0]}`, headers: readHeaders(authorization) });
+      expect(evidence.statusCode).toBe(200);
+      expect(evidence.json()).toMatchObject({ id: plan.evidenceRefs[0], status: "passed", artifactHash: candidate.artifactHash, environmentDigest: proofEnvironmentDigest });
+    } else {
+      expect(plan.evidenceRefs).toEqual([]);
+      expect(verifier.verify).not.toHaveBeenCalled();
+    }
     const approvalKey = randomUUID();
     const approval = await post(app, "/v1/approvals", authorization, { planId: plan.id, planHash: plan.planHash, expectedPlanVersion: plan.planVersion, idempotencyKey: approvalKey }, approvalKey);
     expect(approval.statusCode).toBe(200);
@@ -163,6 +180,18 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     expect(resumed.statusCode).toBe(200);
     expect(await worker.runOnce("fixture-expired-resume")).toMatchObject({ kind: "authority_expired" });
     expect(connector.executeAuthorized).toHaveBeenCalledOnce();
+
+    if (proofRequired) {
+      mismatchProof = true;
+      const mismatched = await post(app, "/v1/plans", authorization, { requestId, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
+      expect(mismatched.statusCode).toBe(409);
+      expect(mismatched.json()).toMatchObject({ error: { code: "PROOF_REQUIRED" } });
+      expect(await evidenceStatusCount(tenantId, actorId, "blocked")).toBe(1);
+      mismatchProof = false;
+      const publication = await post(app, "/v1/publications", authorization, { artifactHash: candidate.artifactHash, visibility: "shared_allowlist", allowedTenantIds: [recipientTenantId] });
+      expect(publication.statusCode).toBe(200);
+      expect(connector.executeAuthorized).toHaveBeenCalledOnce();
+    }
     await app.close();
   });
 
@@ -179,7 +208,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     await scopedAdminUpdate(tenantId, actorId, "UPDATE storage.approvals SET expires_at=clock_timestamp()-interval '1 second' WHERE tenant_id=$1 AND id=$2", [tenantId, approvalId]);
   }
 
-  async function scopedAdminUpdate(tenantId: string, actorId: string, sql: string, parameters: readonly string[]) {
+  async function scopedAdminUpdate(tenantId: string, actorId: string, sql: string, parameters: string[]) {
     const client = await migrator.connect();
     try {
       await client.query("BEGIN");
@@ -192,13 +221,28 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
       throw error;
     } finally { client.release(); }
   }
+
+  async function evidenceStatusCount(tenantId: string, actorId: string, status: string) {
+    const client = await migrator.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.actor_id',$2,true)", [tenantId, actorId]);
+      const result = await client.query<{ count: string }>("SELECT count(*) count FROM storage.evidence_bundles WHERE owner_tenant_id=$1 AND status=$2", [tenantId, status]);
+      await client.query("COMMIT");
+      return Number(result.rows[0]!.count);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+  }
 });
 
 function controlledHostFixture() {
   return { readAuthorized: async ({ capability }: any) => capability === "medusa.products.retrieve" ? { id: "product-1", status: "published", locked: false, categories: [], sales_channels: [], protectedDigest: "d".repeat(64) } : { id: "category-1", name: "Fixture category" }, executeAuthorized: vi.fn().mockResolvedValue({ observed: true, receipt: { operation: "fixture-receipt" } }), reconcileOperation: vi.fn().mockResolvedValue({ state: "unknown" }) };
 }
-function testConfig(): ServiceConfig { return { apiDatabaseUrl: runtimeUrl!, workerDatabaseUrl: workerUrl!, host: "127.0.0.1", port: 4100, publicOriginAllowlist: ["http://runtime.test"], sessionAudience: "changedesk-test", sessionIssuerAllowlist: ["fixture-host"], sessionTtlSeconds: 300, bridgeTicketMaxTtlSeconds: 60, bodyLimitBytes: 65_536, workerId: "fixture", workerLeaseSeconds: 30, workerGlobalCap: 2, hosts: [], publicationKeyId: "fixture-publication-key", publicationPrivateKeyPem: "unused", proofRequired: false, planner: { executable: "unused", executableSha256: "a".repeat(64), model: "fixture", allowedModels: ["fixture"], isolatedCwd: ".", outputSchemaPath: "unused", timeoutMs: 1_000, maxOutputBytes: 1_024, maxInputTokens: 1_000 } }; }
+function testConfig(proofRequired = false): ServiceConfig { return { apiDatabaseUrl: runtimeUrl!, workerDatabaseUrl: workerUrl!, host: "127.0.0.1", port: 4100, publicOriginAllowlist: ["http://runtime.test"], sessionAudience: "changedesk-test", sessionIssuerAllowlist: ["fixture-host"], sessionTtlSeconds: 300, bridgeTicketMaxTtlSeconds: 60, bodyLimitBytes: 65_536, workerId: "fixture", workerLeaseSeconds: 30, workerGlobalCap: 2, hosts: [], publicationKeyId: "fixture-publication-key", publicationPrivateKeyPem: "unused", proofRequired, planner: { executable: "unused", executableSha256: "a".repeat(64), model: "fixture", allowedModels: ["fixture"], isolatedCwd: ".", outputSchemaPath: "unused", timeoutMs: 1_000, maxOutputBytes: 1_024, maxInputTokens: 1_000 } }; }
 function mutationHeaders(authorization?: string, key = randomUUID()) { return { origin: "http://runtime.test", "idempotency-key": key, ...(authorization ? { authorization } : {}) }; }
 function readHeaders(authorization: string) { return { origin: "http://runtime.test", authorization }; }
 function post(app: ReturnType<typeof buildApi>, url: string, authorization: string, payload: unknown, key = randomUUID()) { return app.inject({ method: "POST", url, headers: mutationHeaders(authorization, key), payload }); }
 async function runWorkerUntil(worker: DurableWorker, done: () => Promise<boolean>, lane: string) { for (let attempt = 0; attempt < 50; attempt++) { await worker.runOnce(`fixture-${lane}`); if (await done()) return; } throw new Error(`Fixture worker did not complete ${lane} within 50 claims`); }
+function reviewedProof(request: LawVerificationRequest, mismatch: boolean) { return { ...request, status: "verified" as const, verifierVersion: "2.0.39" as const, binarySha256: "2ec160fa4486d33aff51e9eedcc294d6b531dc10c279c00b0c00685dae2045cd", modelHash: "ac9d10d08692f9259301edf9d897ddb782eb403b98f1fbeff13b9e987baa1596", lawsHash: "02584a23199db88ec67974a4e458a0e7f16f8ed9196b8c1ba5b0a08cfa6937ac", proofHash: "827e041bc627ff9db7416e9f7f25693e08a170c9d1146330a4c9221c40a344ae", toolchainHash: proofEnvironmentDigest, exitCode: 0, stdout: "CONTROLLED VERIFIER RESULT; NOT A KERNEL RUN", stderr: "", durationMs: 1, ...(mismatch ? { planHash: "f".repeat(64) } : {}) }; }
