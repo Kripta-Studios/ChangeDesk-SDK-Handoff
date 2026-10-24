@@ -1,7 +1,8 @@
 {
   "schemaVersion": "1.0",
-  "recordedAt": "2026-10-24T16:45:00+02:00",
+  "recordedAt": "2026-10-24T16:34:34+02:00",
   "runId": "finish-tarball-final-20261024-1645",
+  "runLabelNote": "The runId is an arbitrary isolation label chosen before checking the wall clock; it is not an execution timestamp. recordedAt is the observed local commit time.",
   "status": "PASS",
   "source": {
     "verificationHead": "1b32e2d",
