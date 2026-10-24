@@ -13,12 +13,14 @@ describe("StorageApiOperations presentation DTOs", () => {
   });
 
   it("returns policy permissions rather than role names", async () => {
-    const store = { withTenant: vi.fn(async (_scope, work) => work({ listInstallationDetails: vi.fn().mockResolvedValue([]) })) };
+    const store = { withTenant: vi.fn(async (_scope, work) => work({ listInstallationDetails: vi.fn().mockResolvedValue([]), getActiveCapabilityManifest: vi.fn().mockResolvedValue(null) })) };
     const operations = new StorageApiOperations(store as any, {} as any, {});
 
-    const result = await operations.getInstallations(actor) as { permissions: string[] };
+    const result = await operations.getInstallations(actor) as { permissions: string[]; identity: { actorName: string; scopeId: string }; offers: unknown[] };
     expect(result.permissions).toEqual(["read", "request", "preview", "approve", "execute"]);
     expect(result.permissions).not.toContain("operator");
+    expect(result.identity).toMatchObject({ actorName: "operator", scopeId: expect.stringMatching(/^[a-f0-9]{64}$/) });
+    expect(result.offers).toEqual([]);
   });
 
   it("materializes an installed action plan without enqueueing a generation request", async () => {

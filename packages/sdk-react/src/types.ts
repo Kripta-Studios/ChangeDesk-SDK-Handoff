@@ -32,7 +32,7 @@ export type SafeUiEvent =
 
 export type ProviderMode = "fake" | "live" | "unavailable";
 export type WithPermissions<T> = T & { readonly permissions: readonly Permission[] };
-export type IdentityView = { readonly tenantName: string; readonly actorName: string; readonly role: string };
+export type IdentityView = { readonly tenantName: string; readonly actorName: string; readonly role: string; readonly scopeId?: string };
 export type RequestView = RequestDetail & { readonly providerMode?: ProviderMode; readonly permissions?: readonly Permission[]; readonly identity?: IdentityView };
 export type CandidateView = Candidate;
 export type PlanRowView = { readonly recordId: string; readonly productLabel: string; readonly observedStatus: string; readonly before: readonly string[]; readonly additions: readonly string[]; readonly outcome: "apply" | "no_op" | "excluded" | "blocked"; readonly reason?: string };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error The executable module has no declaration file.
-import { benchmarkStatus, persistenceMetrics, percentile, summarize, requireBenchmarkEnvironment } from "../../scripts/benchmark-support.mjs";
+import { benchmarkStatus, parseRunIds, persistenceMetrics, percentile, summarize, requireBenchmarkEnvironment } from "../../scripts/benchmark-support.mjs";
 
 describe("performance evidence helpers", () => {
   it("uses nearest-rank percentiles without averaging away tail latency", () => {
@@ -22,5 +22,11 @@ describe("performance evidence helpers", () => {
 
   it("reports logical row bytes separately from database-size delta", () => {
     expect(persistenceMetrics(1_000, 1_750, 500, 125)).toEqual({ unit: "bytes", databaseSizeDelta: 750, catalogLogicalRows: 500, admissionLogicalRows: 125 });
+  });
+
+  it("requires explicit UUID run IDs for scoped benchmark cleanup", () => {
+    expect(parseRunIds(["--run-id", "f565bd06-3daa-4aee-a0a9-e826d458f86a"])).toEqual(["f565bd06-3daa-4aee-a0a9-e826d458f86a"]);
+    expect(() => parseRunIds([])).toThrow(/at least one/);
+    expect(() => parseRunIds(["--run-id", "bench-consumer-*"])).toThrow(/UUID/);
   });
 });

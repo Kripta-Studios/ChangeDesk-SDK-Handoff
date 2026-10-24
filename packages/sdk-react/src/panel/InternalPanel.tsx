@@ -22,7 +22,7 @@ const stateLabel: Record<string, string> = {
 function Status({ value }: { value: string }) { return <span className={`cd-status cd-status--${value}`}>{stateLabel[value] ?? value}</span>; }
 
 function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => void) | undefined; initialInstallationId?: string | undefined }) {
-  const { client, config, resume, remember, forget } = useChangeDesk();
+  const { client, config, bindScope, remember, forget } = useChangeDesk();
   const titleId = useId();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -59,9 +59,16 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
   useEffect(() => {
     client.getInstallations().then(async (value) => {
       setInstallations(value.installations); setPermissions(value.permissions); setIdentity(value.identity);
+      const resume = bindScope(value.identity?.scopeId);
       if (initialInstallationId) await configureInstallation(initialInstallationId, value.installations);
       else if (resume.executionId) { setScreen("execution"); watchExecution(resume.executionId); }
-      else if (resume.planId) { const saved = await client.getPlan(resume.planId); setPlan(saved); setScreen("plan"); }
+      else if (resume.planId) {
+        const saved = await client.getPlan(resume.planId);
+        const currentSelection = [...selection].sort().join("\u0000");
+        const plannedSelection = [...saved.plan.selectionSnapshot].sort().join("\u0000");
+        if (currentSelection !== plannedSelection) { remember({ planId: undefined }); setError("La selección cambió. El preview anterior se invalidó; prepara uno nuevo."); }
+        else { setPlan(saved); setScreen("plan"); }
+      }
       else if (resume.requestId) watchRequest(resume.requestId);
     }).catch((reason) => { forget(); showError(reason); });
     queueMicrotask(() => inputRef.current?.focus());
@@ -168,7 +175,7 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
 
   async function cancel() { if (!execution) return; try { setExecution(await client.cancelExecution(execution.id)); } catch (reason) { showError(reason); } }
   async function resumeCurrentExecution() { if (!execution) return; try { setExecution(await client.resumeExecution(execution.id)); watchExecution(execution.id); } catch (reason) { showError(reason); } }
-  async function install() { if (!candidate) return; try { const result = await client.installAction({ artifactHash: candidate.artifactHash, configuration: parameters }); config.onEvent?.({ type: "action_installed", installationId: result.installationId }); const list = await client.getInstallations(); setInstallations(list.installations); setScreen("library"); } catch (reason) { showError(reason); } }
+  async function install() { if (!candidate) return; try { const result = await client.installAction({ artifactHash: candidate.artifactHash, configuration: parameters }); config.onEvent?.({ type: "action_installed", installationId: result.installationId }); const list = await client.getInstallations(); setInstallations(list.installations); } catch (reason) { showError(reason); } }
   async function publish() { if (!candidate) return; try { const result = await client.publishAction({ artifactHash: candidate.artifactHash, visibility: "provider_catalog", consent: true }); setPublicationId(result.publicationId); } catch (reason) { showError(reason); } }
   async function revoke() { if (!publicationId) return; try { await client.revokePublication(publicationId, "Revocación solicitada desde administración"); setPublicationId(undefined); } catch (reason) { showError(reason); } }
   async function loadEvidence() {
@@ -196,7 +203,7 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
             {error ? <div className="cd-alert" role="alert">{error}</div> : null}
             {screen === "request" ? <section><div className="cd-step"><span>01</span><div><h2>{copy.describe}</h2><p>{copy.reauthorized}</p></div></div><form onSubmit={request?.status === "needs_clarification" ? sendClarification : submitRequest}><label htmlFor={`${titleId}-message`}>{request?.status === "needs_clarification" ? copy.clarify : copy.prompt}</label><textarea ref={inputRef} id={`${titleId}-message`} maxLength={4000} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={copy.placeholder}/><div className="cd-form-footer"><span>{message.length}/4000</span><button className="cd-button" disabled={busy} type="submit">{busy ? copy.sending : request?.status === "needs_clarification" ? copy.sendClarification : copy.search}</button></div></form>{request ? <RequestResult request={request} busy={busy} onChoose={chooseCandidate} /> : null}</section> : null}
             {screen === "configure" && (candidate || installationId) ? <Configuration title={candidate?.displayName ?? installations.find((item) => item.id === installationId)?.displayName ?? "Acción instalada"} parameterNames={candidate?.missingParameters ?? parameterNamesForInstallation(installations.find((item) => item.id === installationId))} resources={resources} parameters={parameters} setParameters={(next) => { setPlan(undefined); setParameters(next); }} onSubmit={preparePlan} busy={busy} /> : null}
-            {screen === "plan" && plan ? <PlanPreview view={plan} canApprove={plan.canApprove && permissions.includes("approve") && permissions.includes("execute")} busy={busy} onEdit={() => { setPlan(undefined); remember({ planId: undefined }); setScreen("configure"); }} onApprove={approveAndExecute} onInstall={permissions.includes("install") ? install : undefined} onPublish={permissions.includes("share") ? publish : undefined} publicationId={publicationId} onRevoke={permissions.includes("revoke") ? revoke : undefined} /> : null}
+            {screen === "plan" && plan ? <PlanPreview view={plan} canApprove={plan.canApprove && permissions.includes("approve") && permissions.includes("execute")} busy={busy} onEdit={() => { setPlan(undefined); remember({ planId: undefined }); setScreen("configure"); }} onApprove={approveAndExecute} onInstall={permissions.includes("install") && !installations.some((item) => item.artifactHash === plan.plan.artifactHash) ? install : undefined} onPublish={permissions.includes("share") ? publish : undefined} publicationId={publicationId} onRevoke={permissions.includes("revoke") ? revoke : undefined} /> : null}
             {screen === "execution" ? <ExecutionProgress execution={execution} onCancel={permissions.includes("execute") ? cancel : undefined} onResume={permissions.includes("execute") ? resumeCurrentExecution : undefined} /> : null}
             {screen === "library" ? <Library installations={installations} onRun={configureInstallation} /> : null}
             {screen === "evidence" ? <EvidenceList evidence={evidence} /> : null}

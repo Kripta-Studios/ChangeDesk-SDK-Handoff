@@ -63,3 +63,27 @@ El digest identifica contenido, pero no constituye una ACL global. Dos tenants p
 
 Una propuesta nueva del modelo primero pasa el schema y la validación semántica. Antes de persistir el artefacto, el servicio reconstruye sus metadatos genéricos desde las tres formas revisadas, manteniendo su semántica. El texto privado queda en conversación/configuración. Así la publicación de una nueva función conserva su hash, mientras Atlas/Boreal mantienen bindings y autoridad separados. Los artefactos históricos no se rehashean ni las instalaciones se actualizan silenciosamente. La comparación semántica usa JCS; el orden de claves no altera aceptación y las capacidades se comparan como conjunto.
 
+## ADR-009 — Precondición por paso y relaciones concurrentes
+
+El digest de campos protegidos del producto excluye relaciones, porque una asociación aprobada cambia el estado esperado del paso siguiente. Esa exclusión por sí sola no basta para detectar cambios ajenos. Cada paso materializa `hashCanonical("medusa-step-precondition", "1", {protectedDigest, categoryIds, channelIds})`, con ambos conjuntos ordenados y sin duplicados.
+
+El compilador parte del snapshot autorizado y predice únicamente las adiciones aprobadas en el orden de ejecución de cada producto; un no-op conserva el estado. El host recalcula la precondición completa dentro del lock compartido antes de cada efecto. Así la categoría añadida por el paso propio permite ejecutar el canal aprobado, mientras un cambio externo de relaciones o campos protegidos exige replanificar. Se conserva el formato del claim existente `preconditionFingerprint`; no se añade autoridad ni información privada al modelo. Comparar vectores entre compilador y host y probar la carrera real antes de aceptar este gate.
+
+
+## ADR-010 — Identidad del servidor y caché del navegador
+
+La respuesta de instalaciones incorpora identidad de presentación (`tenantName`, `actorName`, `role`) y un `scopeId` derivado en el servidor del tenant y actor autenticados. El SDK espera esa identidad antes de recuperar estado de sesión y particiona su caché por ese scope. El identificador estable permite recargar la misma sesión y evita mostrar conversaciones de otro actor al cambiar de cuenta. No concede autoridad: cada lectura y mutación vuelve a pasar por sesión, política y RLS. No se añade una clave privilegiada a la configuración pública del widget.
+
+## ADR-011 — Descubrimiento de ofertas autorizadas en la biblioteca
+
+Carencia observada: una tienda destinataria no puede instalar una publicación desde la interfaz si la API solo enumera instalaciones existentes; exigir conocer el hash por fuera del producto no cumple reutilización ofrecida. Se amplía `GET /v1/installations` con `offers`, sin añadir infraestructura ni endpoint.
+
+El servidor obtiene primero el conjunto visible por grants vigentes y política del actor. Valida publicación/firma/clave y compatibilidad antes de devolver metadatos genéricos: `artifactHash`, `recipeKey`, `displayName`, `version`, `requiredParameters` y `evidenceStatus`. No entrega IDs, nombres de recursos, bindings, conversaciones ni identidad del tenant de origen. Una oferta retirada/revocada o sin grant desaparece; conocer el hash no suple autorización. No se marcan evidencias ausentes como aprobadas.
+
+La biblioteca muestra la oferta explícita y un administrador configura parámetros con recursos de su propia tienda. El endpoint existente de instalación vuelve a validar toda la autorización y fija el mismo artefacto inmutable; el operador crea después su propio plan y aprobación. La UI no instala automáticamente ni copia el plan privado del solicitante. Probar publicación Atlas, descubrimiento/instalación Boreal con mismo hash y bindings distintos, retiro y ausencia para actores/tenants sin permiso, separando pruebas PostgreSQL de las de navegador/Medusa.
+
+## ADR-012 — Objetivos de rendimiento fuera del encargo por instrucción del usuario
+
+El usuario solicita explícitamente: «ignora todo el tema de objetivos de rendimiento y acaba la aplicación y sus features y funcionalidades funcionando cuanto antes». Esta instrucción prevalece sobre los gates de rendimiento de docs05/06/08/11. Se retiran del cierre solicitado los umbrales y benchmarks de coste/latencia/bundle/CPU/memoria/throughput/fairness y las optimizaciones dedicadas a esos objetivos. No se repiten benchmarks. Los resultados históricos FAIL se conservan sin convertirlos en PASS.
+
+ACC-015 queda `NOT_APPLICABLE` por exclusión explícita del usuario. La parte de P7 relativa a rendimiento deja de ser trabajo pendiente; las comprobaciones funcionales de instalación e integración siguen siendo aplicables. Permanecen las cuotas y límites que controlan autorización, ejecución acotada y gasto del proveedor, y las pruebas funcionales de permisos, efectos, recuperación e instalación. Prioridad inmediata: dos hosts operativos, chat, creación, aprobación, ejecución y reutilización desde la interfaz.

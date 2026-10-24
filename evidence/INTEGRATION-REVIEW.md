@@ -1,22 +1,24 @@
 # Revisión de integración en curso
 
-2026-10-24. No es el council final ni una aprobación de entrega. Hallazgos del coordinador sobre código integrado y pruebas independientes.
+2026-10-24. Revisión del coordinador y asesor Astra integration_advisor, **no council final**.
 
-| Hallazgo | Evidencia / estado | Propietario |
+| Hallazgo | Estado comprobado | Propietario |
 |---|---|---|
-| Checksum SQL distinto entre worktree y root | Confirmado CRLF/LF; reparado checkout, sin tocar DB/checksum. 73 pruebas integradas PASS. | root/storage |
-| Seleccionar candidato desconocido alteraba request; instalación aceptaba artefacto inválido | Security reprodujo ambos sobre Fastify + PostgreSQL. Runtime0b410bb cierra provisionalmente con503; falta ruta funcional validada. | runtime/planner/security |
-| Excepción admin en owner() de planes privados | RLS real ya denegaba con404, no exploit demostrado. Eliminada excepción inconsistente. | runtime/security |
-| Plan exigía request e instalación a la vez; DTOs crudos; hash manifiesto cero | Revisado código, incompatible con creación inicial y botón instalado sin LLM. En corrección; no aceptado por tests de puertos simulados. | runtime |
-| Intent de worker ocultaba estado durable; claves de reconcile inconsistentes | Storage4213aea preserva estado y vincula sesión aprobación. Adapter y worker requieren pruebas reales completas tras integración. | storage/runtime |
-| Heartbeat/recovery solo nominales; callback host de autoridad ausente | Runtime implementa heartbeat/concurrencia, endpoint JIT pendiente de verificación real. | runtime |
-| Issuer host bootstrap confundido con issuer delegación de servicio | Se pidió separación explícita y configuración coordinada. | runtime/environment |
-| Fingerprint preview no comprobado contra producto actual | Estado/lock se comprueban, fingerprint y campos protegidos requieren verificación coordinada, sin invalidar relaciones añadidas por paso propio. | medusa/runtime |
-| Codex probe basado solo en versión declarada | Corregido vínculo SHA256 del ejecutable medido; revisar flags/cwd y manifest exacto antes de aceptación live. | planner |
-| Respuesta real Codex no satisface DSL | Ensayo semántico rechazado,11747input/294output/64reasoning; schema en corrección. No prueba live de producto. | planner |
-| API budget local y estimación optimista | Sustituido por port de reserva durable y cota conservadora; cableado SQL y configuración real pendientes. | planner/storage/runtime |
-| Bend podía contar unavailable como test de kernel verde; binaryPath distinto a executablePath | Solicitada separación lanes, binding binario/fuentes/toolchain y temp dentro workspace. Kernel aún pendiente. | core/environment |
-| SDK build emitía JS en src | Root build cancelado;20 archivos generados propios eliminados. Frontend añade emitDeclarationOnly y smoke tarball. | frontend |
-| Acciones instaladas/UI/recarga/import failure | Frontend15 pruebas PASS; falta comprobar Medusa real y waterfall lazy. | frontend |
+| SQL CRLF/LF daba checksum distinto | Normalización LF en código con test de cambio semántico; vertical PostgreSQL PASS | runtime |
+| Plan/instalación/candidato no componían flujo real | Vertical Fastify+PG+worker completo PASS en7b6b6f4, host/proveedor fixtures explícitos; Medusa pendiente | runtime |
+| Fingerprint invalidaba paso propio o ignoraba relaciones externas | ADR009 y vectores implementados; carrera host real pendiente | runtime/medusa |
+| Plantilla privada mismo hash parecía ACL global | Migración011 owner+hash; grants por artifactID;19testsPGautor PASS | storage |
+| Codex salida no validaba DSL y probe solo versión | Schema cerrado y hash/flags ligados; un smoke real semántico PASS; E2E pendiente | planner |
+| Budget se reiniciaba con proceso | Ledger PG fenced, tres intentos totales, overruns rechazados; suite planner PASS | planner/storage |
+| SDK build emitía JS en src | declarationOnly y tarball consumidor limpio PASS; JSX/Reactpeer/bundle verificados | frontend |
+| Recarga mostraba estado de otro actor o selección vieja | Scope server derivado tenant/actor y comparación selección;18units PASS | frontend/runtime |
+| Biblioteca no permitía descubrir oferta remota | ADR011 aceptado; GETinstallations offers ACL-first + UI en desarrollo; E2E anterior no cerraba reuse | planner/runtime/frontend |
+| Root store instalado incompleto | TypeScript reparado; suite162assertions PASS pero SDKsuite no carga SetLike; gate total FAIL hasta reparación/retest | environment |
+| Launcher integrado no inicia cuatro procesos | dev.ps1 viejo solo PG+pnpm; reemplazo/validación en curso, no readiness acreditada | environment |
+| Plugin layout/exports incorrectos | Builds plugin/host PASS; rootDir y exports corregidos; db:generate PASS; migrate/seed pendientes | medusa/environment |
+| CI parcial parecía cierre P8 |50tests deterministas PASS, no equivale a fullbuild/PG/host/browser; ampliación asignada | core |
+| Rendimiento catálogo/admission supera objetivos | Retest real1191.16/426.03ms p95 FAIL; query aislada mejor no sustituye gate | core/storage |
+| Bend checker contado como kernel | Lanes separadas; kernel BLOCKED hasta Lean/BendTT; false-law pendiente real | core/environment |
+| Evaluación independiente no puede continuar | Dos rechazos del filtro runtime documentados; no reintentar/rerutear; holdout sellado sin leer | root |
 
-Además siguen pendientes los gates completos de dos tiendas, pérdida de respuesta post-commit, revocación/stale, recuperación real de proceso/navegador, reuse firmado con mismos hashes y bindings privados, retención/restore,30parejas live/holdout, rendimiento, instalación limpia y CI ejecutable. No se cierran por la mera existencia de módulos.
+Antes del cierre faltan dos tiendas/8actores/readiness, efectos nativos y readback, recovery real, reuse firmado con mismo hash y bindings privados, Codex E2E, kernel, overhead/coste/fairness, runbook limpio, CI amplia, browser demo y reviewer fresco. Cada resultado fake, PostgreSQL, host real, browser y LLM conserva su alcance. No declarar LOCAL_VERIFIED por tests unitarios o solo presencia de handlers.

@@ -26,8 +26,8 @@
   ],
   "green": [
     {
-      "command": "vitest run tests/laws/model.test.ts tests/laws/verdict.test.ts",
-      "result": "PASS: 9 tests"
+      "command": "vitest run tests/laws/model.test.ts tests/laws/verdict.test.ts tests/laws/bend-verifier.test.ts --config vitest.config.ts",
+      "result": "PASS: 10 tests; explicit live kernel file excluded from this unit lane"
     },
     {
       "command": "bend PROOF.bend",
@@ -40,8 +40,8 @@
   ],
   "kernelGate": {
     "status": "blocked",
-    "reason": "Bend --verdict requires the Lean 4.34.0 BendTT kernel; workspace provisioning is in progress. Non-kernel output is not counted as verified.",
-    "exactPendingStep": "Run the explicit tests/laws/bend.live.test.ts lane with CHANGEDESK_BEND_BINARY_WINDOWS, CHANGEDESK_BEND_BINARY_LINUX and CHANGEDESK_BENDTT_LINUX; production law must return verified and false-law fixture must return failed. The default unit lane excludes this live file and tests unavailable as unavailable, never as proof success."
+    "reason": "Bend --verdict requires the Lean 4.34.0 BendTT kernel; the verified 580367391-byte Lean asset is still downloading. Non-kernel output is not counted as verified.",
+    "exactPendingStep": "After the download completes, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-lean.ps1` and require Lean archive SHA256 caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b. In profile-free WSL, prefix PATH with `.tools/lean-4.34.0-linux/lean-4.34.0-linux/bin`, run Bend 2.0.39 `--verdict` to build or locate BENDTT, set CHANGEDESK_BEND_BINARY_WINDOWS, CHANGEDESK_BEND_BINARY_LINUX and CHANGEDESK_BENDTT_LINUX, then run `scripts/run-live-tests.ps1 -Lane bend`. Production law must return verified and false-law fixture must return failed."
   },
   "boundary": "The four laws prove only the reviewed pure boolean association model. Adapter correspondence and external Medusa effects require separate integration evidence.",
   "challengedHypothesis": "Bend exit code zero and ALL PROOFS CHECK from the ordinary checker are insufficient. Historical unsafe-proof behavior and v2.0.39 requirements make --verdict plus the BendTT kernel mandatory."

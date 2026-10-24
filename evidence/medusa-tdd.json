@@ -30,9 +30,10 @@
     "backend": "PASS",
     "admin": "PASS",
     "command": "Node 22.23.4 direct @medusajs/cli@2.22.1 plugin:build with telemetry and analytics disabled",
-    "result": "Backend completed in 27.61s; admin extensions completed in 27.74s after staging the exact already-installed @medusajs/admin-shared@2.22.1 package as the newly declared direct dependency.",
-    "reproducibility": "Central lock/install update for the declared admin dependencies is still pending the environment owner; this pass does not replace that lock gate."
+    "result": "Backend completed in 52.62s; admin extensions completed in 55.69s from the centrally installed graph.",
+    "reproducibility": "Environment owner reported frozen lock/install commit 8e74830 PASS before this build."
   },
+  "officialRunnerScope": "The host integration suite uses real Medusa APIs, workflows, persistence, native guard, and receipt readback, but its Change Desk authority callback is a local deterministic service stub. It proves the host/plugin contract only; full ledger, lease, approval, and JIT validation requires the separate integrated service callback gate.",
   "notRun": [
     {
       "gate": "official_medusa_integration_runner",

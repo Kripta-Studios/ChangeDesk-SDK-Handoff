@@ -37,9 +37,18 @@ async function pinPolicyFiles(root) {
 }
 
 function parseWorkspacePaths(source) {
-  return source.split(/\r?\n/)
-    .map((line) => /^\s*-\s+([^#]+?)\s*$/.exec(line)?.[1]?.replace(/^['"]|['"]$/g, ""))
-    .filter(Boolean);
+  const result = [];
+  let inPackages = false;
+  for (const line of source.split(/\r?\n/)) {
+    if (/^packages:\s*$/.test(line)) {
+      inPackages = true;
+      continue;
+    }
+    if (inPackages && /^\S/.test(line)) break;
+    const item = inPackages ? /^\s+-\s+([^#]+?)\s*$/.exec(line)?.[1] : undefined;
+    if (item) result.push(item.replace(/^['"]|['"]$/g, ""));
+  }
+  return result;
 }
 
 function inspectManifest(manifest, relativeName, errors) {
