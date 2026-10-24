@@ -64,7 +64,7 @@
       "files": 5,
       "tests": 27,
       "durationSeconds": 3.22,
-      "coverage": "durable provider call wrapper, shared authorized publication lookup, abort-aware generation processor"
+      "coverage": "durable request-wide reservation in the single-call validated generation path, atomic artifact completion token, failed usage accounting, shared authorized publication lookup, and abort propagation"
     },
     {
       "command": "tsc -b packages/contracts/tsconfig.json apps/service/tsconfig.json --pretty false",
