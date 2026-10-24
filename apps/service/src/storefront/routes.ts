@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { BuyerContext, RepositoryResult, StorefrontAdminContext, StorefrontOverrides, StorefrontProposal, StorefrontRepository } from "./types.js";
+import type { BuyerSessionManager } from "./session.js";
 
 export interface StorefrontRouteDependencies {
   readonly repository: StorefrontRepository;
   readonly authenticateBuyer: (request: FastifyRequest) => Promise<BuyerContext | null>;
   readonly authenticateAdmin: (request: FastifyRequest) => Promise<StorefrontAdminContext | null>;
+  readonly buyerSessions?: BuyerSessionManager;
   readonly now?: () => Date;
   readonly requestId?: () => string;
 }
@@ -50,7 +52,8 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
   const nextRequestId = dependencies.requestId ?? randomUUID;
   const routeErrorHandler = (error: Error & { statusCode?: number }, _request: FastifyRequest, reply: FastifyReply) => {
     const tooLarge = error.statusCode === 413;
-    return fail(reply, tooLarge ? 413 : 503, tooLarge ? "body_too_large" : "storefront_unavailable", tooLarge ? "Request body exceeds 64 KiB" : "Storefront dependency unavailable", nextRequestId(), !tooLarge);
+    const controlled = typeof error.statusCode === "number" && "code" in error;
+    return fail(reply, tooLarge ? 413 : controlled ? error.statusCode! : 503, tooLarge ? "body_too_large" : controlled ? String((error as {code:unknown}).code).toLowerCase() : "storefront_unavailable", tooLarge ? "Request body exceeds 64 KiB" : controlled ? error.message : "Storefront dependency unavailable", nextRequestId(), controlled ? Boolean((error as {retryable?:unknown}).retryable) : !tooLarge);
   };
   const readOptions = { errorHandler: routeErrorHandler };
   const mutationOptions = { bodyLimit: 65_536, errorHandler: routeErrorHandler };
@@ -60,6 +63,15 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
     if (!context || context.kind !== "buyer" || !context.tenantId || !context.buyerId || !context.hostSessionId || !context.policyVersion || !Number.isFinite(expiry) || expiry <= (dependencies.now?.() ?? new Date()).getTime()) { fail(reply, 401, "buyer_session_required", "A current buyer session is required", nextRequestId()); return null; }
     return context;
   }
+
+  const buyerSessions = dependencies.buyerSessions;
+  if (buyerSessions) app.post("/v1/storefront/session/exchange", mutationOptions, async (request, reply) => {
+    privateResponse(reply); const key = idempotencyKey(request); const body = request.body; const origin = request.headers.origin;
+    if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
+    if (!origin) return fail(reply, 403, "origin_required", "Exact Origin is required", nextRequestId());
+    if (!isObject(body) || !hasOnly(body, ["ticket"]) || typeof body.ticket !== "string" || body.ticket.length > 8_192) return fail(reply, 422, "invalid_ticket", "A signed storefront ticket is required", nextRequestId());
+    return buyerSessions.exchange(body.ticket, origin);
+  });
   async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<StorefrontAdminContext | null> {
     const context = await dependencies.authenticateAdmin(request);
     const expiry = context ? Date.parse(context.expiresAt) : Number.NaN;

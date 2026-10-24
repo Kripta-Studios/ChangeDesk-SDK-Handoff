@@ -20,7 +20,17 @@
       "custom customer routes use authenticate('customer',['session','bearer'])",
       "customer identity is available as actor_type customer and actor_id in auth_context"
     ],
-    "pinLimit": "Official documentation displayed v2.22.1; no raw source commit was available, so no commit pin is claimed."
+    "pinLimit": "Official documentation displayed v2.22.1; no raw source commit was available, so no commit pin is claimed.",
+    "installedCodeEvidence": [
+      "@medusajs/framework 2.22.1 dist/http/express-loader.js installs express-session and therefore exposes req.sessionID and req.sessionStore",
+      "@medusajs/medusa 2.22.1 dist/api/auth/session/route.js DELETE awaits req.session.destroy, which destroys the same store entry"
+    ]
+  },
+  "expressSession": {
+    "version": "1.19.0",
+    "license": "MIT",
+    "officialSource": "https://expressjs.com/en/resources/middleware/session/",
+    "verifiedFacts": ["request exposes sessionID and sessionStore", "store.get(sessionId, callback) returns the live session or null", "session.destroy removes the store entry"]
   },
   "dependenciesAdded": [],
   "context7": {

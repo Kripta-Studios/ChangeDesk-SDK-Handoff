@@ -5,7 +5,10 @@ if (-not $ConfirmScopedCleanup) { throw "Pass -ConfirmScopedCleanup to permit cl
 
 $container = "changedesk-sdk-local-postgres-1"
 $expectedProject = "changedesk-sdk-local"
-$project = (& docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' $container).Trim()
+$labelsJson = (& docker inspect --format '{{json .Config.Labels}}' $container)
+if ($LASTEXITCODE -ne 0 -or -not $labelsJson) { throw "Unable to inspect scoped PostgreSQL container" }
+$labels = $labelsJson | ConvertFrom-Json
+$project = [string]$labels.'com.docker.compose.project'
 if ($project -ne $expectedProject) { throw "Unexpected Compose project for $container" }
 
 $runId = ([guid]::NewGuid().ToString("N").Substring(0, 10)).ToLowerInvariant()
@@ -26,16 +29,14 @@ try {
   $roleCreated = $true
   Invoke-BootstrapSql "postgres" "CREATE DATABASE `"$database`" OWNER changedesk_bootstrap;"
   $databaseCreated = $true
-  Invoke-BootstrapSql $database @"
-CREATE SCHEMA storage;
-CREATE TABLE storage.tenants(id text PRIMARY KEY);
-INSERT INTO storage.tenants(id) VALUES('atlas'),('boreal');
-CREATE FUNCTION storage.current_tenant_id() RETURNS text LANGUAGE sql STABLE PARALLEL SAFE AS `$`$ SELECT nullif(current_setting('app.tenant_id', true), '') `$`$;
-CREATE FUNCTION storage.current_actor_id() RETURNS text LANGUAGE sql STABLE PARALLEL SAFE AS `$`$ SELECT nullif(current_setting('app.actor_id', true), '') `$`$;
-REVOKE ALL ON FUNCTION storage.current_tenant_id(),storage.current_actor_id() FROM PUBLIC;
-"@
-  Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\..\apps\service\migrations\010_storefront_v1.sql") -Raw | & docker exec -i $container psql -X -v ON_ERROR_STOP=1 -U changedesk_bootstrap -d $database
-  if ($LASTEXITCODE -ne 0) { throw "storefront migration failed" }
+  $migrationRoot = Join-Path $PSScriptRoot "..\..\apps\service\migrations"
+  $migrationFiles = Get-ChildItem -LiteralPath $migrationRoot -Filter '*.sql' | Where-Object { $_.Name -match '^(00[1-5]|010)_' } | Sort-Object Name
+  if (($migrationFiles.Name -join ',') -ne '001_initial_storage.sql,002_rls_and_privileges.sql,003_scheduler.sql,004_scheduler_rls.sql,005_worker_fencing.sql,010_storefront_v1.sql') { throw "Unexpected migration stack" }
+  foreach ($migration in $migrationFiles) {
+    Get-Content -LiteralPath $migration.FullName -Raw | & docker exec -i $container psql -X -v ON_ERROR_STOP=1 -U changedesk_bootstrap -d $database
+    if ($LASTEXITCODE -ne 0) { throw "Migration stack failed at $($migration.Name)" }
+  }
+  Invoke-BootstrapSql $database "INSERT INTO storage.tenants(id,app_kind,backend_key,status,policy_version) VALUES('atlas','medusa','atlas','active','p1'),('boreal','medusa','boreal','active','p1');"
   Invoke-BootstrapSql $database @"
 GRANT CONNECT ON DATABASE `"$database`" TO `"$runtimeRole`";
 GRANT USAGE ON SCHEMA storage TO `"$runtimeRole`";

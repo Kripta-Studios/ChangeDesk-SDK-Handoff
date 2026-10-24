@@ -22,11 +22,13 @@ describe("buyer session domain", () => {
 
   it("rejects staff typ, wrong audience, wrong origin, and signature tampering", async () => {
     const manager = new BuyerSessionManager({ consumeTicket: async () => true }, { publicKey: async () => publicKey, reauthorizeBuyer: async () => ({ active: true, policyVersion: "buyer-v1" }) }, { audience: "changedesk-storefront", issuers: ["atlas-host"], origins: ["https://atlas.test"], ticketMaxTtlSeconds: 60, sessionTtlSeconds: 300, clock: () => now });
+    const [validPayload, validSignature] = ticket(baseClaims).split(".") as [string, string];
+    const tampered = `${validPayload}.${validSignature[0] === "A" ? "B" : "A"}${validSignature.slice(1)}`;
     for (const invalid of [
       ticket({ ...baseClaims, typ: "changedesk.bootstrap" }),
       ticket({ ...baseClaims, aud: "changedesk-staff" }),
       ticket({ ...baseClaims, origin: "https://evil.test" }),
-      `${ticket(baseClaims).slice(0, -1)}A`,
+      tampered,
     ]) await expect(manager.exchange(invalid, "https://atlas.test")).rejects.toMatchObject({ statusCode: expect.any(Number) });
   });
 });
