@@ -57,3 +57,12 @@ test("API provider reserves a known budget per request, forbids redirects, and r
   const result=await provider.generate(input);assert.equal(result.proposal.kind,"needs_clarification");assert.equal(result.usage.price?.value,0.00002);assert.equal(calls,1);
   await assert.rejects(provider.generate(input),(error:any)=>error.code==="PROVIDER_CALL_BUDGET_EXHAUSTED");assert.equal(calls,1);
 });
+
+test("API provider rejects extra proposal fields and retains failed-call usage", async () => {
+  const fetchMock:typeof fetch=async()=>new Response(JSON.stringify({
+    output_text:JSON.stringify({kind:"needs_clarification",recipe:null,safeMessage:"Choose.",unexpected:true}),
+    usage:{input_tokens:11,output_tokens:7},
+  }),{status:200});
+  const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:20_000,maxOutputTokens:1_000,maxResponseBytes:64_000,timeoutMs:1_000,authorizedBudgetUsd:1,maxPricePerCallUsd:0.01},{async get(){return "synthetic-test-key";}},{async reserve(){return true;}},fetchMock);
+  await assert.rejects(provider.generate(input),(error:any)=>error.code==="PROVIDER_OUTPUT_INVALID"&&error.usage.length===1&&error.usage[0].inputTokens===11&&error.usage[0].outputTokens===7);
+});
