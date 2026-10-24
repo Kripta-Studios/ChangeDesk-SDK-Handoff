@@ -8,6 +8,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "rootDir": ".",
     "outDir": ".medusa/server"
   },
   "include": ["src/**/*.ts"],
