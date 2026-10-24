@@ -38,13 +38,13 @@ Los contadores corresponden a suites que se solapan; no sumarlos como pruebas ú
 3. Repetir runner oficial Medusa después del último puente canonicalize. El mapper usa la dependencia declarada del plugin, no una dependencia root implícita. El smoke Jest del autor no sustituye los tests de comportamiento.
 4. Ejecutar E2E administrativo fake/live y buyer en ambas tiendas, con oráculo de efectos exactos, persistencia, logout y aislamiento. No hay captura posterior ni veredicto browser nuevo.
 5. Ejecutar kernel Bend real ligado a un plan PostgreSQL; la prueba controlada del wiring no acredita el kernel.
-6. Completar replay de checkout limpio/arranque y CI remota, actualizar acceptance con evidencia y obtener otra revisión final.
+6. Corregir quoting del readback `node -e` en `provision-lab.ps1`: `dev.ps1` falló antes de arrancar procesos. El laboratorio ya provisionado se restauró mediante sus cinco wrappers registrados. Completar replay de checkout limpio/arranque y CI remota, actualizar acceptance con evidencia y obtener otra revisión final.
 7. Evaluación adversarial independiente/holdout continúa BLOCKED por filtro del runtime; no se reintentó ni reruteó. APIs pagadas no ejecutadas.
 
 Rendimiento sigue NOT_APPLICABLE por instrucción explícita (ADR-012). No se instalaron dependencias nuevas ni se creó un quinto workspace. No se declara seguridad o escalabilidad por estas suites.
 
 ## Operación y publicación
 
-Runbook: docs/16-LOCAL-RUNBOOK.md. Checkout operativo: .worktrees/environment; archivos privados permanecen ignorados. El integrador detuvo servicios propios durante la actualización y el coordinador solicitó restaurarlos al cierre; consultar finish-close-services.json para el resultado final. PostgreSQL permanece activo. Ningún servicio ajeno se detuvo.
+Runbook: docs/16-LOCAL-RUNBOOK.md. Checkout operativo: .worktrees/environment; archivos privados permanecen ignorados. Servicios restaurados al cierre: Atlas9001, Boreal9002, API4100 y storefront8001 HTTP200; worker y PostgreSQL activos. Consultar finish-close-services.json para el límite del arranque y los PIDs observados. Ningún servicio ajeno se detuvo.
 
 Se publica mediante push normal HEAD:main, sin force. Se preservan cambios previos del usuario en evidence/handoff-validation.json y evidence/BUYER-STOREFRONT-COORDINATION.md sin incluirlos indiscriminadamente.

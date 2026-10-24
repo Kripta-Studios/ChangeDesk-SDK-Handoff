@@ -1,0 +1,13 @@
+{
+  "date":"2026-10-24",
+  "checkout":".worktrees/environment",
+  "status":"RESTORED",
+  "http":{"atlas9001":200,"boreal9002":200,"api4100Health":200,"api4100Ready":200,"storefront8001":200},
+  "worker":"active per integrator; tracked parent process alive",
+  "postgres":"active",
+  "processRegistry":".worktrees/environment/.local/run/processes.json",
+  "parentPids":{"api":15244,"worker":50808,"atlas":65280,"boreal":54308,"storefront":55284},
+  "startupLimitation":"dev.ps1 failed before service startup in provision-lab.ps1 node -e readback quoting. Integrator restored the exact five process wrappers on the already provisioned lab and registered them. Fresh dev replay remains unverified and needs quoting fix.",
+  "foreignPort8000":"untouched",
+  "scope":"Availability only. No browser effects or complete acceptance claim. Running checkout/build may precede final test-harness and evidence-only commits."
+}
