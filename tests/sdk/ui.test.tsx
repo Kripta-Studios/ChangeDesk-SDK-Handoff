@@ -105,6 +105,22 @@ describe("ChangeDeskPanel", () => {
     expect(screen.getByRole("button", { name: "Aprobar y ejecutar" })).toBeTruthy();
   });
 
+  it("installs an authorized shared offer with local bindings and no model request", async () => {
+    const artifactHash = "d".repeat(64), identity = { tenantName: "boreal", actorName: "admin_boreal", role: "admin", scopeId: "scope_boreal" };
+    const api = client({
+      getInstallations: vi.fn().mockResolvedValueOnce({ installations: [], offers: [{ artifactHash, displayName: "Preparar campaña", version: "1", recipeKey: "catalog.campaign.prepare.v1", requiredParameters: ["categoryId", "channelId"], evidenceStatus: "passed" }], permissions: ["read", "install"], identity }).mockResolvedValue({ installations: [{ id: "ins_boreal", artifactHash, recipeKey: "catalog.campaign.prepare.v1", displayName: "Preparar campaña", version: "1", state: "active", policyVersion: "1", evidenceStatus: "passed", permissions: ["read", "execute"], installedAt: "2026-01-01T00:00:00Z" }], offers: [], permissions: ["read", "install"], identity }),
+      getResources: vi.fn().mockImplementation((kind) => Promise.resolve({ resources: [{ id: kind === "category" ? "cat_boreal" : "channel_boreal", label: kind === "category" ? "Campaña Boreal" : "Canal Boreal", kind }] })),
+      installAction: vi.fn().mockResolvedValue({ installationId: "ins_boreal" }),
+    });
+    renderInternal(api); await userEvent.click(await screen.findByRole("button", { name: "Acciones" })); await userEvent.click(screen.getByRole("button", { name: "Configurar e instalar" })); await userEvent.selectOptions(await screen.findByLabelText("Categoría"), "cat_boreal"); await userEvent.selectOptions(screen.getByLabelText("Canal"), "channel_boreal"); await userEvent.click(screen.getByRole("button", { name: "Instalar con esta configuración" }));
+    expect(api.installAction).toHaveBeenCalledWith({ artifactHash, configuration: { categoryId: "cat_boreal", channelId: "channel_boreal" } }); expect(api.createRequest).not.toHaveBeenCalled(); expect(await screen.findByRole("button", { name: "Configurar y ejecutar" })).toBeTruthy();
+  });
+
+  it("shows shared offers to a requester without granting client-side install authority", async () => {
+    const api = client({ getInstallations: vi.fn().mockResolvedValue({ installations: [], offers: [{ artifactHash: "d".repeat(64), displayName: "Preparar campaña", version: "1", recipeKey: "catalog.campaign.prepare.v1", requiredParameters: ["categoryId", "channelId"], evidenceStatus: "passed" }], permissions: ["read", "request", "preview"], identity: { tenantName: "boreal", actorName: "requester_boreal", role: "requester", scopeId: "scope_requester" } }) });
+    renderInternal(api); await userEvent.click(await screen.findByRole("button", { name: "Acciones" })); const button=screen.getByRole("button", { name: "Requiere un administrador" }) as HTMLButtonElement; expect(button.disabled).toBe(true); expect(api.installAction).not.toHaveBeenCalled();
+  });
+
   it("sends clarification as a conversation message instead of creating another request", async () => {
     const api = client({
       createRequest: vi.fn().mockResolvedValue({ requestId: "req_1", status: "received" }),

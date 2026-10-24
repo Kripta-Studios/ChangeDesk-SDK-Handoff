@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { Candidate, ExecutionView, IdentityView, Installation, PlanView, RequestView, ResourceOption } from "../types.js";
+import type { Candidate, CatalogOffer, ExecutionView, IdentityView, Installation, PlanView, RequestView, ResourceOption } from "../types.js";
 import { ChangeDeskApiError } from "../client.js";
 import { PanelErrorBoundary } from "../error-boundary.js";
 import { pollResource, type PollController } from "../polling.js";
@@ -32,11 +32,13 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
   const [request, setRequest] = useState<RequestView>();
   const [candidate, setCandidate] = useState<Candidate>();
   const [installationId, setInstallationId] = useState<string | undefined>(initialInstallationId);
+  const [offer, setOffer] = useState<CatalogOffer>();
   const [resources, setResources] = useState<ResourceOption[]>([]);
   const [parameters, setParameters] = useState<Record<string, string>>({});
   const [plan, setPlan] = useState<PlanView>();
   const [execution, setExecution] = useState<ExecutionView>();
   const [installations, setInstallations] = useState<readonly Installation[]>([]);
+  const [offers, setOffers] = useState<readonly CatalogOffer[]>([]);
   const [permissions, setPermissions] = useState<readonly string[]>([]);
   const [identity, setIdentity] = useState<IdentityView>();
   const [evidence, setEvidence] = useState<Array<{ id: string; status: string; scope: string; verifierVersion: string }>>([]);
@@ -58,7 +60,7 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
 
   useEffect(() => {
     client.getInstallations().then(async (value) => {
-      setInstallations(value.installations); setPermissions(value.permissions); setIdentity(value.identity);
+      setInstallations(value.installations); setOffers(value.offers ?? []); setPermissions(value.permissions); setIdentity(value.identity);
       const resume = bindScope(value.identity?.scopeId);
       if (initialInstallationId) await configureInstallation(initialInstallationId, value.installations);
       else if (resume.executionId) { setScreen("execution"); watchExecution(resume.executionId); }
@@ -134,11 +136,26 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
   async function configureInstallation(id: string, available = installations) {
     const item = available.find((entry) => entry.id === id);
     if (!item || item.state !== "active") { setError("La acción instalada no está disponible."); return; }
-    setInstallationId(id); setCandidate(undefined); setPlan(undefined); setExecution(undefined); setParameters({});
+    setInstallationId(id); setOffer(undefined); setCandidate(undefined); setPlan(undefined); setExecution(undefined); setParameters({});
     const names = parameterNamesForInstallation(item);
     const kinds = names.map((name) => name === "categoryId" ? "category" as const : "channel" as const);
     const lists = await Promise.all([...new Set(kinds)].map((kind) => client.getResources(kind)));
     setResources(lists.flatMap((list) => list.resources)); setScreen("configure");
+  }
+
+  async function configureOffer(item: CatalogOffer) {
+    setOffer(item); setInstallationId(undefined); setCandidate(undefined); setPlan(undefined); setExecution(undefined); setParameters({}); setError(undefined);
+    const kinds = item.requiredParameters.map((name) => name === "categoryId" ? "category" as const : "channel" as const);
+    try { const lists = await Promise.all([...new Set(kinds)].map((kind) => client.getResources(kind))); setResources(lists.flatMap((list) => list.resources)); setScreen("configure"); }
+    catch (reason) { showError(reason); }
+  }
+
+  async function installOffer(event: React.FormEvent) {
+    event.preventDefault(); if (!offer) return;
+    if (offer.requiredParameters.some((name) => !parameters[name])) { setError("Completa todos los recursos requeridos."); return; }
+    setBusy(true); setError(undefined);
+    try { const result = await client.installAction({ artifactHash: offer.artifactHash, configuration: parameters }); config.onEvent?.({ type: "action_installed", installationId: result.installationId }); const list = await client.getInstallations(); setInstallations(list.installations); setOffers(list.offers ?? []); setOffer(undefined); setScreen("library"); }
+    catch (reason) { showError(reason); } finally { setBusy(false); }
   }
 
   async function preparePlan(event: React.FormEvent) {
@@ -202,10 +219,10 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
           <main className="cd-content">
             {error ? <div className="cd-alert" role="alert">{error}</div> : null}
             {screen === "request" ? <section><div className="cd-step"><span>01</span><div><h2>{copy.describe}</h2><p>{copy.reauthorized}</p></div></div><form onSubmit={request?.status === "needs_clarification" ? sendClarification : submitRequest}><label htmlFor={`${titleId}-message`}>{request?.status === "needs_clarification" ? copy.clarify : copy.prompt}</label><textarea ref={inputRef} id={`${titleId}-message`} maxLength={4000} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={copy.placeholder}/><div className="cd-form-footer"><span>{message.length}/4000</span><button className="cd-button" disabled={busy} type="submit">{busy ? copy.sending : request?.status === "needs_clarification" ? copy.sendClarification : copy.search}</button></div></form>{request ? <RequestResult request={request} busy={busy} onChoose={chooseCandidate} /> : null}</section> : null}
-            {screen === "configure" && (candidate || installationId) ? <Configuration title={candidate?.displayName ?? installations.find((item) => item.id === installationId)?.displayName ?? "Acción instalada"} parameterNames={candidate?.missingParameters ?? parameterNamesForInstallation(installations.find((item) => item.id === installationId))} resources={resources} parameters={parameters} setParameters={(next) => { setPlan(undefined); setParameters(next); }} onSubmit={preparePlan} busy={busy} /> : null}
+            {screen === "configure" && (candidate || installationId || offer) ? <Configuration title={offer?.displayName ?? candidate?.displayName ?? installations.find((item) => item.id === installationId)?.displayName ?? "Acción instalada"} parameterNames={offer?.requiredParameters ?? candidate?.missingParameters ?? parameterNamesForInstallation(installations.find((item) => item.id === installationId))} resources={resources} parameters={parameters} setParameters={(next) => { setPlan(undefined); setParameters(next); }} onSubmit={offer ? installOffer : preparePlan} busy={busy} submitLabel={offer ? "Instalar con esta configuración" : undefined} /> : null}
             {screen === "plan" && plan ? <PlanPreview view={plan} canApprove={plan.canApprove && permissions.includes("approve") && permissions.includes("execute")} busy={busy} onEdit={() => { setPlan(undefined); remember({ planId: undefined }); setScreen("configure"); }} onApprove={approveAndExecute} onInstall={permissions.includes("install") && !installations.some((item) => item.artifactHash === plan.plan.artifactHash) ? install : undefined} onPublish={permissions.includes("share") ? publish : undefined} publicationId={publicationId} onRevoke={permissions.includes("revoke") ? revoke : undefined} /> : null}
             {screen === "execution" ? <ExecutionProgress execution={execution} onCancel={permissions.includes("execute") ? cancel : undefined} onResume={permissions.includes("execute") ? resumeCurrentExecution : undefined} /> : null}
-            {screen === "library" ? <Library installations={installations} onRun={configureInstallation} /> : null}
+            {screen === "library" ? <Library installations={installations} offers={offers} canInstall={permissions.includes("install")} onRun={configureInstallation} onConfigureOffer={configureOffer} /> : null}
             {screen === "evidence" ? <EvidenceList evidence={evidence} /> : null}
           </main>
           <footer className="cd-footer"><span>{copy.footer}</span><span aria-live="polite">{request ? stateLabel[request.status] ?? request.status : copy.ready}</span></footer>
@@ -219,8 +236,8 @@ function RequestResult({ request, busy, onChoose }: { request: RequestView; busy
   return <section className="cd-result" aria-live="polite"><div className="cd-result__head"><Status value={request.status}/><span className={`cd-provider cd-provider--${request.providerMode}`}>{request.providerMode === "fake" ? "Proveedor simulado" : request.providerMode === "live" ? "Proveedor real" : "Proveedor no disponible"}</span></div><p>{request.safeMessage}</p>{request.candidates.map((item) => <article className="cd-candidate" key={item.id}><div><span className="cd-kicker">{item.recipeKey} · v{item.version}</span><h3>{item.displayName}</h3><p>{item.requiredCapabilities.join(" · ")}</p></div><div><Status value={item.evidenceStatus}/><button className="cd-button" disabled={busy || item.compatibility === "incompatible"} type="button" onClick={() => onChoose(item, item.compatibility === "adaptation_required" ? "adapt" : "reuse")}>{item.compatibility === "adaptation_required" ? "Adaptar" : "Usar esta función"}</button></div></article>)}</section>;
 }
 
-function Configuration({ title, parameterNames, resources, parameters, setParameters, onSubmit, busy }: { title: string; parameterNames: readonly string[]; resources: ResourceOption[]; parameters: Record<string, string>; setParameters: React.Dispatch<React.SetStateAction<Record<string, string>>>; onSubmit: (event: React.FormEvent) => void; busy: boolean }) {
-  return <section><div className="cd-step"><span>02</span><div><h2>Configuración local</h2><p>{title}. Los recursos proceden de la allowlist del servidor.</p></div></div><form onSubmit={onSubmit}>{parameterNames.map((name) => { const kind = name === "categoryId" ? "category" : "channel"; return <label key={name}>{name === "categoryId" ? "Categoría" : "Canal"}<select value={parameters[name] ?? ""} onChange={(e) => setParameters((current) => ({ ...current, [name]: e.target.value }))}><option value="">Selecciona…</option>{resources.filter((item) => item.kind === kind).map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label>; })}<button className="cd-button" disabled={busy} type="submit">Preparar preview</button></form></section>;
+function Configuration({ title, parameterNames, resources, parameters, setParameters, onSubmit, busy, submitLabel = "Preparar preview" }: { title: string; parameterNames: readonly string[]; resources: ResourceOption[]; parameters: Record<string, string>; setParameters: React.Dispatch<React.SetStateAction<Record<string, string>>>; onSubmit: (event: React.FormEvent) => void; busy: boolean; submitLabel?: string | undefined }) {
+  return <section><div className="cd-step"><span>02</span><div><h2>Configuración local</h2><p>{title}. Los recursos proceden de la allowlist del servidor.</p></div></div><form onSubmit={onSubmit}>{parameterNames.map((name) => { const kind = name === "categoryId" ? "category" : "channel"; return <label key={name}>{name === "categoryId" ? "Categoría" : "Canal"}<select value={parameters[name] ?? ""} onChange={(e) => setParameters((current) => ({ ...current, [name]: e.target.value }))}><option value="">Selecciona…</option>{resources.filter((item) => item.kind === kind).map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label>; })}<button className="cd-button" disabled={busy} type="submit">{submitLabel}</button></form></section>;
 }
 
 export function PlanPreview({ view, canApprove, busy, onEdit, onApprove, onInstall, onPublish, publicationId, onRevoke }: { view: PlanView; canApprove: boolean; busy: boolean; onEdit?: (() => void) | undefined; onApprove: () => void; onInstall?: (() => void) | undefined; onPublish?: (() => void) | undefined; publicationId?: string | undefined; onRevoke?: (() => void) | undefined }) {
@@ -237,7 +254,7 @@ export function ExecutionProgress({ execution, onCancel, onResume }: { execution
   return <section><div className="cd-step"><span>04</span><div><h2>Resultado por registro</h2><Status value={execution.state}/></div></div><div className="cd-table-wrap"><table><caption>Progreso durable de la ejecución</caption><thead><tr><th>Registro</th><th>Estado</th><th>Pasos</th></tr></thead><tbody>{execution.rows.map((row) => <tr key={row.rowId}><td>{row.resourceRef}</td><td><Status value={row.state}/></td><td>{row.steps.map((step) => <span className="cd-step-token" key={step.stepId}>{step.stepId}: {stateLabel[step.state] ?? step.state}</span>)}</td></tr>)}</tbody></table></div><div className="cd-actions">{onCancel && ["queued", "running", "waiting_reconciliation"].includes(execution.state) ? <button className="cd-button cd-button--danger" onClick={onCancel}>Cancelar pasos futuros</button> : null}{onResume && ["partial", "failed", "waiting_reconciliation"].includes(execution.state) ? <button className="cd-button" onClick={onResume}>Reconciliar y reanudar</button> : null}</div></section>;
 }
 
-function Library({ installations, onRun }: { installations: readonly Installation[]; onRun: (id: string) => void }) { return <section><div className="cd-step"><span>↻</span><div><h2>Acciones instaladas</h2><p>Las ejecuciones repetidas no necesitan volver a generar la receta.</p></div></div>{installations.length ? <div className="cd-card-grid">{installations.map((item) => <article className="cd-library-card" key={item.id}><Status value={item.state}/><h3>{item.displayName}</h3><p>{item.recipeKey} · v{item.version}</p><p>Evidencia: {stateLabel[item.evidenceStatus] ?? item.evidenceStatus}</p>{item.updateAvailable ? <strong>Actualización disponible</strong> : null}<button className="cd-button" type="button" disabled={item.state !== "active" || !item.permissions.includes("execute")} onClick={() => onRun(item.id)}>Configurar y ejecutar</button></article>)}</div> : <p className="cd-empty">Aún no hay acciones visibles para este usuario.</p>}</section>; }
+function Library({ installations, offers, canInstall, onRun, onConfigureOffer }: { installations: readonly Installation[]; offers: readonly CatalogOffer[]; canInstall: boolean; onRun: (id: string) => void; onConfigureOffer: (offer: CatalogOffer) => void }) { return <section><div className="cd-step"><span>↻</span><div><h2>Acciones instaladas</h2><p>Las ejecuciones repetidas no necesitan volver a generar la receta.</p></div></div>{installations.length ? <div className="cd-card-grid">{installations.map((item) => <article className="cd-library-card" key={item.id}><Status value={item.state}/><h3>{item.displayName}</h3><p>{item.recipeKey} · v{item.version}</p><p>Evidencia: {stateLabel[item.evidenceStatus] ?? item.evidenceStatus}</p>{item.updateAvailable ? <strong>Actualización disponible</strong> : null}<button className="cd-button" type="button" disabled={item.state !== "active" || !item.permissions.includes("execute")} onClick={() => onRun(item.id)}>Configurar y ejecutar</button></article>)}</div> : <p className="cd-empty">Aún no hay acciones instaladas para este usuario.</p>}<div className="cd-step"><span>+</span><div><h2>Ofertas compartidas</h2><p>Artefactos genéricos autorizados; la configuración y los recursos serán propios de esta tienda.</p></div></div>{offers.length ? <div className="cd-card-grid">{offers.map((item) => <article className="cd-library-card" key={item.artifactHash}><Status value={item.evidenceStatus}/><h3>{item.displayName}</h3><p>{item.recipeKey} · v{item.version}</p><p>{item.requiredParameters.join(" · ")}</p><button className="cd-button" type="button" disabled={!canInstall} onClick={() => onConfigureOffer(item)}>{canInstall ? "Configurar e instalar" : "Requiere un administrador"}</button></article>)}</div> : <p className="cd-empty">No hay ofertas compartidas autorizadas.</p>}</section>; }
 function EvidenceList({ evidence }: { evidence: Array<{ id: string; status: string; scope: string; verifierVersion: string }> }) { return <section><div className="cd-step"><span>✓</span><div><h2>Evidencia</h2><p>Alcance y versión explícitos; no certifica la API externa.</p></div></div>{evidence.length ? evidence.map((item) => <article className="cd-library-card" key={item.id}><Status value={item.status}/><h3>{item.scope}</h3><p>Verificador {item.verifierVersion}</p></article>) : <p className="cd-empty">No hay evidencia visible o todavía no se ha ejecutado.</p>}</section>; }
 
 export default InternalPanel;

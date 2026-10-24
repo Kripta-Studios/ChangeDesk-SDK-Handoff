@@ -37,3 +37,5 @@ Integrar checkpoints anteriores, migrate/seed8actores, arrancar Atlas9001/Boreal
 ## Última instrucción del usuario: prioridad funcional
 
 El usuario excluye expresamente TODO objetivo de rendimiento. ADR012 prevalece: no más benchmarks/optimización perf; ACC015 NOT_APPLICABLE por instrucción del usuario. Conservar FAIL históricos. Prioridad inmediata finalizar app y features funcionando, dos hosts/chat/generación/aprobación/ejecución/reuse. Mantener tests funcionales/permisos y límites de gasto, sin esperar medidas de rendimiento para cerrar.
+
+Actualización de arranque: environment confirma migraciones/core+changedesk y seed PASS para Atlas/Boreal; healthHTTP200 en9001/9002 con procesos ocultos propios. Mapas privados evidence/local/seed-map.{atlas,boreal}.json. ServicioAPI/worker4100 aún pendiente wrapper secreto/config; no afirmar fullreadiness. Root integra catálogo35cf344, runtimef270226 (ofertas+providerMode) yfrontendc170fbf/b829f39 (ofertasUI/reuseE2E y lanesfake/live diferenciadas). Falta ejecutar browser. Runtime amplía config env para APIs/fake ademásdefaultCodex; planner pruebadiscoveryrealPG.
