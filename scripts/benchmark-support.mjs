@@ -34,3 +34,16 @@ export function benchmarkStatus(catalog, admission) {
 export function persistenceMetrics(databaseBytesBefore, databaseBytesAfter, catalogLogicalRows, admissionLogicalRows) {
   return { unit: "bytes", databaseSizeDelta: databaseBytesAfter - databaseBytesBefore, catalogLogicalRows, admissionLogicalRows };
 }
+
+export function parseRunIds(args) {
+  const runIds = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== "--run-id" || typeof args[index + 1] !== "string") throw new Error("Expected repeated --run-id UUID arguments");
+    const runId = args[index + 1];
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)) throw new Error("Each benchmark run ID must be a UUID");
+    runIds.push(runId);
+    index += 1;
+  }
+  if (runIds.length === 0) throw new Error("Provide at least one explicit --run-id UUID");
+  return [...new Set(runIds)];
+}
