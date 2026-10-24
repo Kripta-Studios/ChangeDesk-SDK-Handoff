@@ -79,6 +79,32 @@ describe("ChangeDeskPanel", () => {
     expect(screen.queryByRole("button", { name: "Aprobar y ejecutar" })).toBeNull();
   });
 
+  it("installs a prepared action without abandoning its approvable preview", async () => {
+    const artifactHash = "b".repeat(64);
+    const plan = { id: "plan_install", schemaVersion: "1", tenantId: "hidden", actorId: "hidden", requestId: "req_install", artifactHash, adapterVersion: "1", policyVersion: "1", capabilityManifestHash: "c".repeat(64), parameters: {}, selectionSnapshot: ["prod_1"], state: "ready", planHash: "a".repeat(64), planVersion: 1, createdAt: "2026-01-01T00:00:00Z", expiresAt: "2026-01-01T00:10:00Z", perRecordEffects: [], exclusions: [], evidenceRefs: [], limits: { maxRecords: 100, maxSteps: 12 } } as const;
+    const identity = { tenantName: "tenant_1", actorName: "actor_1", role: "operator", scopeId: "scope_1" };
+    const installation = { id: "ins_new", artifactHash, recipeKey: "catalog.campaign.prepare.v1", displayName: "Preparar campaña", version: "1", state: "active", policyVersion: "1", evidenceStatus: "passed", permissions: ["read", "execute"], installedAt: "2026-01-01T00:00:00Z" } as const;
+    const api = client({
+      getInstallations: vi.fn().mockResolvedValueOnce({ installations: [], permissions: ["read", "request", "preview", "approve", "execute", "install"], identity }).mockResolvedValue({ installations: [installation], permissions: ["read", "request", "preview", "approve", "execute", "install"], identity }),
+      createRequest: vi.fn().mockResolvedValue({ requestId: "req_install", status: "received" }),
+      getRequest: vi.fn().mockResolvedValue({ requestId: "req_install", status: "candidate_offered", safeMessage: "Lista", providerMode: "fake", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", candidates: [{ id: "cand_install", artifactHash, recipeKey: "catalog.campaign.prepare.v1", version: "1", displayName: "Preparar campaña", compatibility: "compatible", evidenceStatus: "passed", requiredCapabilities: [], missingParameters: [], estimatedCost: null }], permissions: ["request", "preview", "approve", "execute", "install"] }),
+      selectCandidate: vi.fn().mockResolvedValue({ requestId: "req_install", status: "needs_configuration" }),
+      getResources: vi.fn().mockResolvedValue({ resources: [] }),
+      createPlan: vi.fn().mockResolvedValue({ planId: plan.id, status: "ready" }),
+      getPlan: vi.fn().mockResolvedValue({ plan, title: "Preparar campaña", canApprove: true, permissions: ["approve", "execute", "install"] }),
+      installAction: vi.fn().mockResolvedValue({ installationId: installation.id }),
+    });
+    renderInternal(api);
+    await userEvent.type(screen.getByLabelText("¿Qué necesitas cambiar?"), "Prepara campaña");
+    await userEvent.click(screen.getByRole("button", { name: "Buscar una función" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Usar esta función" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Preparar preview" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Instalar acción" }));
+    expect(await screen.findByRole("heading", { name: "Preview del plan" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Instalar acción" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Aprobar y ejecutar" })).toBeTruthy();
+  });
+
   it("sends clarification as a conversation message instead of creating another request", async () => {
     const api = client({
       createRequest: vi.fn().mockResolvedValue({ requestId: "req_1", status: "received" }),

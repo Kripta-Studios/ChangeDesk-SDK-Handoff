@@ -4,8 +4,8 @@
   "artifacts": {
     "sdk": {
       "file": "changedesk-react-0.0.0.tgz",
-      "bytes": 38386,
-      "sha256": "53B9BE8053FBE421220594531D59856809D91166F4AB7BB275A37F43DC022222"
+      "bytes": 39176,
+      "sha256": "DB1C2757F036346C6B2A3115C00B0AFC2A2EA012316B248D8E03C21022A8778F"
     },
     "contractsPeer": {
       "file": "changedesk-contracts-0.0.0.tgz",
@@ -14,15 +14,15 @@
     }
   },
   "cleanConsumer": {
-    "location": ".tools/frontend-tarball-smoke-clean4 (gitignored)",
-    "install": "PASS, pnpm 11.22.0, 10.74s, exact allowBuilds esbuild:true",
-    "typecheck": "PASS, TypeScript 5.9.3, 10.89s; installed index.d.ts present",
-    "build": "PASS, Vite 7.3.7, 4.87s",
+    "location": ".tools/frontend-tarball-smoke-clean5 (gitignored)",
+    "install": "PASS, pnpm 11.22.0, 1.38s warm content-addressable store, exact allowBuilds esbuild:true",
+    "typecheck": "PASS, TypeScript 5.9.3, 2.45s; installed index.d.ts present",
+    "build": "PASS, Vite 7.3.7, 1.38s",
     "output": {
-      "entryRawBytes": 150099,
-      "entryGzipBytes": 49261,
-      "lazyPanelRawBytes": 26030,
-      "lazyPanelGzipBytes": 8485
+      "entryRawBytes": 150704,
+      "entryGzipBytes": 49406,
+      "lazyPanelRawBytes": 26101,
+      "lazyPanelGzipBytes": 8502
     },
     "dependencyInspection": {
       "react": "18.3.1 (one resolved instance)",
@@ -33,10 +33,10 @@
   },
   "browserWaterfall": {
     "browser": "Playwright 1.64.1 managed Chromium/Headless Shell 156.0.8078.4 revision 1248",
-    "idleAssets": ["/", "/assets/index-C7rBF0Aw.js"],
+    "idleAssets": ["/", "/assets/index-BAYFIiM2.js"],
     "idlePanelRequests": 0,
     "idleApiRequests": 0,
-    "afterOpenAssets": ["/assets/InternalPanel-CG7szjfF-Daf0uV9f.js"],
+    "afterOpenAssets": ["/assets/InternalPanel-CF6npl7N-BhXpT0zY.js"],
     "afterOpenApiRequests": 1,
     "postUnmountRequestGrowthAfter2500Ms": 0,
     "dialogAfterClose": 0,
