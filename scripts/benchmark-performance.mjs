@@ -4,8 +4,8 @@ import { cpus, platform, release, totalmem } from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { Pool } from "pg";
 
 import { requireBenchmarkEnvironment, summarize } from "./benchmark-support.mjs";
 
@@ -14,6 +14,9 @@ const CATALOG_WARMUP = 20;
 const CATALOG_SAMPLES = 200;
 const ADMISSION_WARMUP = 10;
 const ADMISSION_SAMPLES = 80;
+const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const serviceRequire = createRequire(path.join(REPOSITORY_ROOT, "apps/service/package.json"));
+const { Pool } = serviceRequire("pg");
 
 function hash(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -86,7 +89,7 @@ async function measureAdmission(app, store, actor, origin) {
 }
 
 async function main() {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const root = REPOSITORY_ROOT;
   const { migratorDatabaseUrl, runtimeDatabaseUrl } = requireBenchmarkEnvironment();
   const [{ runMigrations, Store }, { buildApi }, { StorageApiOperations }] = await Promise.all([
     import(pathToFileURL(path.join(root, "apps/service/dist/storage/index.js"))),
