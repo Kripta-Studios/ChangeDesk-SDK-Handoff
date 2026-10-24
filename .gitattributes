@@ -6,6 +6,7 @@
 *.ts text eol=lf
 *.tsx text eol=lf
 *.sql text eol=lf
+apps/service/migrations/*.sql text eol=lf
 *.sh text eol=lf
 *.ps1 text eol=crlf
 
