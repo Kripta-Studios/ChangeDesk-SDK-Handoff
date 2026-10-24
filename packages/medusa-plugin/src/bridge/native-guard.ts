@@ -33,9 +33,11 @@ export const denyManagedActorNativeMutation = async (
   if (mustDenyAdminMutation(req.path, user?.metadata?.changedesk?.managed === true)) {
     return next(new MedusaError(MedusaError.Types.FORBIDDEN, "Managed Change Desk demo actors cannot use native mutation routes"))
   }
-  if (/^\/admin\/(?:products|product-categories|sales-channels)(?:\/|$)/.test(req.path)) {
+  {
     const service = req.scope.resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService
-    const release = await service.acquireResourceLocks(["catalog-mutator"])
+    const resources = ["authority-mutator"]
+    if (/^\/admin\/(?:products|product-categories|sales-channels)(?:\/|$)/.test(req.path)) resources.push("catalog-mutator")
+    const release = await service.acquireResourceLocks(resources)
     let released = false
     const releaseOnce = () => {
       if (!released) {

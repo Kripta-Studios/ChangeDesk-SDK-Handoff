@@ -2,6 +2,9 @@ import { batchLinkProductsToCategoryWorkflow, linkProductsToSalesChannelWorkflow
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { BridgeError } from "./errors.ts"
 import type { BridgeCommand, EffectDelegationClaims } from "./types.ts"
+import type { ActorPolicy } from "./types.ts"
+import { readActorPolicy } from "./actor.ts"
+import { authorizeDelegation } from "./validation.ts"
 import { CHANGEDESK_MODULE } from "../modules/changedesk/index.ts"
 import type ChangeDeskModuleService from "../modules/changedesk/service.ts"
 
@@ -41,19 +44,23 @@ export const relationPresent = (product: Awaited<ReturnType<typeof getProduct>>,
   return false
 }
 
-export const executeRead = async (scope: Scope, command: BridgeCommand) => {
+export const executeRead = async (scope: Scope, command: BridgeCommand, actor: ActorPolicy) => {
   switch (command.capability) {
     case "medusa.products.list": {
+      if (command.args.ids?.some((id) => !actor.readableProductIds.includes(id))) {
+        throw new BridgeError(404, "resource_not_found", "Resource not found")
+      }
       const query = scope.resolve(ContainerRegistrationKeys.QUERY) as Query
       const { data, metadata } = await query.graph({
         entity: "product",
         fields: productFields,
-        filters: command.args.ids ? { id: command.args.ids } : {},
+        filters: { id: command.args.ids ?? actor.readableProductIds },
         pagination: { take: command.args.limit, skip: 0 },
       })
       return { products: data, metadata }
     }
     case "medusa.products.retrieve":
+      if (!actor.readableProductIds.includes(command.args.productId)) throw new BridgeError(404, "resource_not_found", "Resource not found")
       return { product: await getProduct(scope, command.args.productId) }
     case "medusa.product_categories.retrieve": {
       const service = scope.resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService
@@ -89,12 +96,21 @@ export const executeEffect = async (scope: Scope, command: BridgeCommand, claims
     throw new BridgeError(404, "resource_not_found", "Resource not found")
   }
 
-  return service.withResourceLock("catalog-mutator", async () => service.withResourceLock(`product:${productId}`, async () => {
+  return service.withResourceLock("authority-mutator", async () => service.withResourceLock("catalog-mutator", async () => service.withResourceLock(`product:${productId}`, async () => {
+    const actor = await readActorPolicy(scope as never, claims.actorId)
+    const options = service.getOptions()
+    authorizeDelegation(claims, command, actor, {
+      issuer: options.serviceIssuer,
+      audience: options.installationId,
+      tenantId: options.tenantId,
+      now: Math.floor(Date.now() / 1000),
+    })
+    await service.assertCurrentAuthority(claims)
     const existing = await service.listOperationReceipts({ tenant_id: claims.tenantId, operation_key: claims.operationKey })
     const receipt = existing[0]
     if (receipt) {
       if (receipt.capability !== command.capability || receipt.args_hash !== claims.argsHash ||
-          receipt.semantic_input_hash !== claims.semanticInputHash || receipt.fence !== claims.fence ||
+          receipt.semantic_input_hash !== claims.semanticInputHash ||
           receipt.execution_id !== claims.executionId || receipt.row_id !== claims.rowId || receipt.step_id !== claims.stepId) {
         throw new BridgeError(409, "operation_key_collision", "Operation key is already bound")
       }
@@ -103,6 +119,17 @@ export const executeEffect = async (scope: Scope, command: BridgeCommand, claims
       if (relationPresent(observed, command)) {
         return service.updateOperationReceipts({ id: receipt.id, status: "confirmed", readback: observed })
       }
+      if (receipt.status === "sent" || receipt.status === "unknown") {
+        throw new BridgeError(409, "effect_unknown", "Sent effect is absent on readback and requires review")
+      }
+    }
+
+    if (command.capability === "medusa.product_categories.products.add") {
+      const { data } = await graph(scope, "product_category", ["id", "is_active"], { id: destinationId })
+      if (!(data[0] as { is_active?: boolean } | undefined)?.is_active) throw new BridgeError(409, "destination_inactive", "Destination is inactive")
+    } else {
+      const { data } = await graph(scope, "sales_channel", ["id", "is_disabled"], { id: destinationId })
+      if ((data[0] as { is_disabled?: boolean } | undefined)?.is_disabled !== false) throw new BridgeError(409, "destination_inactive", "Destination is inactive")
     }
 
     const before = await getProduct(scope, productId)
@@ -139,5 +166,5 @@ export const executeEffect = async (scope: Scope, command: BridgeCommand, claims
       throw new BridgeError(503, "readback_failed", "Effect could not be confirmed")
     }
     return service.updateOperationReceipts({ id: intent.id, status: "confirmed", readback: after })
-  }))
+  })))
 }

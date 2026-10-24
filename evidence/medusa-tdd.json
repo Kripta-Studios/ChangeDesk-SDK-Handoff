@@ -1,11 +1,11 @@
 {
   "recordedAt": "2026-10-24",
   "suite": "tests/medusa/*.test.ts",
-  "red": {
+  "controlSensitivityMutation": {
     "command": "node --experimental-strip-types --test tests/medusa/native-guard.test.ts",
     "mutation": "Temporarily exempted /admin/api-keys for managed demo actors",
     "exitCode": 1,
-    "reason": "Expected true deny, observed false specifically for /admin/api-keys",
+    "reason": "Expected true deny, observed false specifically for /admin/api-keys. This mutation was run after implementation and is not claimed as the original TDD RED.",
     "tests": {"pass":1,"fail":1}
   },
   "preAdr006Green": {
