@@ -1,0 +1,42 @@
+{
+  "name": "@changedesk/medusa-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
+  "scripts": {
+    "build": "medusa plugin:build",
+    "test:unit": "node --experimental-strip-types --test ../../tests/medusa/*.test.ts"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./admin": {
+      "import": "./.medusa/server/src/admin/index.mjs",
+      "require": "./.medusa/server/src/admin/index.js",
+      "default": "./.medusa/server/src/admin/index.js"
+    },
+    "./.medusa/server/src/modules/*": "./.medusa/server/src/modules/*/index.js",
+    "./bridge/*": "./.medusa/server/src/bridge/*.js",
+    "./*": "./.medusa/server/src/*.js"
+  },
+  "peerDependencies": {
+    "@medusajs/core-flows": "2.22.1",
+    "@medusajs/framework": "2.22.1",
+    "@medusajs/medusa": "2.22.1"
+  },
+  "dependencies": {
+    "canonicalize": "5.1.0"
+  },
+  "devDependencies": {
+    "@medusajs/cli": "2.22.1",
+    "@medusajs/core-flows": "2.22.1",
+    "@medusajs/framework": "2.22.1",
+    "@medusajs/medusa": "2.22.1",
+    "@medusajs/test-utils": "2.22.1",
+    "@swc/core": "1.15.3",
+    "typescript": "5.9.3"
+  }
+}

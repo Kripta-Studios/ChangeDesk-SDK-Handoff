@@ -1,0 +1,36 @@
+{
+  "recordedAt": "2026-10-24",
+  "suite": "tests/medusa/*.test.ts",
+  "red": {
+    "command": "node --experimental-strip-types --test tests/medusa/native-guard.test.ts",
+    "mutation": "Temporarily exempted /admin/api-keys for managed demo actors",
+    "exitCode": 1,
+    "reason": "Expected true deny, observed false specifically for /admin/api-keys",
+    "tests": {"pass":1,"fail":1}
+  },
+  "preAdr006Green": {
+    "command": "node --experimental-strip-types --test tests/medusa/*.test.ts",
+    "exitCode": 0,
+    "tests": {"pass":7,"fail":0},
+    "durationMs": 948.8196,
+    "scope": "Bridge behavior before replacing the local canonicalizer with canonicalize@5.1.0; not final ADR006 evidence"
+  },
+  "notRun": [
+    {
+      "gate": "final_bridge_unit_after_adr006",
+      "reason": "canonicalize@5.1.0 is declared and source-verified but not installed in this worktree; lockfile/install ownership belongs to the environment agent. TypeScript syntax check passed."
+    },
+    {
+      "gate": "official_medusa_integration_runner",
+      "reason": "Node is 25.8.1 instead of pinned Node 22 LTS, Docker/PostgreSQL engine is unavailable, and the environment owner has not installed the pinned dependency graph."
+    },
+    {
+      "gate": "atlas_boreal_real_login_seed_readback",
+      "reason": "Requires the same unavailable Medusa/PostgreSQL runtime. No mock result is reported as real."
+    },
+    {
+      "gate": "multiprocess_toctou",
+      "reason": "The shared host lock is process-local. It covers bridge and privileged native catalog mutations only in the required single-process local host; no cross-process guarantee is claimed."
+    }
+  ]
+}
