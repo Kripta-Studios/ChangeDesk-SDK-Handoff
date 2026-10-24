@@ -52,7 +52,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     const recipientTenantId = `runtime-recipient-${randomUUID()}`;
     if (planPath === "direct") await seedTenant(recipientTenantId, "recipient-admin");
     const capabilities = ["medusa.products.list", "medusa.products.retrieve", "medusa.product_categories.retrieve", "medusa.sales_channels.retrieve", "medusa.product_categories.products.add", "medusa.sales_channels.products.add"];
-    await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.setCapabilityManifest({ id: randomUUID(), manifestHash: "b".repeat(64), adapterVersion: "medusa-v2", body: { capabilities, capabilityContract: "1", verifiedMedusaVersion: "2.22.1" }, idempotencyKey: randomUUID(), requestHash: "c".repeat(64) }));
+    await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.setCapabilityManifest({ id: randomUUID(), manifestHash: "b".repeat(64), adapterVersion: "medusa-2.22.1/changedesk-1", body: { adapter: "medusa-v2", capabilities, capabilityContract: "1", verifiedMedusaVersion: "2.22.1" }, idempotencyKey: randomUUID(), requestHash: "c".repeat(64) }));
 
     const bootstrap = generateKeyPairSync("ed25519"), publication = generateKeyPairSync("ed25519");
     const hostIdentity = { publicKey: async () => bootstrap.publicKey, reauthorize: async () => ({ active: true, roles: ["admin"] as const, policyVersion: "1" }) };
@@ -79,7 +79,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
 
     const workerCatalog = createProductionCatalog(workerStore, { publicationKeyId: "fixture-publication-key", publicationPrivateKey: publication.privateKey });
     const generation = createProductionGenerationProcessor({ store: workerStore, catalog: workerCatalog, planner: { kind: "fake-test", allowExplicitTestFake: true }, workerLeaseSeconds: 30, maxAttempts: 3, totalTokenBudget: 10_000n, costBudgetMicros: 0n });
-    const adapter = new StorageRuntimeAdapter(workerStore as any, jobs as any, { workerActorId: "lease-actor", leaseSeconds: 30, globalCap: 2 });
+    const adapter = new StorageRuntimeAdapter(workerStore as any, jobs as any, { workerActorId: "lease-actor", leaseSeconds: 30, globalCap: 2, proofRequired, ...(proofRequired ? { proofEnvironmentDigest } : {}) });
     const worker = new DurableWorker({ store: adapter, connector: connector as any, authority: new StrictEffectAuthority(), generation });
     await runWorkerUntil(worker, async () => (await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.listRequestCandidates(requestId))).length > 0, "generation");
 
