@@ -8,7 +8,7 @@ import type { ApiOperations, MutationContext } from "./ports.js";
 import type { CatalogPort } from "../planner/index.js";
 
 export class StorageApiOperations implements ApiOperations {
-  constructor(private readonly store: Store, private readonly connector: HostConnector, private readonly resourceIds: Readonly<Record<string, { category: readonly string[]; channel: readonly string[] }>>, private readonly catalog?: CatalogPort, private readonly publicationKeyId?: string, private readonly clock = () => new Date()) {}
+  constructor(private readonly store: Store, private readonly connector: HostConnector, private readonly resourceIds: Readonly<Record<string, { category: readonly string[]; channel: readonly string[] }>>, private readonly catalog?: CatalogPort, private readonly publicationKeyId?: string, private readonly clock = () => new Date(), private readonly proofRequired = false) {}
   authorizeEffectClaim(input: any) { return this.store.withTenant({ tenantId: input.tenantId, actorId: input.actorId }, async (tx) => { const decision = await tx.authorizeEffectClaim(input); return decision.authorized ? { ...decision, fence: input.fence } : decision; }); }
   createRequest(c: MutationContext, b: any) { return this.run(c.actor, async (tx: any) => { const r = await tx.createRequestAndJob({ id: randomUUID(), actorId: c.actor.actorId, redactedText: b.message, contextRef: { selectedProductIds: b.selectedProductIds, locale: b.locale ?? "es", clientRequestId: b.clientRequestId }, budget: {}, jobId: randomUUID(), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }); return { requestId: r.id, status: r.state }; }); }
   getRequest(a: ActorContext, id: string) { return this.run(a, async (tx: any) => { const r = await tx.getRequest(id); this.owner(a, r?.actorId); if (!r) return null; const candidates = await tx.listRequestCandidates(id); return { requestId: r.id, status: r.state, safeMessage: safeRequestMessage(r.state), providerMode: "unavailable", candidates, permissions: uiPermissions(a), createdAt: r.createdAt.toISOString(), updatedAt: r.createdAt.toISOString() }; }); }
@@ -37,14 +37,20 @@ export class StorageApiOperations implements ApiOperations {
       const installed = await tx.getInstallationForPlan(b.installationId); if (!installed || installed.installation.status !== "active") throw notFound();
       return { requestId: undefined, installationId: installed.installation.id, artifact: installed.artifact, manifest };
     });
+    const recipe = source.artifact.canonicalBody as Recipe;
+    const manifest = source.manifest.body as Record<string, unknown>;
+    const approved = Array.isArray(manifest.capabilities) ? manifest.capabilities : [];
+    if (manifest.capabilityContract !== "1" || manifest.verifiedMedusaVersion !== "2.22.1" || recipe.compatibility?.adapter !== "medusa-v2" || recipe.compatibility?.capabilityContract !== "1" || recipe.compatibility?.verifiedMedusaVersion !== "2.22.1" || recipe.requiredCapabilities.some((capability) => !approved.includes(capability))) throw new ApiError(409, "PLAN_SOURCE_INCOMPATIBLE", "The selected action is incompatible with the active capability manifest", false);
+    if (!sameKeys(Object.keys(recipe.parameters), Object.keys(b.parameters))) throw new ApiError(422, "PLAN_PARAMETERS_INVALID", "Plan parameters do not exactly match the action contract", false);
+    await this.authorizeDestinations(c.actor, b.parameters);
     const readableProducts = await Promise.all((b.selectedProductIds as string[]).map(async (productId) => parseProduct(productId, await this.connector.readAuthorized({ capability: "medusa.products.retrieve", args: { productId }, actor: c.actor }))));
     const planId = randomUUID();
     const requestId = source.requestId ?? randomUUID();
     const compiled = compilePlan({ planId, tenantId: c.actor.tenantId, actorId: c.actor.actorId, requestId, artifactHash: source.artifact.artifactHash,
       adapterVersion: "medusa-2.22.1/changedesk-1", policyVersion: c.actor.policyVersion, capabilityManifestHash: source.manifest.manifestHash,
-      recipe: source.artifact.canonicalBody as Recipe, parameters: b.parameters, selectedProductIds: b.selectedProductIds, readableProducts,
+      recipe, parameters: b.parameters, selectedProductIds: b.selectedProductIds, readableProducts,
       expiresAt: new Date(this.clock().getTime() + 10 * 60_000).toISOString(), planVersion: 1,
-      ...(b.priorExecutionId ? { priorExecutionId: b.priorExecutionId } : {}), proofPolicy: { proofRequired: false, evidenceStatus: "not_applicable", evidenceRefs: [] } });
+      ...(b.priorExecutionId ? { priorExecutionId: b.priorExecutionId } : {}), proofPolicy: { proofRequired: this.proofRequired, evidenceStatus: this.proofRequired ? "blocked" : "not_applicable", evidenceRefs: [] } });
     const { planHash, ...body } = compiled;
     return this.run(c.actor, async (tx: any) => {
       if (!source.requestId) await tx.createInstalledActionRequest({ id: requestId, actorId: c.actor.actorId, redactedText: "Installed action preview", contextRef: { source: "installed_action", installationId: source.installationId, selectedProductIds: b.selectedProductIds }, budget: {}, idempotencyKey: c.idempotencyKey, requestHash: c.requestHash });
@@ -63,7 +69,14 @@ export class StorageApiOperations implements ApiOperations {
   }); }
   createApproval(c: MutationContext, b: any) { return this.run(c.actor, async (tx: any) => { const p = await tx.getPlan(b.planId); this.owner(c.actor, p?.actorId); if (!p) throw notFound(); const r = await tx.createApproval({ id: randomUUID(), planId: b.planId, planVersion: b.expectedPlanVersion, planHash: b.planHash, actorId: c.actor.actorId, hostSessionId: c.actor.hostSessionId, scope: ["execute"], expiresAt: new Date(Math.min(p.expiresAt.getTime(), this.clock().getTime() + 600_000)), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }); return { approvalId: r.id }; }); }
   startExecution(c: MutationContext, b: any) { return this.run(c.actor, async (tx: any) => { const r = await tx.admitExecution({ id: randomUUID(), approvalId: b.approvalId, actorId: c.actor.actorId, jobId: randomUUID(), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }); return { executionId: r.id, status: r.state }; }); }
-  getExecution(a: ActorContext, id: string) { return this.run(a, async (tx: any) => { const r = await tx.getExecution(id); this.owner(a, r?.actorId); return r; }); }
+  getExecution(a: ActorContext, id: string) { return this.run(a, async (tx: any) => {
+    const detail = await tx.getExecutionDetail(id); if (!detail) return null;
+    const execution = detail.execution as Record<string, any>; this.owner(a, execution.actor_id ?? execution.actorId);
+    const plan = ((detail.plan as any).body ?? detail.plan) as Record<string, any>;
+    const attempts = detail.attempts as Record<string, any>[];
+    const rows = (detail.rows as Record<string, any>[]).map((row) => { const rowId = row.row_id ?? row.rowId; const effects = (plan.perRecordEffects ?? []).filter((effect: any) => effect.recordId === rowId); return { rowId, resourceRef: row.resource_ref ?? row.resourceRef, state: row.state, steps: effects.map((effect: any) => { const attempt = attempts.filter((item) => (item.row_id ?? item.rowId) === rowId && (item.step_id ?? item.stepId) === effect.stepId).at(-1); return { stepId: effect.stepId, capability: effect.capability, state: stepViewState(effect.expected, attempt?.state), ...(attempt?.error_code ? { reasonCode: attempt.error_code } : {}) }; }) }; });
+    return { id: execution.id, tenantId: a.tenantId, planId: execution.plan_id ?? execution.planId, planVersion: Number(execution.plan_version ?? execution.planVersion), approvalId: execution.approval_id ?? execution.approvalId, actorId: execution.actor_id ?? execution.actorId, ...(execution.prior_execution_id ? { priorExecutionId: execution.prior_execution_id } : {}), state: execution.state, revision: Number(execution.revision), rows, ...(execution.cancel_requested_at ? { cancelRequestedAt: new Date(execution.cancel_requested_at).toISOString() } : {}), ...(execution.deadline_at ? { deadlineAt: new Date(execution.deadline_at).toISOString() } : {}), createdAt: new Date(execution.created_at).toISOString(), updatedAt: new Date(execution.updated_at).toISOString(), permissions: uiPermissions(a) };
+  }); }
   cancelExecution(c: MutationContext, id: string) { return this.run(c.actor, async (tx: any) => { const r = await tx.getExecution(id); this.owner(c.actor, r?.actorId); return r ? tx.cancelExecution(id, c) : null; }); }
   resumeExecution(c: MutationContext, id: string) { return this.run(c.actor, async (tx: any) => { const r = await tx.getExecution(id); this.owner(c.actor, r?.actorId); return r ? tx.enqueueReconciliation({ executionId: id, jobId: randomUUID(), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }) : null; }); }
   getInstallations(a: ActorContext) { return this.run(a, async (tx: any) => {
@@ -79,6 +92,15 @@ export class StorageApiOperations implements ApiOperations {
   getEvidence(a: ActorContext, id: string) { return this.run(a, (tx: any) => tx.getEvidence(id)); }
   private run<T>(a: ActorContext, work: (tx: any) => Promise<T>): Promise<T> { return this.store.withTenant({ tenantId: a.tenantId, actorId: a.actorId }, work); }
   private owner(a: ActorContext, owner?: string) { if (owner && owner !== a.actorId) throw forbidden(); }
+  private async authorizeDestinations(actor: ActorContext, parameters: Record<string, string>): Promise<void> {
+    const allowed = this.resourceIds[actor.tenantId] ?? { category: [], channel: [] };
+    for (const [parameter, kind, capability] of [["categoryId", "category", "medusa.product_categories.retrieve"], ["channelId", "channel", "medusa.sales_channels.retrieve"]] as const) {
+      const id = parameters[parameter]; if (!id) continue;
+      if (!allowed[kind].includes(id)) throw forbidden();
+      const value = await this.connector.readAuthorized({ capability, args: { [parameter]: id }, actor });
+      if (!resourceHasId(value, id)) throw new ApiError(409, "DESTINATION_STALE", "The approved destination is no longer available", false);
+    }
+  }
 }
 
 function parseProduct(id: string, raw: unknown): ProductSnapshot {
@@ -106,3 +128,6 @@ function resourceLabel(id: string, value: unknown): string {
   const label = nested?.name ?? nested?.title ?? record.name ?? record.title;
   return typeof label === "string" && label.trim() ? label.slice(0, 200) : id;
 }
+function resourceHasId(value: unknown, id: string): boolean { if (!value || typeof value !== "object") return false; const record = value as Record<string, unknown>; const nested = (record.product_category ?? record.sales_channel ?? record.category ?? record.channel) as Record<string, unknown> | undefined; return (nested?.id ?? record.id) === id; }
+function sameKeys(left: readonly string[], right: readonly string[]): boolean { const expected = [...right].sort(); return left.length === expected.length && [...left].sort().every((key, index) => key === expected[index]); }
+function stepViewState(expected: string, attemptState?: string): string { if (expected === "no_op") return "skipped"; return ({ intent_recorded: "running", sent: "unknown", unknown: "unknown", confirmed: "succeeded", no_effect: "skipped", rejected: "failed" } as Record<string, string>)[attemptState ?? ""] ?? "pending"; }
