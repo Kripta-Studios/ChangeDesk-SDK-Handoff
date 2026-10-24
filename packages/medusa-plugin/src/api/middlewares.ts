@@ -6,6 +6,11 @@ const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
 export default defineMiddlewares({
   routes: [
     {
+      matcher: "/store/customers/me/changedesk/session",
+      method: ["POST"],
+      middlewares: [authenticate("customer", "session")],
+    },
+    {
       matcher: "/admin/changedesk/session",
       method: ["POST"],
       middlewares: [authenticate("user", "session")],

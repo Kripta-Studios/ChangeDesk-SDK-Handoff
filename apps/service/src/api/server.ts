@@ -7,10 +7,13 @@ import { ApiError, badRequest, forbidden, notFound } from "./errors.js";
 import type { ApiOperations, MutationContext } from "./ports.js";
 import { paramsId, schemas, createSchemaCompiler } from "./schemas.js";
 import type { SessionManager } from "./session.js";
+import { registerStorefrontRoutes } from "../storefront/routes.js";
+import type { BuyerSessionManager } from "../storefront/session.js";
+import type { StorefrontRepository } from "../storefront/types.js";
 
 declare module "fastify" { interface FastifyRequest { actor?: ActorContext } }
 
-export function buildApi(options: { config: ServiceConfig; sessions: SessionManager; operations: ApiOperations }): FastifyInstance {
+export function buildApi(options: { config: ServiceConfig; sessions: SessionManager; operations: ApiOperations; storefront?: { repository: StorefrontRepository; buyerSessions: BuyerSessionManager } }): FastifyInstance {
   const app = Fastify({ bodyLimit: options.config.bodyLimitBytes, genReqId: () => randomUUID(), logger: false });
   app.setValidatorCompiler(createSchemaCompiler());
   app.addHook("onSend", async (_request, reply) => { reply.header("cache-control", "no-store"); reply.header("x-content-type-options", "nosniff"); });
@@ -44,7 +47,7 @@ export function buildApi(options: { config: ServiceConfig; sessions: SessionMana
     const origin = request.headers.origin;
     if (!origin || !options.config.publicOriginAllowlist.includes(origin)) throw forbidden();
     return reply.headers({
-      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
       "access-control-allow-headers": "Authorization,Content-Type,Idempotency-Key",
       "access-control-max-age": "300",
     }).status(204).send();
@@ -74,6 +77,16 @@ export function buildApi(options: { config: ServiceConfig; sessions: SessionMana
   app.post("/v1/publications/:id/withdraw", { ...auth, schema: { params: paramsId, body: schemas.empty } }, mutate(["admin"], (c, r) => nullGuard(options.operations.withdrawPublication(c, idParam(r)))));
   app.post("/v1/publications/:id/revoke", { ...auth, schema: { params: paramsId, body: schemas.revoke } }, mutate(["admin"], (c, r) => nullGuard(options.operations.revokePublication(c, idParam(r), r.body))));
   app.get("/v1/evidence/:id", { ...auth, schema: { params: paramsId } }, read(allRoles, (a, r) => options.operations.getEvidence(a, idParam(r))));
+  if (options.storefront) void registerStorefrontRoutes(app, {
+    repository: options.storefront.repository,
+    buyerSessions: options.storefront.buyerSessions,
+    authenticateBuyer: (request) => options.storefront!.buyerSessions.authenticate(request.headers.authorization),
+    authenticateAdmin: async (request) => {
+      const actor = await options.sessions.authenticate(request.headers.authorization);
+      const role = actor.roles.includes("admin") ? "admin" : actor.roles.includes("operator") ? "operator" : actor.roles.includes("requester") ? "requester" : "viewer";
+      return { kind: "staff", tenantId: actor.tenantId, actorId: actor.actorId, role, policyVersion: actor.policyVersion, expiresAt: actor.expiresAt };
+    },
+  });
   return app;
 }
 
