@@ -1,6 +1,12 @@
 {
   "verifiedAt": "2026-10-24",
   "packages": {
+    "@medusajs/admin-sdk@2.22.1": {
+      "license": "MIT",
+      "source": "https://github.com/medusajs/medusa/blob/v2.22.1/LICENSE",
+      "sourceCommit": "5e244c3d5fd88b09ba4f0d14f39404a4e86fb800",
+      "scopeEvidence": "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-sdk/package.json"
+    },
     "@medusajs/admin-bundler@2.22.1": {
       "license": "MIT",
       "source": "https://github.com/medusajs/medusa/blob/v2.22.1/LICENSE",
