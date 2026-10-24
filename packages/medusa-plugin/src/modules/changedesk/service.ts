@@ -109,6 +109,8 @@ export default class ChangeDeskModuleService extends MedusaService({
           tenantId: claims.tenantId,
           actorId: claims.actorId,
           executionId: claims.executionId,
+          jobId: claims.jobId,
+          leaseOwner: claims.leaseOwner,
           rowId: claims.rowId,
           stepId: claims.stepId,
           operationKey: claims.operationKey,
