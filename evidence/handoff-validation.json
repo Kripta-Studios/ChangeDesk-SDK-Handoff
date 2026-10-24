@@ -1,0 +1,591 @@
+{
+  "generatedAt": "2026-10-24T11:33:50.721669+00:00",
+  "scope": "specification-package-only",
+  "sdkImplemented": false,
+  "sdkTestsExecuted": false,
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "required:README.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:AGENTS.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:START-HERE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:TASKBOARD.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:prompts/START-NEXT-SESSION.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:templates/ci.yml.example",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:contracts/recipe.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:contracts/request.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:contracts/approval-request.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:contracts/agent-policy.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:contracts/technology-profile.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:fixtures/attack-cases.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "required:fixtures/medusa-scenarios.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "domain-documents",
+      "status": "PASS",
+      "detail": "14"
+    },
+    {
+      "name": "json:agent-policy.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:approval-request.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:category-recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:channel-recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:recipe.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:request.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:technology-profile.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:attack-cases.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:medusa-scenarios.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "json:TASKBOARD.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "schema:contracts/approval-request.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "schema:contracts/recipe.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "schema:contracts/request.schema.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "recipe-schema:contracts/recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "recipe-semantics:contracts/recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "recipe-schema:contracts/category-recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "recipe-semantics:contracts/category-recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "recipe-schema:contracts/channel-recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "recipe-semantics:contracts/channel-recipe.example.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "two-independent-tenants",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "eight-actors-four-roles",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "fixture-oracle",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "medusa-case-ids",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "attack-case-ids",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "synthetic-attacks-only",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "task-dependencies",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "task-graph-acyclic",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "agent-policy-routing",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "agent-policy-negative-model-rejected",
+      "status": "PASS",
+      "detail": "task T00 must use gpt-6.1-sol/high"
+    },
+    {
+      "name": "technology-four-workspaces",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "technology-one-service-two-entrypoints",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "technology-single-pg-queue",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "technology-polling-no-push",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "technology-safe-schema-compilation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "acceptance-inventory-consecutive",
+      "status": "PASS",
+      "detail": "ACC-001,ACC-002,ACC-003,ACC-004,ACC-005,ACC-006,ACC-007,ACC-008,ACC-009,ACC-010,ACC-011,ACC-012,ACC-013,ACC-014,ACC-015,ACC-016,ACC-017,ACC-018,ACC-019,ACC-020"
+    },
+    {
+      "name": "release-covers-all-defined-acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "traceability-covers-all-defined-acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "attack-fixture-no-stale-sse",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "attack-fixture-no-ir-proof-required",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/01-PRODUCT-AND-UX.md:03-MEDUSA-INTEGRATION.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/01-PRODUCT-AND-UX.md:05-REUSE-COST-AND-SCALE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/01-PRODUCT-AND-UX.md:06-TDD-CI-AND-ACCEPTANCE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/10-API-AND-SDK.md:00-DECISIONS.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/12-REQUIREMENTS-TRACEABILITY.md:06-TDD-CI-AND-ACCEPTANCE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/13-INTEGRATION-AND-DEPLOYMENT.md:10-API-AND-SDK.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/13-INTEGRATION-AND-DEPLOYMENT.md:03-MEDUSA-INTEGRATION.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/13-INTEGRATION-AND-DEPLOYMENT.md:04-SECURITY-AND-LAWS.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:docs/13-INTEGRATION-AND-DEPLOYMENT.md:07-EXECUTION-AND-DATA.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:START-HERE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:AGENTS.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:prompts/START-NEXT-SESSION.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/08-IMPLEMENTATION-PLAN.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:contracts/agent-policy.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:contracts/technology-profile.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/00-DECISIONS.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/01-PRODUCT-AND-UX.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/02-ARCHITECTURE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/03-MEDUSA-INTEGRATION.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/04-SECURITY-AND-LAWS.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/05-REUSE-COST-AND-SCALE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/06-TDD-CI-AND-ACCEPTANCE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/07-EXECUTION-AND-DATA.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/08-IMPLEMENTATION-PLAN.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/09-SWARM-PROTOCOL.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/10-API-AND-SDK.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/13-INTEGRATION-AND-DEPLOYMENT.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/11-RISKS-AND-RELEASE.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:docs/12-REQUIREMENTS-TRACEABILITY.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "link:README.md:contracts/README.md",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "manifest": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 4843,
+      "sha256": "fa4120daccb5b8c91ba2fb7a602c1aa37f3a0143a89327660c00be0a6bb073ac"
+    },
+    {
+      "path": "contracts/agent-policy.json",
+      "bytes": 1005,
+      "sha256": "fadc9a6aa0f8e11e160b8e01f67b71e7e854c5b51c59a7888282db45110212bd"
+    },
+    {
+      "path": "contracts/approval-request.schema.json",
+      "bytes": 714,
+      "sha256": "9b87479bd12c36823a2882d82f452efe0034b649521b90637f550666ebc7ce9b"
+    },
+    {
+      "path": "contracts/category-recipe.example.json",
+      "bytes": 1278,
+      "sha256": "ec3c6a3fb4d40f36d33a572867085200bfc9277b1897dcb33e0de115290eb77d"
+    },
+    {
+      "path": "contracts/channel-recipe.example.json",
+      "bytes": 1244,
+      "sha256": "5c7aeaa43dbefb812e8ae1f0203dd8b1a80408510d762727e66fe97577d88019"
+    },
+    {
+      "path": "contracts/README.md",
+      "bytes": 3701,
+      "sha256": "1ccc5fb839a08db9e7d149232d7a16306234d70e73436b3cbb98054c58ba4d6d"
+    },
+    {
+      "path": "contracts/recipe.example.json",
+      "bytes": 1971,
+      "sha256": "f74ffc9e21b8e208b8001e5dc9d79c5ffda3363d6e4a78963359175a6d714cd2"
+    },
+    {
+      "path": "contracts/recipe.schema.json",
+      "bytes": 6388,
+      "sha256": "b0d30dc6023f6f183fd1a984a11898f232ef56c2a635e05b71679f064c6709cd"
+    },
+    {
+      "path": "contracts/request.schema.json",
+      "bytes": 788,
+      "sha256": "141eb1c76f7e08ea63273a0e97fe87fe2c4350d15c742936d0125a91a6c28b2a"
+    },
+    {
+      "path": "contracts/technology-profile.json",
+      "bytes": 3877,
+      "sha256": "10538b5c26ad3824fa7a53231a46bc339d7b9fa431b61b76cc3e57b8036f9322"
+    },
+    {
+      "path": "docs/00-DECISIONS.md",
+      "bytes": 8954,
+      "sha256": "468e8af83ce2011853800d46de48f6fe69b21f74d8e919e3d4a60dffa503cf43"
+    },
+    {
+      "path": "docs/01-PRODUCT-AND-UX.md",
+      "bytes": 27115,
+      "sha256": "8c0c540c19fc09e108cbda8ea05694953bb2815a03d0fdce3f40f993ec93099e"
+    },
+    {
+      "path": "docs/02-ARCHITECTURE.md",
+      "bytes": 19269,
+      "sha256": "6dea357ecccc439c17ea418adf408758a9c530eadbc111d164e765a7dd226495"
+    },
+    {
+      "path": "docs/03-MEDUSA-INTEGRATION.md",
+      "bytes": 16443,
+      "sha256": "dfd3c81ebfca9a2d0d1b8cab4c7430f7cc6a67a8aa75942551b5be411dffe772"
+    },
+    {
+      "path": "docs/04-SECURITY-AND-LAWS.md",
+      "bytes": 26576,
+      "sha256": "6b2c2ff990526033b78f8b05eb0e63adf45733c6cc70f75df1c8f2a9c7aa6ed0"
+    },
+    {
+      "path": "docs/05-REUSE-COST-AND-SCALE.md",
+      "bytes": 27588,
+      "sha256": "eed8c7ea876266f572d840841ff0aae63f580fc334e9dfbeed46ae4c03a5ee54"
+    },
+    {
+      "path": "docs/06-TDD-CI-AND-ACCEPTANCE.md",
+      "bytes": 29092,
+      "sha256": "aab917aae7b50dea76c61b36edd8105c35e34e176970e1e898fade6995000086"
+    },
+    {
+      "path": "docs/07-EXECUTION-AND-DATA.md",
+      "bytes": 21746,
+      "sha256": "3c2eff7cfb1944b29d6c2603d4a694c9962c72bbf637f4a5d508196b72e5a10d"
+    },
+    {
+      "path": "docs/08-IMPLEMENTATION-PLAN.md",
+      "bytes": 11992,
+      "sha256": "0c9e8c64da222e1e55ebb4b3b0517a5872dc4a48b376da71c668dc5f26d12c23"
+    },
+    {
+      "path": "docs/09-SWARM-PROTOCOL.md",
+      "bytes": 6520,
+      "sha256": "5b468ae161b2ac32d20467b2a13eebe2b49dac7d87189b2ac96a4a65515321a7"
+    },
+    {
+      "path": "docs/10-API-AND-SDK.md",
+      "bytes": 10539,
+      "sha256": "36f1c9a6a2e550c379ce137416a9e8b4725d6b4a12c98a0be35ceb8ae6df6075"
+    },
+    {
+      "path": "docs/11-RISKS-AND-RELEASE.md",
+      "bytes": 5152,
+      "sha256": "f034cfd5934f4d45c4daf2c4a8dbf137f6f8cc6ec9462748d0267c2e448c9e7c"
+    },
+    {
+      "path": "docs/12-REQUIREMENTS-TRACEABILITY.md",
+      "bytes": 3762,
+      "sha256": "325362115f61e37c7d845644c2bf3d07ec7ea681e31e97853361db636f1a0295"
+    },
+    {
+      "path": "docs/13-INTEGRATION-AND-DEPLOYMENT.md",
+      "bytes": 6519,
+      "sha256": "09204f63a7b6b7ee07ed1361fecb4fd7db77dd2d0e7b3be7442c7cd623bbf63d"
+    },
+    {
+      "path": "fixtures/attack-cases.json",
+      "bytes": 16326,
+      "sha256": "67c10c1cae411f88458107750b38aa4d6194528b7ab10e9db56f3911ffaf1af9"
+    },
+    {
+      "path": "fixtures/medusa-scenarios.json",
+      "bytes": 8136,
+      "sha256": "073a1a1db59697e748a22917d0fa9ae8719d6fb5b7e7e931d3e190fb8251f272"
+    },
+    {
+      "path": "prompts/START-NEXT-SESSION.md",
+      "bytes": 3888,
+      "sha256": "34c2a203f34ad2c652ead22401153a979e286745c590cc2c3620911fad90f0d6"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4835,
+      "sha256": "7c32f681f50aefc3e02549d016d093c907ee98f7f4e855aa7d98b5cfde7c080a"
+    },
+    {
+      "path": "scripts/validate_handoff.py",
+      "bytes": 12380,
+      "sha256": "ea9112ebdbe7df2243e94bc60b1430348774e2e896e645b4b8be26e9a0772bb4"
+    },
+    {
+      "path": "START-HERE.md",
+      "bytes": 3564,
+      "sha256": "e0782fe2af854136a3b02ecfb84ac0886baf5279d2fa96d7e2695e25f02940a1"
+    },
+    {
+      "path": "TASKBOARD.json",
+      "bytes": 5897,
+      "sha256": "a2496699d4eee4541dcfd5e54c41540005ca3780559495648039c2bb6e135879"
+    },
+    {
+      "path": "templates/ci.yml.example",
+      "bytes": 3508,
+      "sha256": "207923826c7976e0205841af05a464104c7b9a9b5db4bb17b7118700004329b5"
+    }
+  ]
+}

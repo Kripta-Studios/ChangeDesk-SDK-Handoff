@@ -1,0 +1,92 @@
+# ESPECIFICACIÓN DE CI. NO COPIAR A .github/workflows SIN COMPLETAR.
+# Los valores REPLACE_* son bloqueantes deliberados, no versiones verificadas.
+# Fijar SHAs de acciones, runtime y package manager en el lock de entorno.
+# Implementar todos los scripts pnpm; ninguno puede devolver éxito sin comprobar.
+# Las imágenes del laboratorio se fijan por digest en compose, no con latest.
+name: changedesk-verification
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      CHANGEDESK_LLM_PROVIDER: fake
+      CHANGEDESK_TEST_SEED: '20261024'
+      CHANGEDESK_LAB_ONLY: 'true'
+      # lab:up crea credenciales locales efímeras; nunca usa secrets de producción.
+    steps:
+      - uses: actions/checkout@REPLACE_WITH_VERIFIED_CHECKOUT_FULL_SHA
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@REPLACE_WITH_VERIFIED_PNPM_SETUP_FULL_SHA
+        with:
+          version: REPLACE_WITH_LOCKED_PNPM_VERSION
+      - uses: actions/setup-node@REPLACE_WITH_VERIFIED_SETUP_NODE_FULL_SHA
+        with:
+          node-version: REPLACE_WITH_LOCKED_NODE_VERSION
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Reject floating or incomplete environment
+        run: pnpm verify:locks
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm test:unit
+      - run: pnpm test:property
+      - name: Start isolated local lab
+        run: pnpm lab:up
+      - name: Wait for bounded readiness and seed fixtures
+        run: |
+          pnpm lab:ready
+          pnpm lab:seed
+      - run: pnpm test:integration
+      - run: pnpm test:contract
+      - run: pnpm test:security
+      - run: pnpm test:recovery
+      - name: Install exact browser matching lockfile
+        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: pnpm test:laws
+      - run: pnpm test:perf -- --profile=pr
+      - name: Collect redacted evidence even on failure
+        if: always()
+        run: pnpm evidence:collect
+      - name: Verify evidence before upload
+        id: evidence
+        if: always()
+        run: pnpm evidence:verify -- --profile=ci-local
+      - name: Upload only sanitized allowlisted evidence
+        if: always() && steps.evidence.outcome == 'success'
+        uses: actions/upload-artifact@REPLACE_WITH_VERIFIED_UPLOAD_ARTIFACT_FULL_SHA
+        with:
+          name: changedesk-ci-evidence
+          path: evidence/ci-sanitized/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Stop only this lab without deleting data globally
+        if: always()
+        run: pnpm lab:down
+
+# Crear workflow APARTE live-eval.yml tras este baseline.
+# Sólo schedule en rama confiable / workflow_dispatch desde main.
+# environment: changedesk-live-evaluation; permisos mínimos; secretos limitados.
+# No pull_request_target, no checkout de código de fork con secrets.
+# Pasos: locked install -> lab up/ready/seed -> test:llm:live con presupuesto
+# -> full security/paired holdout -> evidence:collect/verify --profile=live
+# -> upload sanitizado -> lab:down. Ausencia de secreto/presupuesto = BLOCKED.
+# Reutilizar las mismas comprobaciones ACC, no sustituirlas por éxito del job.

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "recipeKey": "catalog.channel.assign.v1",
+  "displayName": "Asignar canal",
+  "description": "Añade productos publicados a un canal de ventas existente.",
+  "compatibility": {
+    "adapter": "medusa-v2",
+    "capabilityContract": "1",
+    "verifiedMedusaVersion": "2.22.1"
+  },
+  "parameters": {
+    "channelId": {
+      "kind": "resource",
+      "resource": "medusa.sales_channel"
+    }
+  },
+  "selection": {
+    "resource": "medusa.product",
+    "maxRecords": 100,
+    "requireStatus": "published"
+  },
+  "requiredCapabilities": [
+    "medusa.products.list",
+    "medusa.products.retrieve",
+    "medusa.sales_channels.retrieve",
+    "medusa.sales_channels.products.add"
+  ],
+  "steps": [
+    {
+      "id": "addChannel",
+      "capability": "medusa.sales_channels.products.add",
+      "forEach": "selectedProducts",
+      "dependsOn": [],
+      "arguments": {
+        "productId": {
+          "$record": "id"
+        },
+        "channelId": {
+          "$param": "channelId"
+        }
+      }
+    }
+  ],
+  "ui": {
+    "kind": "action",
+    "label": "Asignar canal",
+    "fields": [
+      {
+        "name": "channelId",
+        "control": "resource-picker",
+        "label": "Canal de ventas"
+      }
+    ]
+  }
+}

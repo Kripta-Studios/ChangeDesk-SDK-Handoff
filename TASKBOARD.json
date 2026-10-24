@@ -1,0 +1,243 @@
+{
+  "schemaVersion": "1.0",
+  "packageStatus": "SPEC_READY",
+  "implementationStatus": "NOT_STARTED",
+  "tasks": [
+    {
+      "id": "T00",
+      "phase": "P0",
+      "ownerRole": "environment",
+      "title": "Inspect and pin local environment",
+      "dependsOn": [],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T01",
+      "phase": "P0",
+      "ownerRole": "medusa",
+      "title": "Prove native capabilities, extension and host guard",
+      "dependsOn": [
+        "T00"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T02",
+      "phase": "P1",
+      "ownerRole": "core",
+      "title": "Schemas, semantic validator, hashes and policy",
+      "dependsOn": [
+        "T00"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T03",
+      "phase": "P1",
+      "ownerRole": "storage",
+      "title": "Tenant data model, RLS and durable jobs",
+      "dependsOn": [
+        "T02"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T04",
+      "phase": "P2",
+      "ownerRole": "runtime",
+      "title": "Preview, approval and deterministic executor",
+      "dependsOn": [
+        "T01",
+        "T03"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T05",
+      "phase": "P2",
+      "ownerRole": "frontend",
+      "title": "Embed SDK action and preview in Medusa",
+      "dependsOn": [
+        "T02",
+        "T04"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T06",
+      "phase": "P3",
+      "ownerRole": "runtime",
+      "title": "Recovery, concurrency and native authorization",
+      "dependsOn": [
+        "T04"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T07",
+      "phase": "P4",
+      "ownerRole": "reuse",
+      "title": "Catalog publication matching and two-store reuse",
+      "dependsOn": [
+        "T03",
+        "T06"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T08",
+      "phase": "P5",
+      "ownerRole": "planner",
+      "title": "Fake and live planner/chat bounded generation",
+      "dependsOn": [
+        "T02",
+        "T07"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T09",
+      "phase": "P5",
+      "ownerRole": "frontend",
+      "title": "Full multiuser UX and persistent functions",
+      "dependsOn": [
+        "T05",
+        "T07",
+        "T08"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T10",
+      "phase": "P6",
+      "ownerRole": "security",
+      "title": "Delta attack harness and held-out paired evaluation",
+      "dependsOn": [
+        "T06",
+        "T08"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T11",
+      "phase": "P6",
+      "ownerRole": "laws",
+      "title": "Bend proof adapter, scope and failing-law fixture",
+      "dependsOn": [
+        "T02"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T12",
+      "phase": "P7",
+      "ownerRole": "performance",
+      "title": "Costs overhead fairness and clean integration",
+      "dependsOn": [
+        "T09",
+        "T10"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T13",
+      "phase": "P8",
+      "ownerRole": "ci",
+      "title": "Pinned CI build packaging and tarball smoke",
+      "dependsOn": [
+        "T06",
+        "T09",
+        "T11"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high"
+    },
+    {
+      "id": "T14",
+      "phase": "P8",
+      "ownerRole": "review",
+      "title": "Fresh council actual evidence and final live demo",
+      "dependsOn": [
+        "T10",
+        "T11",
+        "T12",
+        "T13"
+      ],
+      "status": "not_started",
+      "assignedAgent": null,
+      "evidence": [],
+      "blocker": null,
+      "model": "gpt-6-astra",
+      "reasoningEffort": "high"
+    }
+  ]
+}

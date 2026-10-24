@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "1.0",
+  "recipeKey": "catalog.campaign.prepare.v1",
+  "displayName": "Preparar campaña",
+  "description": "Asocia productos publicados seleccionados a una categoría y un canal existentes, conservando las relaciones previas.",
+  "compatibility": {
+    "adapter": "medusa-v2",
+    "capabilityContract": "1",
+    "verifiedMedusaVersion": "2.22.1"
+  },
+  "parameters": {
+    "categoryId": {
+      "kind": "resource",
+      "resource": "medusa.product_category"
+    },
+    "channelId": {
+      "kind": "resource",
+      "resource": "medusa.sales_channel"
+    }
+  },
+  "selection": {
+    "resource": "medusa.product",
+    "maxRecords": 100,
+    "requireStatus": "published"
+  },
+  "requiredCapabilities": [
+    "medusa.products.list",
+    "medusa.products.retrieve",
+    "medusa.product_categories.retrieve",
+    "medusa.sales_channels.retrieve",
+    "medusa.product_categories.products.add",
+    "medusa.sales_channels.products.add"
+  ],
+  "steps": [
+    {
+      "id": "addCategory",
+      "capability": "medusa.product_categories.products.add",
+      "forEach": "selectedProducts",
+      "dependsOn": [],
+      "arguments": {
+        "productId": {
+          "$record": "id"
+        },
+        "categoryId": {
+          "$param": "categoryId"
+        }
+      }
+    },
+    {
+      "id": "addChannel",
+      "capability": "medusa.sales_channels.products.add",
+      "forEach": "selectedProducts",
+      "dependsOn": [
+        "addCategory"
+      ],
+      "arguments": {
+        "productId": {
+          "$record": "id"
+        },
+        "channelId": {
+          "$param": "channelId"
+        }
+      }
+    }
+  ],
+  "ui": {
+    "kind": "action",
+    "label": "Preparar campaña",
+    "fields": [
+      {
+        "name": "categoryId",
+        "control": "resource-picker",
+        "label": "Categoría de campaña"
+      },
+      {
+        "name": "channelId",
+        "control": "resource-picker",
+        "label": "Canal de ventas"
+      }
+    ]
+  }
+}

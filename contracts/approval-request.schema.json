@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://changedesk.invalid/schemas/approval-request-v1",
+  "title": "Approval submission: identity and authority added server-side",
+  "type": "object",
+  "properties": {
+    "planId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "planHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "expectedPlanVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "format": "uuid"
+    }
+  },
+  "required": [
+    "planId",
+    "planHash",
+    "expectedPlanVersion",
+    "idempotencyKey"
+  ],
+  "additionalProperties": false
+}

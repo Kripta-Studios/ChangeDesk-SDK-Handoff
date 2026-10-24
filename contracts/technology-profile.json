@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "normative",
+  "sourceWorkspaces": [
+    "apps/service",
+    "packages/contracts",
+    "packages/sdk-react",
+    "packages/medusa-plugin"
+  ],
+  "service": {
+    "artifactCount": 1,
+    "imageCount": 1,
+    "entrypoints": ["api", "worker"],
+    "internalModules": ["core", "policy", "storage", "planner", "adapter", "evals", "laws"],
+    "internalModulesArePackagesOrDeployments": false
+  },
+  "runtime": {
+    "language": "TypeScript",
+    "node": "exact compatible Node LTS version pinned during P0",
+    "packageManager": "pnpm",
+    "server": "Fastify",
+    "databaseClient": "pg",
+    "schemaValidator": "Ajv 8 Draft 2020-12",
+    "jwt": "jose only if the verified host/runtime primitives are insufficient",
+    "browserPrimitives": ["fetch", "crypto", "AbortController"]
+  },
+  "contracts": {
+    "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+    "publicTypeScriptTypes": true,
+    "schemasExportedSeparately": true,
+    "browserImportsAreTypeOnlyByDefault": true,
+    "ajvInDefaultSdkBundle": false,
+    "medusaSdkInDefaultSdkBundle": false,
+    "fastifyAjvDialectMustBeVerifiedDuringImplementation": true,
+    "compiledSchemas": "developer-owned reviewed schemas only",
+    "modelOrUserSchemasCompiled": false,
+    "generatedRecipeAndUiTreatment": "data validated against known schemas"
+  },
+  "build": {
+    "orchestration": "pnpm scripts",
+    "typescript": "tsc -b",
+    "bundler": "Vite only where browser/library or Medusa tooling requires it"
+  },
+  "testing": {
+    "unitIntegrationRunner": "Vitest with one configuration and logical suites",
+    "browserRunner": "Playwright",
+    "medusaIntegration": "official Medusa test runner",
+    "faultInjection": "in-process hooks; no mandatory network fault proxy"
+  },
+  "database": {
+    "serverCount": 1,
+    "databases": ["changedesk", "atlas", "boreal"],
+    "distinctOwnersRolesSecrets": true,
+    "hostBinding": "localhost only",
+    "migrations": "small numbered SQL files with checksums and advisory lock",
+    "migrationFramework": false,
+    "ormOrQueryBuilder": false
+  },
+  "jobs": {
+    "tableCount": 1,
+    "kinds": ["generation", "execution", "reconcile"],
+    "claim": "PostgreSQL polling with jitter and leases",
+    "atomicAdmission": "request or execution plus job inserted in one transaction",
+    "outboxRequired": false,
+    "listenNotifyRequired": false,
+    "queueLibrary": false
+  },
+  "transport": {
+    "progress": "HTTP polling",
+    "activeIntervalSeconds": 2,
+    "backgroundIntervalSeconds": 10,
+    "sseInMinimumApi": false,
+    "webSocketInMinimumApi": false
+  },
+  "publication": {
+    "privateArtifacts": "ACL plus content hash",
+    "sharedSignature": "Ed25519 using Node crypto",
+    "keyRegistry": "PostgreSQL",
+    "pkiService": false
+  },
+  "observability": {
+    "jsonLogs": true,
+    "traceIds": true,
+    "counters": true,
+    "collectorRequired": false
+  },
+  "proofs": {
+    "bendMode": "on-demand isolated process or CI job",
+    "daemon": false,
+    "runtimeHotPath": false,
+    "cachedEvidenceBoundToExactVersions": true
+  },
+  "bundleTargetsGzipKiB": {
+    "launcherHardAcceptanceTarget": 15,
+    "lazyPanelHardAcceptanceTarget": 150,
+    "lazyPanelStretchTarget": 60,
+    "status": "unmeasured",
+    "peerAndAllInTotalsMustBeReported": true
+  },
+  "forbiddenWithoutNewApprovedADR": [
+    "ORM", "query builder", "DI container", "LangChain", "embeddings", "vector database",
+    "Redis", "Temporal", "SSE", "WebSocket", "S3", "CDN", "OpenTelemetry collector",
+    "Nx", "Turbo", "queue library", "pg-boss", "generic agent runtime"
+  ],
+  "dependencyPolicy": {
+    "newDependencyRequires": ["observed gap", "alternatives considered", "recorded decision"],
+    "hostMedusaDependenciesCountAsSdkAddedOverhead": false,
+    "repeatInstalledActionLlmCalls": 0,
+    "embeddingsBeforeMeasuredNeed": false
+  }
+}

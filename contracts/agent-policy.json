@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "normative",
+  "roles": {
+    "implementation": { "model": "gpt-6.1-sol", "reasoningEffort": "high" },
+    "testing": { "model": "gpt-6.1-sol", "reasoningEffort": "high" },
+    "ideas": { "model": "gpt-6-astra", "reasoningEffort": "high" },
+    "coordination": { "model": "gpt-6-astra", "reasoningEffort": "high" },
+    "orchestration": { "model": "gpt-6-astra", "reasoningEffort": "high" },
+    "finalReview": { "model": "gpt-6-astra", "reasoningEffort": "high", "readOnly": true }
+  },
+  "nativeSpawn": {
+    "forkTurns": "none",
+    "selfContainedTaskRequired": true,
+    "explicitModelOverrideRequired": true,
+    "conflictingFixedModelAgentTypeForbidden": true
+  },
+  "runtime": {
+    "verifyCapabilityMapBeforeSpawn": true,
+    "currentModelMustNotBeInferred": true,
+    "mainSessionModelControlledByLaunchConfiguration": true,
+    "silentFallback": "forbidden",
+    "unavailableRequiredModel": "BLOCKED",
+    "continueIndependentDocumentation": true
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "recipeKey": "catalog.category.assign.v1",
+  "displayName": "Asignar categoría",
+  "description": "Añade productos publicados a una categoría existente.",
+  "compatibility": {
+    "adapter": "medusa-v2",
+    "capabilityContract": "1",
+    "verifiedMedusaVersion": "2.22.1"
+  },
+  "parameters": {
+    "categoryId": {
+      "kind": "resource",
+      "resource": "medusa.product_category"
+    }
+  },
+  "selection": {
+    "resource": "medusa.product",
+    "maxRecords": 100,
+    "requireStatus": "published"
+  },
+  "requiredCapabilities": [
+    "medusa.products.list",
+    "medusa.products.retrieve",
+    "medusa.product_categories.retrieve",
+    "medusa.product_categories.products.add"
+  ],
+  "steps": [
+    {
+      "id": "addCategory",
+      "capability": "medusa.product_categories.products.add",
+      "forEach": "selectedProducts",
+      "dependsOn": [],
+      "arguments": {
+        "productId": {
+          "$record": "id"
+        },
+        "categoryId": {
+          "$param": "categoryId"
+        }
+      }
+    }
+  ],
+  "ui": {
+    "kind": "action",
+    "label": "Asignar categoría",
+    "fields": [
+      {
+        "name": "categoryId",
+        "control": "resource-picker",
+        "label": "Categoría de campaña"
+      }
+    ]
+  }
+}
