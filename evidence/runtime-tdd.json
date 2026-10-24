@@ -30,11 +30,16 @@
       "behavior": "explicit planner provider configuration",
       "commit": "3d8b3ee",
       "observed": "loadConfig always returned the Codex shape and ignored the requested DeepSeek and guarded fake-test modes"
+    },
+    {
+      "behavior": "idempotent trusted service provisioning",
+      "commit": "06146ac",
+      "observed": "runtime provision test failed to import the absent production provisioner"
     }
   ],
   "green": {
     "command": "node.exe node_modules/vitest/vitest.mjs run apps/service/tests/runtime --config vitest.config.ts",
-    "result": "9 files, 23 tests passed",
+    "result": "10 files, 25 tests passed",
     "materialCoverage": [
       "strict REST authorization and schemas",
       "one-time durable bootstrap sessions",
@@ -42,7 +47,8 @@
       "generation dispatch and lease recovery",
       "unknown-effect reconciliation and fencing",
       "contract DTO mapping and installed-action plan materialization",
-      "Codex default plus explicitly budgeted API and test-only fake provider configuration"
+      "Codex default plus explicitly budgeted API and test-only fake provider configuration",
+      "closed two-tenant provisioning for trusted actor roles, wire-bound capability manifests and the publication verification key"
     ]
   },
   "realPostgres": {
