@@ -171,6 +171,21 @@ describe("PostgreSQL storage integration", () => {
     expect(requests.find((request)=>request.id===requestId)).toBeUndefined();
   });
 
+  it("ACC-010 REUSE-08 permits identical private digests without cross-tenant discovery",async()=>{
+    const firstTenant=`tenant-${randomUUID()}`;
+    const secondTenant=`tenant-${randomUUID()}`;
+    const outsider=`tenant-${randomUUID()}`;
+    await seedTenant(firstTenant,"admin");await seedTenant(secondTenant,"admin");await seedTenant(outsider,"admin");
+    const artifactHash="6".repeat(64);
+    const body={recipeKey:"catalog.category.assign.v1",compatibility:{adapter:"medusa-v2",capabilityContract:"1"}};
+    const first=await store.withTenant({tenantId:firstTenant,actorId:"admin"},(tx)=>tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1",canonicalBody:body,idempotencyKey:randomUUID(),requestHash:"1".repeat(64)}));
+    const second=await store.withTenant({tenantId:secondTenant,actorId:"admin"},(tx)=>tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1",canonicalBody:body,idempotencyKey:randomUUID(),requestHash:"2".repeat(64)}));
+    expect(first.id).not.toBe(second.id);
+    expect((await store.withTenant({tenantId:firstTenant,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash)))?.id).toBe(first.id);
+    expect((await store.withTenant({tenantId:secondTenant,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash)))?.id).toBe(second.id);
+    expect(await store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash))).toBeNull();
+  });
+
   it("ACC-003 consumes a bridge ticket once by issuer and jti",async()=>{
     const tenantId=`tenant-${randomUUID()}`;
     const actorId="operator";
@@ -237,8 +252,9 @@ describe("PostgreSQL storage integration", () => {
     const bundle=await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle(targetLease!));
     expect(bundle).toMatchObject({request:{id:requestId,redactedText:"prepara la campaña",contextRef},tenant:{policyVersion:"1"},capabilityManifest:{manifestHash:"e".repeat(64)}});
     expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle({...targetLease!,fence:targetLease!.fence-1}))).toBeNull();
-    const candidate={id:randomUUID(),version:"1",artifactHash:null,recipeKey:"catalog.campaign.prepare.v1",displayName:"Preparar campaña",requiredCapabilities:["medusa.products.list"],compatibility:"compatible" as const,evidenceStatus:"not_run" as const,estimatedCost:null,safeMetadata:{source:"generated"}};
-    expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.addRequestCandidates(targetLease!,requestId,[candidate]))).toBe(true);
+    const generatedHash=randomUUID().replaceAll("-","").padEnd(64,"0");
+    const candidate={id:randomUUID(),version:"1",artifactHash:generatedHash,recipeKey:"catalog.campaign.prepare.v1",displayName:"Preparar campaña",requiredCapabilities:["medusa.products.list"],compatibility:"compatible" as const,evidenceStatus:"not_run" as const,estimatedCost:null,safeMetadata:{source:"generated"}};
+    expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.persistGeneratedCandidate(targetLease!,{requestId,artifact:{id:randomUUID(),artifactHash:generatedHash,schemaVersion:"1",canonicalBody:{recipeKey:candidate.recipeKey}},candidate}))).toBe(true);
     expect(await store.withTenant({tenantId,actorId},(tx)=>tx.listRequestCandidates(requestId))).toMatchObject([{id:candidate.id,state:"offered"}]);
     expect(await store.withTenant({tenantId,actorId},(tx)=>tx.selectRequestCandidate({requestId,candidateId:candidate.id,version:"1",choice:"reuse",idempotencyKey:randomUUID(),requestHash:"7".repeat(64)}))).toMatchObject({id:candidate.id,state:"selected",selectedChoice:"reuse"});
     await jobs.finish(targetLease!,{status:"completed"});
