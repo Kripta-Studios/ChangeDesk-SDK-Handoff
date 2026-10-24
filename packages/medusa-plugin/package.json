@@ -8,8 +8,8 @@
     "node": ">=22.22.0 <23"
   },
   "scripts": {
-    "build": "medusa plugin:build",
-    "test:unit": "vitest run ../../tests/medusa/*.test.ts"
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa.ps1 plugin:build",
+    "test:unit": "vitest run --root ../.. tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -38,6 +38,7 @@
     "@medusajs/medusa": "2.22.1",
     "@medusajs/test-utils": "2.22.1",
     "@swc/core": "1.15.3",
+    "ts-node": "10.9.2",
     "typescript": "5.9.3"
   }
 }
