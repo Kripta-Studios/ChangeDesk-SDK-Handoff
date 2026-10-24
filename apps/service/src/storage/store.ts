@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import type {
   ApprovalRecord, AttemptIntent, AttemptRecord, AttemptState, CapabilityManifestRecord, CatalogArtifact, CatalogQuery, EffectClaimDecision, EvidenceRecord, ExecutionAdmission, ExecutionBundle, ExecutionRecord, GenerationBundle, InstallationRecord, JobLease,
-  GenerationCallReservationInput, GenerationReservationInput, GenerationReservationResult, GenerationReservationToken, GenerationScope, GenerationUsage, InstallationDetailRecord, InstallationPlanContext, NewApproval, NewExecutionRow, NewPlan, NewRequest, PlanDetailRecord, PlanRecord, PublicationKey, PublicationRecord, RequestCandidateRecord, RequestMessageRecord, RequestRecord, RetentionResult, SessionRecord, TenantContext,
+  GenerationCallRecordResult, GenerationCallReservationInput, GenerationReservationInput, GenerationReservationResult, GenerationReservationToken, GenerationScope, GenerationUsage, InstallationDetailRecord, InstallationPlanContext, NewApproval, NewExecutionRow, NewPlan, NewRequest, PlanDetailRecord, PlanRecord, PublicationKey, PublicationRecord, RequestCandidateRecord, RequestMessageRecord, RequestRecord, RetentionResult, SessionRecord, TenantContext,
 } from "./types.js";
 
 export class StorageConflictError extends Error {
@@ -187,20 +187,24 @@ export class TenantTx {
 
   reserveCall(input:GenerationCallReservationInput):Promise<{reservationId:string;fence:bigint;attempt:number}|null> { return this.reserveGenerationCall(input); }
 
-  async recordGenerationCall(scope:GenerationScope,token:GenerationReservationToken,input:{inputTokens:bigint;outputTokens:bigint;usedCostMicros:bigint;retryable:boolean;success:boolean}):Promise<boolean> {
+  async recordGenerationCall(scope:GenerationScope,token:GenerationReservationToken,input:{inputTokens:bigint;outputTokens:bigint;usedCostMicros:bigint;retryable:boolean;success:boolean}):Promise<GenerationCallRecordResult> {
     this.assertGenerationScope(scope);
     if(input.inputTokens<0n || input.outputTokens<0n || input.usedCostMicros<0n) throw new StorageInvariantError("Invalid generation usage");
-    const result=await this.client.query(`UPDATE storage.generation_reservations SET used_tokens=used_tokens+$4+$5,used_cost_micros=used_cost_micros+$6,
-      status=CASE WHEN $8 THEN 'running' WHEN $7 AND attempt_count<max_attempts THEN 'pending' ELSE 'failed' END,
-      retryable=NOT $8 AND $7 AND attempt_count<max_attempts,lease_owner=CASE WHEN $8 THEN lease_owner ELSE NULL END,
-      lease_until=CASE WHEN $8 THEN lease_until ELSE NULL END,updated_at=clock_timestamp()
-      WHERE tenant_id=$1 AND actor_id=$2 AND id=$3 AND fence=$9 AND status='running'`,[scope.tenantId,scope.actorId,token.reservationId,
+    const result=await this.client.query<{within_budget:boolean}>(`UPDATE storage.generation_reservations SET used_tokens=used_tokens+$4+$5,used_cost_micros=used_cost_micros+$6,
+      status=CASE WHEN used_tokens+$4+$5>token_budget OR used_cost_micros+$6>cost_budget_micros THEN 'failed'
+        WHEN $8 THEN 'running' WHEN $7 AND attempt_count<max_attempts THEN 'pending' ELSE 'failed' END,
+      retryable=CASE WHEN used_tokens+$4+$5>token_budget OR used_cost_micros+$6>cost_budget_micros THEN false
+        ELSE NOT $8 AND $7 AND attempt_count<max_attempts END,
+      lease_owner=CASE WHEN $8 AND used_tokens+$4+$5<=token_budget AND used_cost_micros+$6<=cost_budget_micros THEN lease_owner ELSE NULL END,
+      lease_until=CASE WHEN $8 AND used_tokens+$4+$5<=token_budget AND used_cost_micros+$6<=cost_budget_micros THEN lease_until ELSE NULL END,updated_at=clock_timestamp()
+      WHERE tenant_id=$1 AND actor_id=$2 AND id=$3 AND fence=$9 AND status='running'
+      RETURNING used_tokens<=token_budget AND used_cost_micros<=cost_budget_micros within_budget`,[scope.tenantId,scope.actorId,token.reservationId,
       input.inputTokens.toString(),input.outputTokens.toString(),input.usedCostMicros.toString(),input.retryable,input.success,token.fence.toString()]);
     if(result.rowCount===1) await this.incrementUsage({inputTokens:input.inputTokens,outputTokens:input.outputTokens,estimatedCostMicros:input.usedCostMicros});
-    return result.rowCount===1;
+    return {recorded:result.rowCount===1,withinBudget:result.rows[0]?.within_budget===true};
   }
 
-  recordCall(scope:GenerationScope,token:GenerationReservationToken,input:{inputTokens:bigint;outputTokens:bigint;usedCostMicros:bigint;retryable:boolean;success:boolean}):Promise<boolean> {
+  recordCall(scope:GenerationScope,token:GenerationReservationToken,input:{inputTokens:bigint;outputTokens:bigint;usedCostMicros:bigint;retryable:boolean;success:boolean}):Promise<GenerationCallRecordResult> {
     return this.recordGenerationCall(scope,token,input);
   }
 
@@ -494,17 +498,8 @@ export class TenantTx {
   async listDiscoverableCatalog(query:CatalogQuery):Promise<CatalogArtifact[]> {
     const limit=Math.max(1,Math.min(query.limit,20));
     const result=await this.client.query<CatalogRow>(
-      `SELECT a.id,a.owner_tenant_id,a.artifact_hash,a.schema_version,a.canonical_body,a.state,p.id publication_id,
-        p.publisher_tenant_id,p.signing_key_id,p.signature
-       FROM storage.recipe_artifacts a
-       LEFT JOIN storage.publications p ON p.artifact_id=a.id AND p.artifact_hash=a.artifact_hash AND p.state='published'
-       WHERE (a.owner_tenant_id=$4 OR EXISTS(SELECT 1 FROM storage.artifact_grants g WHERE g.artifact_id=a.id
-         AND g.recipient_tenant_id=$4 AND 'read'=ANY(g.rights) AND (g.expires_at IS NULL OR g.expires_at>clock_timestamp())))
-         AND ($1::text IS NULL OR a.canonical_body->>'recipeKey'=$1)
-         AND a.canonical_body#>>'{compatibility,adapter}'=$2
-         AND a.canonical_body#>>'{compatibility,capabilityContract}'=$3
-       ORDER BY (a.owner_tenant_id=$4) DESC,a.created_at DESC,a.id LIMIT $5`,
-      [query.recipeKey ?? null,query.adapter,query.capabilityContract,this.context.tenantId,limit],
+      "SELECT * FROM storage.list_discoverable_catalog($1,$2,$3,$4)",
+      [query.recipeKey ?? null,query.adapter,query.capabilityContract,limit],
     );
     return result.rows.map(catalogRecord);
   }

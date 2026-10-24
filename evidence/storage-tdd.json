@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "recordedAt": "2026-10-24T14:33:10+02:00",
+  "recordedAt": "2026-10-24T15:04:00+02:00",
   "scope": "P1-T03 PostgreSQL storage and P3 durable jobs substrate",
   "environment": {
     "postgres": "17.11",
@@ -41,7 +41,7 @@
     {
       "phase": "GREEN",
       "command": "vitest run tests/storage --config vitest.config.ts",
-      "result": "PASS 14/14 in 2 files",
+      "result": "PASS 19/19 in 2 files (4 schema, 15 real PostgreSQL integration)",
       "verified": [
         "migration checksum rerun",
         "runtime and worker role privilege posture",
@@ -59,21 +59,29 @@
         "stale generation lease cannot load private input",
         "approval bound to live host session and surfaced in execution authority",
         "existing attempt state survives recovery and is explicitly re-fenced only for reconciliation",
-        "row and execution state transition under the recovered lease before job completion"
+        "row and execution state transition under the recovered lease before job completion",
+        "explicit read grants expose private artifacts only to the recipient tenant",
+        "identical private content has independent cross-tenant identities and same-tenant concurrent reuse",
+        "generation call reservation, bigint usage accounting, retry fence, and atomic candidate completion",
+        "tenant tombstones deny access and survive status reapplication",
+        "installed-action audit requests persist without enqueueing generation work",
+        "plan, execution, evidence, and installation detail reads use durable rows"
       ]
     },
     {
       "phase": "TYPECHECK",
       "command": "tsc --noEmit --strict --noUncheckedIndexedAccess over apps/service/src/storage",
-      "result": "PASS",
-      "note": "The temporary config was removed; the root workspace typecheck remains authoritative after integration."
+      "result": "PASS before the final budget adapter extension; latest root workspace typecheck pending merge",
+      "note": "The installed TypeScript package in this worktree lacked its executable; PostgreSQL tests are current and the coordinator owns the authoritative merged workspace typecheck."
     }
   ],
   "design": {
     "migrations": "Numbered SQL, SHA-256 checksums, session advisory lock, one transaction per migration.",
     "tenantContext": "One pg client per transaction; transaction-local tenant and actor settings only.",
-    "catalog": "No global public visibility. provider_catalog and shared_allowlist both require positive per-tenant grants.",
-    "jobs": "One jobs table; separate generation/execution capacity classes; tenant/global/backend leases; fencing on heartbeat, finish, and ledger mutations.",
+    "catalog": "No global public visibility. provider_catalog and shared_allowlist both require positive, unexpired per-tenant grants; content hashes are not ACL identities.",
+    "jobs": "One jobs table; exact maxima generation 1/tenant and 2/global, execution 2/tenant and 4/global, backend 2; fencing on heartbeat, finish, and ledger mutations.",
+    "lifecycle": "Pending queues are bounded below 100/tenant and 1000/global; tombstones gate all scoped reads and retention preserves sent/unknown effect evidence.",
+    "generationBudget": "Call attempts and cost/token usage are PostgreSQL bigint counters with lease/fence CAS; candidate persistence can complete the reservation in the same transaction.",
     "workerBoundary": "Worker gets opaque scheduling identity from narrow SECURITY DEFINER claim and uses its distinct role under tenant/actor RLS for business rows."
   },
   "challengedAssumption": {
