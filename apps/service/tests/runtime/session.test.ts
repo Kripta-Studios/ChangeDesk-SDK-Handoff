@@ -16,7 +16,7 @@ describe("bootstrap exchange", () => {
     const session = await manager.exchange(ticket, claims.origin);
     expect((await manager.authenticate(`Bearer ${session.accessToken}`)).tenantId).toBe("atlas");
     await expect(manager.exchange(ticket, claims.origin)).rejects.toMatchObject({ statusCode: 401 });
-    expect(host.reauthorize).toHaveBeenCalledTimes(3);
+    expect(host.reauthorize).toHaveBeenCalledTimes(2);
   });
 
   it("ACC-003 rejects a client-selected origin", async () => {

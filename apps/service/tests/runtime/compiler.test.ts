@@ -16,7 +16,7 @@ const recipe: Recipe = {
   ui: { kind: "action", label: "Prepare", fields: [{ name: "categoryId", control: "resource-picker", label: "Category" }, { name: "channelId", control: "resource-picker", label: "Channel" }] },
 };
 const products = [
-  product("p01"), product("p02"), product("p03"), product("p04", { categoryIds: ["cat"], channelIds: ["channel"] }),
+  product("p01"), product("p02", { categoryIds: ["cat"] }), product("p03", { channelIds: ["channel"] }), product("p04", { categoryIds: ["cat"], channelIds: ["channel"] }),
   product("p05", { status: "draft" }), product("p06", { status: "rejected" }), product("p07", { blocked: true }), product("p08"),
 ];
 

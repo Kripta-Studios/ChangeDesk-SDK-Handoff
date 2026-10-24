@@ -3,7 +3,7 @@ import { DurableWorker } from "../../src/runtime/worker.js";
 import { StrictEffectAuthority } from "../../src/runtime/authority.js";
 import type { ExecutionBundle, JobLease, PlanEffect } from "../../src/runtime/types.js";
 
-const lease: JobLease = { jobId: "j", tenantId: "atlas", backendKey: "atlas", kind: "execution", executionId: "e", leaseOwner: "w", fence: 2, leaseUntil: "2026-10-24T12:01:00.000Z", attemptCount: 1 };
+const lease: JobLease = { jobId: "j", tenantId: "atlas", actorId: "operator", backendKey: "atlas", kind: "execution", executionId: "e", leaseOwner: "w", fence: 2, leaseUntil: "2026-10-24T12:01:00.000Z", attemptCount: 1 };
 const effect: PlanEffect = { recordId: "p01", stepId: "addCategory", capability: "medusa.product_categories.products.add", arguments: { productId: "p01", categoryId: "cat" }, expected: "apply", preconditionFingerprint: "d" };
 
 describe("durable worker", () => {

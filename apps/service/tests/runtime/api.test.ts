@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildApi } from "../../src/api/server.js";
 import type { ServiceConfig } from "../../src/config.js";
 
-const config: ServiceConfig = { host: "127.0.0.1", port: 4100, publicOriginAllowlist: ["http://localhost:9001"], sessionAudience: "changedesk", sessionIssuerAllowlist: ["atlas"], sessionTtlSeconds: 300, bridgeTicketMaxTtlSeconds: 60, bodyLimitBytes: 65_536, workerId: "w", workerLeaseSeconds: 30, workerGlobalCap: 8 };
+const config: ServiceConfig = { databaseUrl: "postgres://invalid", host: "127.0.0.1", port: 4100, publicOriginAllowlist: ["http://localhost:9001"], sessionAudience: "changedesk", sessionIssuerAllowlist: ["atlas"], sessionTtlSeconds: 300, bridgeTicketMaxTtlSeconds: 60, bodyLimitBytes: 65_536, workerId: "w", workerLeaseSeconds: 30, workerGlobalCap: 8, hosts: [] };
 
 describe("REST authorization and validation", () => {
   it("ACC-003 rejects viewer mutations even with a known endpoint", async () => {
