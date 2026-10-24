@@ -90,6 +90,11 @@
       "gap": "Component focus, error-boundary, unmount, and polling invariants need a DOM.",
       "alternatives": ["Node-only Vitest", "Playwright-only", "jsdom plus Testing Library"],
       "decision": "jsdom 30.1.3 with Testing Library; Playwright remains a separate E2E gate"
+    },
+    {
+      "gap": "The exact Medusa 2.22.1 CLI loads ts-node at startup but does not declare it as its own dependency.",
+      "alternatives": ["patch third-party resolution", "global ts-node", "exact plugin/host dev dependency"],
+      "decision": "ts-node 10.9.2 exact; no global install"
     }
   ],
   "toolGaps": [
