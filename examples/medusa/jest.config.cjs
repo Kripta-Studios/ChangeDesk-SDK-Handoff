@@ -34,10 +34,10 @@ module.exports = {
       module: { type: "commonjs" },
     }],
   },
-  // canonicalize@5.1.0 ships an ESM `export default` entry. The Medusa
-  // CommonJS harness reaches it through bridge/crypto.ts, so transform this
-  // reviewed leaf package only; every other dependency remains ignored.
-  transformIgnorePatterns: ["node_modules/(?!.*(?:canonicalize)/)"],
+  // Jest's VM classifies canonicalize@5.1.0 as ESM before a CommonJS require
+  // can use the transform. The setup module compiles that exact pinned source
+  // in memory and is also the normal metadata reset used by the runner.
+  moduleNameMapper: { "^canonicalize$": "<rootDir>/examples/medusa/integration-tests/setup.cjs" },
   testEnvironment: "node",
   moduleFileExtensions: ["js", "ts", "json"],
   moduleDirectories: [
