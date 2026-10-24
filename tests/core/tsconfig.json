@@ -2,7 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node", "vitest/globals"]
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node", "vitest/globals"],
+    "baseUrl": "../..",
+    "paths": {
+      "@changedesk/contracts": ["packages/contracts/src/index.ts"],
+      "@changedesk/contracts/schemas": ["packages/contracts/src/schemas.ts"]
+    }
   },
   "include": ["./**/*.ts", "../../apps/service/src/core/**/*.ts", "../../apps/service/src/policy/**/*.ts", "../../packages/contracts/src/**/*.ts"]
 }
