@@ -8,5 +8,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "medusa-config.ts"]
+  "include": ["src/**/*.ts"]
 }

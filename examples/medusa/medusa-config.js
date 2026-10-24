@@ -1,16 +1,16 @@
-import { defineConfig, loadEnv } from "@medusajs/framework/utils"
+const { defineConfig, loadEnv } = require("@medusajs/framework/utils")
 
 loadEnv(process.env.NODE_ENV ?? "development", process.cwd())
 
-const required = (name: string) => {
+const required = (name) => {
   const value = process.env[name]
   if (!value) throw new Error(`${name} is required`)
   return value
 }
-const csv = (name: string) => required(name).split(",").map((value) => value.trim()).filter(Boolean)
-const pem = (name: string) => Buffer.from(required(name), "base64").toString("utf8")
+const csv = (name) => required(name).split(",").map((value) => value.trim()).filter(Boolean)
+const pem = (name) => Buffer.from(required(name), "base64").toString("utf8")
 
-export default defineConfig({
+module.exports = defineConfig({
   projectConfig: {
     databaseUrl: required("DATABASE_URL"),
     http: {
