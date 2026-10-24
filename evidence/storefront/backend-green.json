@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-24T14:11:40+02:00",
+  "scope": "storefront Fastify handler contract with test-only in-memory repository",
+  "commands": [
+    "..\\environment\\.tools\\node-v22.23.4-win-x64\\node.exe node_modules/vitest/vitest.mjs run tests/storefront/backend-routes.test.ts --reporter=dot --pool=threads --maxWorkers=1",
+    "..\\environment\\.tools\\node-v22.23.4-win-x64\\node.exe node_modules/typescript/bin/tsc -p apps/service/tsconfig.json --noEmit --pretty false"
+  ],
+  "result": "passed",
+  "summary": {
+    "testFiles": { "passed": 1 },
+    "tests": { "passed": 6 },
+    "durationSeconds": 7.24,
+    "typecheck": "passed"
+  },
+  "limits": "This is a real Fastify handler test but uses a test-only repository. It does not claim PostgreSQL, RLS, Medusa customer auth, or browser E2E verification."
+}
