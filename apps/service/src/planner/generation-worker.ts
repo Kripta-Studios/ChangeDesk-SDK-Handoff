@@ -5,6 +5,7 @@ import { inferRecipeKey } from "./fake-provider.js";
 import { sanitizeRecipeForPublication } from "./publication.js";
 import type { AdapterDescriptor, CatalogPort, PlannerInput, PlannerPort } from "./types.js";
 import { usageTotals, type GenerationBudgetConfig, type GenerationCallToken, type GenerationUsageLedger } from "./generation-budget.js";
+import type { ApiCallAuthorizationController } from "./api-provider.js";
 
 export interface GenerationLease {
   readonly jobId: string; readonly tenantId: string; readonly actorId: string; readonly backendKey: string;
@@ -39,7 +40,7 @@ export interface GenerationStore { withTenant<T>(scope:{tenantId:string;actorId:
 
 export interface GenerationProcessorOptions {
   readonly store:GenerationStore;readonly planner:SingleCallPlannerPort;readonly catalog:CatalogPort;readonly identity:ArtifactIdentity;
-  readonly adapter:AdapterDescriptor;readonly usageLedger:GenerationUsageLedger;readonly budget:GenerationBudgetConfig;newId(kind:"artifact"|"candidate"):string;
+  readonly adapter:AdapterDescriptor;readonly usageLedger:GenerationUsageLedger;readonly budget:GenerationBudgetConfig;readonly apiCallAuthorization?:ApiCallAuthorizationController;newId(kind:"artifact"|"candidate"):string;
 }
 
 export class PlannerGenerationProcessor implements GenerationProcessor {
@@ -64,7 +65,11 @@ export class PlannerGenerationProcessor implements GenerationProcessor {
 
     const generationToken=await this.options.usageLedger.reserveCall({tenantId:lease.tenantId,actorId:lease.actorId,requestId:bundle.request.id,intentHash:await this.options.budget.intentHash(input),contractVersion:"1",provider:this.options.budget.provider,model:this.options.budget.model,maxAttempts:this.options.budget.maxAttempts,tokenBudget:this.options.budget.tokenBudget,costBudgetMicros:this.options.budget.costBudgetMicros,leaseOwner:lease.leaseOwner,leaseSeconds:this.options.budget.leaseSeconds});
     if(!generationToken)return this.finishState(lease,bundle.request.id,"error","provider_call_budget_exhausted");
-    const result=await this.options.planner.plan(input,signal),scope={tenantId:lease.tenantId,actorId:lease.actorId},totals=usageTotals(result.usage);
+    const invoke=()=>this.options.planner.plan(input,signal);
+    const result=this.options.apiCallAuthorization
+      ?await this.options.apiCallAuthorization.run({tenantId:lease.tenantId,requestId:bundle.request.id,provider:apiProvider(this.options.budget.provider),model:this.options.budget.model,tokenBudget:this.options.budget.tokenBudget,costBudgetMicros:this.options.budget.costBudgetMicros,generationToken},invoke)
+      :await invoke();
+    const scope={tenantId:lease.tenantId,actorId:lease.actorId},totals=usageTotals(result.usage);
     if(result.kind==="provider_unavailable"){
       const recorded=await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:result.retryable,success:false});if(!recorded.recorded||!recorded.withinBudget)return{kind:"failed",reason:recorded.recorded?"generation_budget_exceeded":"generation_reservation_stale"};
       return result.retryable?{kind:"waiting_reconciliation",reason:result.code}:this.finishState(lease,bundle.request.id,"error",result.code);
@@ -88,6 +93,11 @@ export class PlannerGenerationProcessor implements GenerationProcessor {
 
   private scoped<T>(lease:GenerationLease,work:(tx:GenerationTx)=>Promise<T>){return this.options.store.withTenant({tenantId:lease.tenantId,actorId:lease.actorId},work);}
   private async finishState(lease:GenerationLease,requestId:string,state:"needs_clarification"|"rejected"|"error",reason:string):Promise<GenerationOutcome>{return await this.scoped(lease,(tx)=>tx.updateRequestWithLease(lease,requestId,state))?{kind:"completed"}:{kind:"failed",reason};}
+}
+
+function apiProvider(value:string):"openai"|"deepseek"|"opencode" {
+  if(value==="openai"||value==="deepseek"||value==="opencode")return value;
+  throw new Error("API call authorization configured for a non-API provider");
 }
 
 function parsePlannerInput(lease:GenerationLease,bundle:GenerationBundle,adapter:AdapterDescriptor):PlannerInput|null {
