@@ -53,7 +53,7 @@ class TestStorefrontRepository implements StorefrontRepository {
     const ownPending = [...this.proposals.values()].filter((p) => p.tenantId === input.context.tenantId && p.buyerId === input.context.buyerId && p.status === "pending").length;
     const tenantPending = [...this.proposals.values()].filter((p) => p.tenantId === input.context.tenantId && p.status === "pending").length;
     if (ownPending >= 5 || tenantPending >= 100) return { ok: false, code: "quota", reason: "pending_proposal_quota" };
-    const value: StorefrontProposal = { id: `proposal-${++this.proposalSequence}`, tenantId: input.context.tenantId, buyerId: input.context.buyerId, baseGlobalRevision: input.baseGlobalRevision, proposed: input.proposed, status: "pending", proposalRevision: 1, createdAt: "2026-10-24T12:00:00.000Z" };
+    const value: StorefrontProposal = { id: `00000000-0000-4000-8000-${String(++this.proposalSequence).padStart(12, "0")}`, tenantId: input.context.tenantId, buyerId: input.context.buyerId, baseGlobalRevision: input.baseGlobalRevision, proposed: input.proposed, status: "pending", proposalRevision: 1, createdAt: "2026-10-24T12:00:00.000Z" };
     this.proposals.set(value.id, value); this.idempotency.set(idemKey, { fingerprint: input.requestFingerprint, value });
     return { ok: true, value };
   }
@@ -153,13 +153,33 @@ describe("storefront Fastify routes", () => {
       { expectedProposalRevision: Number.MAX_SAFE_INTEGER + 1, expectedGlobalRevision: 0 },
     ];
     for (const payload of approvalBodies) {
-      const response = await app.inject({ method: "POST", url: "/v1/storefront/admin/global-change-proposals/proposal-1/approve", headers: headers("admin-a", key()), payload });
+      const response = await app.inject({ method: "POST", url: "/v1/storefront/admin/global-change-proposals/00000000-0000-4000-8000-000000000099/approve", headers: headers("admin-a", key()), payload });
       expect(response.statusCode).toBe(422);
     }
     for (const expectedProposalRevision of [-1, Number.MAX_SAFE_INTEGER + 1]) {
-      const response = await app.inject({ method: "POST", url: "/v1/storefront/admin/global-change-proposals/proposal-1/reject", headers: headers("admin-a", key()), payload: { expectedProposalRevision } });
+      const response = await app.inject({ method: "POST", url: "/v1/storefront/admin/global-change-proposals/00000000-0000-4000-8000-000000000099/reject", headers: headers("admin-a", key()), payload: { expectedProposalRevision } });
       expect(response.statusCode).toBe(422);
     }
+    expect(approve).not.toHaveBeenCalled();
+    expect(reject).not.toHaveBeenCalled();
+  });
+
+  it("returns authorized 404 for malformed proposal IDs without invoking the repository", async () => {
+    const app = await build();
+    const getBuyer = vi.spyOn(repository, "getBuyerProposal");
+    const getAdmin = vi.spyOn(repository, "getAdminProposal");
+    const approve = vi.spyOn(repository, "approveProposal");
+    const reject = vi.spyOn(repository, "rejectProposal");
+    const malformed = "not-a-uuid";
+    const responses = await Promise.all([
+      app.inject({ method: "GET", url: `/v1/storefront/global-change-proposals/${malformed}`, headers: headers("buyer-a") }),
+      app.inject({ method: "GET", url: `/v1/storefront/admin/global-change-proposals/${malformed}`, headers: headers("admin-a") }),
+      app.inject({ method: "POST", url: `/v1/storefront/admin/global-change-proposals/${malformed}/approve`, headers: headers("admin-a", crypto.randomUUID()), payload: { expectedProposalRevision: 1, expectedGlobalRevision: 0 } }),
+      app.inject({ method: "POST", url: `/v1/storefront/admin/global-change-proposals/${malformed}/reject`, headers: headers("admin-a", crypto.randomUUID()), payload: { expectedProposalRevision: 1 } }),
+    ]);
+    expect(responses.map((response) => response.statusCode)).toEqual([404, 404, 404, 404]);
+    expect(getBuyer).not.toHaveBeenCalled();
+    expect(getAdmin).not.toHaveBeenCalled();
     expect(approve).not.toHaveBeenCalled();
     expect(reject).not.toHaveBeenCalled();
   });

@@ -4,9 +4,9 @@ import { importPrivateKey } from "../../../../../../bridge/crypto.ts";
 import { CHANGEDESK_MODULE } from "../../../../../../modules/changedesk/index.ts";
 import type ChangeDeskModuleService from "../../../../../../modules/changedesk/service.ts";
 import { issueStorefrontBootstrapTicket } from "../../../../../../storefront/ticket.ts";
-import { storefrontSessionRegistry } from "../../../../../../storefront/session-registry.ts";
+import { storefrontSessionRegistry, type StorefrontSessionRegistry } from "../../../../../../storefront/session-registry.ts";
 
-const handle = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
+const handle = async (req: AuthenticatedMedusaRequest, res: MedusaResponse, registry: StorefrontSessionRegistry) => {
   if (req.body && Object.keys(req.body as object).length !== 0) throw new BridgeError(400, "body_forbidden", "Buyer identity is derived from Medusa authentication");
   const origin = req.headers.origin;
   const buyerId = req.auth_context?.actor_id;
@@ -21,16 +21,21 @@ const handle = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
   const now = Math.floor(Date.now() / 1000);
   const cookieExpiry = Date.parse(String(req.session.cookie?.expires));
   const expiresAt = Math.min(Number.isFinite(cookieExpiry) ? cookieExpiry : (now + 360) * 1000, (now + 360) * 1000);
-  const hostSessionId = storefrontSessionRegistry.register({ tenantId: options.tenantId, buyerId, rawSessionId: sessionId, expiresAt });
+  const hostSessionId = registry.register({ tenantId: options.tenantId, buyerId, rawSessionId: sessionId, expiresAt });
   const result = issueStorefrontBootstrapTicket({ issuer: options.installationId, serviceAudience: options.serviceAudience, tenantId: options.tenantId, buyerId, hostSessionId, origin, now, privateKey: importPrivateKey(options.bootstrapPrivateKeyPem) });
   res.setHeader("Cache-Control", "no-store");
   return res.status(200).json({ ticket: result.ticket, expiresAt: new Date(result.claims.exp * 1000).toISOString() });
 };
 
-export const POST = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
-  try { return await handle(req, res); }
+export const createStorefrontSessionPost = (registry: StorefrontSessionRegistry = storefrontSessionRegistry) => async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
+  try { return await handle(req, res, registry); }
   catch (error) {
     if (!(error instanceof BridgeError)) throw error;
-    return res.status(error.status).json({ error: { code: error.code, message: error.message, requestId: req.headers["x-request-id"] ?? "host", retryable: false } });
+    const retryable = error.status === 429;
+    res.setHeader("Cache-Control", "no-store");
+    if (retryable) res.setHeader("Retry-After", "60");
+    return res.status(error.status).json({ error: { code: error.code, message: error.message, requestId: req.headers["x-request-id"] ?? "host", retryable } });
   }
 };
+
+export const POST = createStorefrontSessionPost();

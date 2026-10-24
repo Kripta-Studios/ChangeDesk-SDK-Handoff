@@ -108,6 +108,7 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
   });
   app.get<{ Params: { id: string } }>("/v1/storefront/global-change-proposals/:id", readOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireBuyer(request, reply); if (!context) return reply;
+    if (!UUID.test(request.params.id)) return fail(reply, 404, "not_found", "Resource not found", nextRequestId());
     const result = await dependencies.repository.getBuyerProposal(context, request.params.id); if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return publicProposal(result.value);
   });
   app.get("/v1/storefront/admin/global-change-proposals", readOptions, async (request, reply) => {
@@ -115,10 +116,12 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
   });
   app.get<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id", readOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
+    if (!UUID.test(request.params.id)) return fail(reply, 404, "not_found", "Resource not found", nextRequestId());
     const result = await dependencies.repository.getAdminProposal(context, request.params.id); if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return result.value;
   });
   app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/approve", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
+    if (!UUID.test(request.params.id)) return fail(reply, 404, "not_found", "Resource not found", nextRequestId());
     const key = idempotencyKey(request); const body = request.body; if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
     if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision", "expectedGlobalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision) || (body.expectedProposalRevision as number) < 0 || !Number.isSafeInteger(body.expectedGlobalRevision) || (body.expectedGlobalRevision as number) < 0) return fail(reply, 422, "invalid_approval", "Expected non-negative exact proposal and global revisions", nextRequestId());
     const normalized = { proposalId: request.params.id, expectedProposalRevision: body.expectedProposalRevision as number, expectedGlobalRevision: body.expectedGlobalRevision as number };
@@ -127,6 +130,7 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
   });
   app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/reject", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
+    if (!UUID.test(request.params.id)) return fail(reply, 404, "not_found", "Resource not found", nextRequestId());
     const key = idempotencyKey(request); const body = request.body; if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
     if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision) || (body.expectedProposalRevision as number) < 0) return fail(reply, 422, "invalid_rejection", "Expected a non-negative exact proposal revision", nextRequestId());
     const normalized = { proposalId: request.params.id, expectedProposalRevision: body.expectedProposalRevision as number };
