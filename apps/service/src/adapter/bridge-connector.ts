@@ -76,10 +76,37 @@ export class SignedBridgeConnector implements HostConnector {
       throw new ConnectorError("bridge_transport", "unknown", error instanceof Error ? error.message : "Bridge transport failed");
     }
     if (!response.ok) {
-      const certainty = response.status >= 400 && response.status < 500 ? "not_sent" : "unknown";
-      throw new ConnectorError(`bridge_http_${response.status}`, certainty, "Bridge rejected the command");
+      const hostCode = await boundedHostErrorCode(response);
+      const effectUnknown = response.status === 409 && hostCode === "effect_unknown";
+      const certainty = effectUnknown || response.status === 409 || response.status < 400 || response.status >= 500 ? "unknown" : "not_sent";
+      throw new ConnectorError(effectUnknown ? "bridge_effect_unknown" : `bridge_http_${response.status}`, certainty, "Bridge rejected the command");
     }
     try { const envelope = await response.json() as { result?: unknown }; if (!("result" in envelope)) throw new Error("missing result"); return envelope.result; } catch { throw new ConnectorError("bridge_malformed_response", "unknown", "Bridge returned malformed JSON"); }
+  }
+}
+
+async function boundedHostErrorCode(response: Response): Promise<"effect_unknown" | undefined> {
+  const length = Number(response.headers.get("content-length") ?? "0");
+  if (Number.isFinite(length) && length > 4_096) return undefined;
+  try {
+    if (!response.body) return undefined;
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > 4_096) { await reader.cancel(); return undefined; }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const body = JSON.parse(new TextDecoder().decode(bytes)) as { error?: { code?: unknown } };
+    return body?.error?.code === "effect_unknown" ? "effect_unknown" : undefined;
+  } catch {
+    return undefined;
   }
 }
 

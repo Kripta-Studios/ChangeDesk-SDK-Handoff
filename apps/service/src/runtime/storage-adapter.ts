@@ -77,7 +77,7 @@ export class StorageRuntimeAdapter implements RuntimeStorePort {
 }
 
 function mapBundle(raw: any): ExecutionBundle {
-  const plan = raw.plan.body ?? raw.plan;
+  const plan = jsonObject(raw.plan.body) ?? raw.plan;
   const execution = { id: raw.execution.id, planId: raw.execution.plan_id ?? raw.execution.planId, state: raw.execution.state, revision: Number(raw.execution.revision), ...(raw.execution.cancel_requested_at ? { cancelRequestedAt: new Date(raw.execution.cancel_requested_at).toISOString() } : {}) };
   const attempts = raw.attempts ?? [];
   const effects = (plan.perRecordEffects ?? []).filter((effect: any) => effect.expected === "apply");
@@ -90,4 +90,9 @@ function mapBundle(raw: any): ExecutionBundle {
   if (!["active", "withdrawn", "security_revoked", "disabled"].includes(artifactState)) throw new Error("Execution authority lacks artifact state");
   const rows = (raw.rows ?? []).map((row: any) => ({ rowId: row.row_id ?? row.rowId, state: row.state }));
   return { execution, plan: { ...plan, planHash: raw.plan.plan_hash ?? raw.plan.planHash }, approval: { id: raw.approval.id, actorId: raw.approval.actor_id ?? raw.approval.actorId, expiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString(), planHash: raw.approval.plan_hash ?? raw.approval.planHash }, authority: { actorEnabled: raw.actor.state === "enabled", hostSessionId, policyVersion: raw.plan.policy_version ?? plan.policyVersion, artifactState, approvalExpiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString() }, pendingEffects, unknownEffects, rows };
+}
+
+function jsonObject(value: unknown): Record<string, any> | undefined {
+  if (typeof value === "string") { try { const parsed: unknown = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, any> : undefined; } catch { return undefined; } }
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : undefined;
 }
