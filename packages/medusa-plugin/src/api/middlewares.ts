@@ -1,7 +1,7 @@
-import { authenticate, defineMiddlewares } from "@medusajs/framework/http"
+import { authenticate, defineMiddlewares, type MiddlewareVerb } from "@medusajs/framework/http"
 import { denyManagedActorNativeMutation, denyNonLoginAuthMutation, revokeChangeDeskHostSession } from "../bridge/native-guard.ts"
 
-const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
+const MUTATING_METHODS: MiddlewareVerb[] = ["POST", "PUT", "PATCH", "DELETE"]
 
 export default defineMiddlewares({
   routes: [
