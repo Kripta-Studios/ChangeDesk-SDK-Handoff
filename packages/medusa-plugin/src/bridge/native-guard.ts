@@ -59,12 +59,12 @@ export const revokeChangeDeskHostSession = async (
   const policy = await readActorPolicy(req.scope as never, actorId)
   await updateUsersWorkflow(req.scope).run({
     input: {
-      selector: { id: actorId },
-      update: {
+      updates: [{
+        id: actorId,
         metadata: {
           changedesk: { ...policy, hostSessionId: `revoked:${Date.now()}` },
         },
-      },
+      }],
     },
   })
   return next()
