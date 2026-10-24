@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-24",
+  "scope": "SDK React and Medusa Admin frontend only",
+  "results": [
+    {
+      "command": "pnpm exec vitest run --config tests/sdk/vitest.config.ts --reporter=dot",
+      "status": "PASS",
+      "result": "3 files, 10 tests passed"
+    },
+    {
+      "command": "pnpm --filter @changedesk/react typecheck",
+      "status": "PASS",
+      "result": "tsc exit 0"
+    },
+    {
+      "command": "pnpm exec tsc -p tests/sdk/tsconfig.json --noEmit",
+      "status": "PASS",
+      "result": "tsc exit 0"
+    },
+    {
+      "command": "pnpm --filter @changedesk/react build",
+      "status": "PASS",
+      "result": "Vite bundle and declarations emitted; peer-externalized launcher 2508 gzip bytes, lazy panel 7995 gzip bytes including split CSS"
+    },
+    {
+      "command": "pnpm test:e2e",
+      "status": "NOT_RUN",
+      "result": "Requires integrated Atlas/Boreal Medusa hosts, session bridge, API, worker, seed and authenticated Playwright projects"
+    }
+  ],
+  "limitations": [
+    "Component tests use an explicitly fake API client and do not prove backend authorization or Medusa effects.",
+    "Medusa extension compilation and real browser traversal remain integration gates owned by the combined workspace.",
+    "No live LLM assertion is made; fake/live provider modes are presented separately."
+  ]
+}

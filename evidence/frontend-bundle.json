@@ -1,0 +1,23 @@
+{
+  "measuredAt": "2026-10-24",
+  "command": "vite build; CHANGEDESK_ALL_IN=1 vite build; node zlib.gzipSync per emitted JS/CSS file",
+  "status": "PASS",
+  "peerExternalized": {
+    "launcher": { "javascriptGzipBytes": 2164, "cssGzipBytes": 344, "totalGzipBytes": 2508, "limitGzipBytes": 15360 },
+    "lazyPanel": { "javascriptGzipBytes": 5828, "cssGzipBytes": 2167, "totalGzipBytes": 7995, "limitGzipBytes": 153600 }
+  },
+  "allInDiagnostic": {
+    "sharedReactGzipBytes": 21026,
+    "launcherStubGzipBytes": 210,
+    "launcherCssGzipBytes": 344,
+    "lazyPanelJavascriptGzipBytes": 5802,
+    "lazyPanelCssGzipBytes": 2167,
+    "aggregateEmittedGzipBytes": 29549
+  },
+  "notes": [
+    "React and react-dom are peer dependencies in the accepted SDK build.",
+    "CSS code splitting keeps panel styling out of the launcher path.",
+    "The all-in build is reported separately and is not the distributed peer-externalized artifact.",
+    "Source maps and declarations are excluded from runtime bundle totals."
+  ]
+}
