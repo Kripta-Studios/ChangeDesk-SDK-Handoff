@@ -18,18 +18,27 @@
   "finalAdr006Green": {
     "command": "Node 22.23.4 path + Vitest 4.0.16 run tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts",
     "exitCode": 0,
-    "tests": {"files":2,"pass":9,"fail":0},
-    "durationMs": 7600,
-    "reportedBy": "root coordinator after central dependency install"
+    "tests": {"files":2,"pass":12,"fail":0},
+    "durationMs": 2720,
+    "reportedBy": "Medusa lane using the exact Node 22 executable and direct Vitest entrypoint"
+  },
+  "strictTypecheck": {
+    "command": "Node 22.23.4 + TypeScript 5.9.3 tsc -p packages/medusa-plugin/tsconfig.json --noEmit --pretty false",
+    "exitCode": 0
+  },
+  "officialPluginBuild": {
+    "backend": "PASS",
+    "admin": "BLOCKED",
+    "reason": "Official CLI compiled plugin source, but the integrated admin build exposed missing exact admin-sdk/admin-shared manifest dependencies. Manifest fix is pending central verification/install; no green build is claimed."
   },
   "notRun": [
     {
       "gate": "official_medusa_integration_runner",
-      "reason": "Node is 25.8.1 instead of pinned Node 22 LTS, Docker/PostgreSQL engine is unavailable, and the environment owner has not installed the pinned dependency graph."
+      "reason": "Pinned Node 22 and PostgreSQL are available, but the newly observed admin build dependencies require central verification/install before the official runner is executed."
     },
     {
       "gate": "atlas_boreal_real_login_seed_readback",
-      "reason": "Requires the same unavailable Medusa/PostgreSQL runtime. No mock result is reported as real."
+      "reason": "Requires the final integrated host build, migrations, and seed after the central dependency update. No mock result is reported as real."
     },
     {
       "gate": "multiprocess_toctou",
