@@ -5,6 +5,7 @@ import {
   createProductsWorkflow,
   createSalesChannelsWorkflow,
   createUserAccountWorkflow,
+  updateProductsWorkflow,
   updateUsersWorkflow,
 } from "@medusajs/core-flows"
 import type { IAuthModuleService } from "@medusajs/framework/types"
@@ -14,6 +15,7 @@ import { sha256Json, signEnvelope } from "../../../packages/medusa-plugin/src/br
 import { CHANGEDESK_MODULE } from "../../../packages/medusa-plugin/src/modules/changedesk"
 import type ChangeDeskModuleService from "../../../packages/medusa-plugin/src/modules/changedesk/service"
 import type { EffectDelegationClaims } from "../../../packages/medusa-plugin/src/bridge/types"
+import { getProduct } from "../../../packages/medusa-plugin/src/bridge/capabilities"
 
 medusaIntegrationTestRunner({
   testSuite: ({ api, getContainer }) => {
@@ -123,16 +125,17 @@ medusaIntegrationTestRunner({
     it("uses the real additive category workflow and returns the durable receipt on retry", async () => {
       const args = { productId, categoryId }
       const now = Math.floor(Date.now() / 1000)
+      const previewed = await getProduct(getContainer() as never, productId)
       const claims: EffectDelegationClaims = {
         v: 1, typ: "changedesk.effect", iss: "integration-service", aud: "integration-plugin",
         tenantId: "atlas", actorId, hostSessionId: currentHostSessionId, policyVersion: "changedesk-lab-v1",
         adapterVersion: "medusa-2.22.1/changedesk-1", capability: "medusa.product_categories.products.add",
         argsHash: sha256Json(args), jti: randomUUID(), iat: now, exp: now + 60,
-        executionId: "exec-integration", rowId: "row-product", stepId: "category",
+        executionId: "exec-integration", jobId: "job-integration", leaseOwner: "worker-integration", rowId: "row-product", stepId: "category",
         planId: "plan-integration", planHash: "a".repeat(64), planVersion: 1,
         approvalId: "approval-integration", approvalExpiresAt: now + 120,
         semanticInputHash: "b".repeat(64), operationKey: "exec-integration/row-product/category", fence: 1,
-        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: "integration-fingerprint" },
+        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: previewed.protectedDigest },
       }
       const key = createPrivateKey(Buffer.from(process.env.CHANGEDESK_TEST_SERVICE_PRIVATE_KEY_PEM_BASE64!, "base64"))
       const invoke = (value: EffectDelegationClaims) => api.post("/changedesk/bridge/v1/commands", {
@@ -145,6 +148,29 @@ medusaIntegrationTestRunner({
       const query = getContainer().resolve(ContainerRegistrationKeys.QUERY)
       const observed = await query.graph({ entity: "product", fields: ["id", "categories.id"], filters: { id: productId } })
       expect(observed.data[0].categories.filter((item: { id: string }) => item.id === categoryId)).toHaveLength(1)
+    })
+
+    it("rejects an effect when protected product state changed after preview", async () => {
+      const args = { productId, channelId }
+      const previewed = await getProduct(getContainer() as never, productId)
+      await updateProductsWorkflow(getContainer()).run({ input: { products: [{ id: productId, status: "draft" }] } })
+      const now = Math.floor(Date.now() / 1000)
+      const claims: EffectDelegationClaims = {
+        v: 1, typ: "changedesk.effect", iss: "integration-service", aud: "integration-plugin",
+        tenantId: "atlas", actorId, hostSessionId: currentHostSessionId, policyVersion: "changedesk-lab-v1",
+        adapterVersion: "medusa-2.22.1/changedesk-1", capability: "medusa.sales_channels.products.add",
+        argsHash: sha256Json(args), jti: randomUUID(), iat: now, exp: now + 60,
+        executionId: "exec-stale", jobId: "job-stale", leaseOwner: "worker-integration", rowId: "row-product", stepId: "channel",
+        planId: "plan-stale", planHash: "c".repeat(64), planVersion: 1,
+        approvalId: "approval-stale", approvalExpiresAt: now + 120,
+        semanticInputHash: "d".repeat(64), operationKey: "exec-stale/row-product/channel", fence: 1,
+        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: previewed.protectedDigest },
+      }
+      const key = createPrivateKey(Buffer.from(process.env.CHANGEDESK_TEST_SERVICE_PRIVATE_KEY_PEM_BASE64!, "base64"))
+      await expect(api.post("/changedesk/bridge/v1/commands", {
+        capability: claims.capability, args,
+      }, { headers: { Authorization: `ChangeDesk-Delegation ${signEnvelope(claims, key)}` } })).rejects.toMatchObject({ response: { status: 409 } })
+      await updateProductsWorkflow(getContainer()).run({ input: { products: [{ id: productId, status: "published" }] } })
     })
 
   },

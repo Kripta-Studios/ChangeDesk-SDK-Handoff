@@ -40,7 +40,7 @@ export const parseDelegationClaims = (value: unknown): DelegationClaims => {
   }
   const reconcileKeys = ["v", "typ", "iss", "aud", "tenantId", "adapterVersion", "executionId", "rowId", "stepId", "operationKey", "capability", "argsHash", "semanticInputHash", "jti", "iat", "exp"]
   const readKeys = [...COMMON_CLAIMS, "requestId"]
-  const effectKeys = [...COMMON_CLAIMS, "executionId", "rowId", "stepId", "planId", "planHash", "planVersion", "approvalId", "approvalExpiresAt", "semanticInputHash", "operationKey", "fence", "preconditions"]
+  const effectKeys = [...COMMON_CLAIMS, "executionId", "jobId", "leaseOwner", "rowId", "stepId", "planId", "planHash", "planVersion", "approvalId", "approvalExpiresAt", "semanticInputHash", "operationKey", "fence", "preconditions"]
   exactKeys(value, value.typ === "changedesk.reconcile" ? reconcileKeys : value.typ === "changedesk.read" ? readKeys : effectKeys)
   if (value.v !== 1 || value.adapterVersion !== "medusa-2.22.1/changedesk-1" ||
       !CAPABILITY_IDS.includes(value.capability as CapabilityId) ||
@@ -58,7 +58,7 @@ export const parseDelegationClaims = (value: unknown): DelegationClaims => {
     claimString(value.requestId, "requestId")
     return value as unknown as DelegationClaims
   }
-  for (const key of ["executionId", "rowId", "stepId", "planId", "planHash", "approvalId", "semanticInputHash", "operationKey"] as const) claimString(value[key], key)
+  for (const key of ["executionId", "jobId", "leaseOwner", "rowId", "stepId", "planId", "planHash", "approvalId", "semanticInputHash", "operationKey"] as const) claimString(value[key], key)
   if (!Number.isSafeInteger(value.planVersion) || !Number.isSafeInteger(value.approvalExpiresAt) || !Number.isSafeInteger(value.fence) || !isRecord(value.preconditions)) {
     throw new BridgeError(401, "invalid_claims", "Effect numeric claims or preconditions are invalid")
   }
