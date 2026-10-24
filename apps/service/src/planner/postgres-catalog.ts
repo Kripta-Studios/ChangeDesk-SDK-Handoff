@@ -38,7 +38,7 @@ export class PostgresCatalogRepository implements CatalogRepository {
     });
   }
   getOwnedPrivateArtifact(actor: ActorContext, artifactHash: string): Promise<CatalogArtifactRecord|null> {
-    return this.store.withTenant(actor, async (tx) => { const row=await tx.getAuthorizedArtifact(artifactHash); return row?.ownerTenantId===actor.tenantId && row.state==="private" ? mapArtifact(row) : null; });
+    return this.store.withTenant(actor, async (tx) => { const row=await tx.getAuthorizedArtifact(artifactHash); if(!row || row.ownerTenantId!==actor.tenantId || row.state!=="private") return null; return mapArtifact(row); });
   }
   publish(actor: ActorContext, input: NewPublicationRecord): Promise<PublicationRecord> {
     return this.store.withTenant(actor, async (tx) => {
@@ -64,5 +64,5 @@ function mapArtifact(row:StorageArtifact, publication?:StoragePublication):Catal
   return {id:row.id,artifactHash:row.artifactHash,recipe:row.canonicalBody as Recipe,state:row.state,ownerTenantId:row.ownerTenantId,
     publicationId:publication?.id??row.publicationId,publisherTenantId:publication?.publisherTenantId??row.publisherTenantId,
     signingKeyId:publication?.signingKeyId??row.signingKeyId,signature:publication?.signature??row.signature,
-    publicationState:publication?.state,reviewedMetadata:publication?.reviewedMetadata};
+    ...(publication ? {publicationState:publication.state,reviewedMetadata:publication.reviewedMetadata} : {})};
 }
