@@ -11,6 +11,7 @@ import { runMigrations } from "../../apps/service/src/storage/migrations.js";
 import { StorageRuntimeAdapter } from "../../apps/service/src/runtime/storage-adapter.js";
 import { DurableWorker } from "../../apps/service/src/runtime/worker.js";
 import { StrictEffectAuthority } from "../../apps/service/src/runtime/authority.js";
+import { startWorker } from "../../apps/service/src/worker.js";
 
 const migratorUrl = process.env.CHANGEDESK_MIGRATOR_DATABASE_URL;
 const runtimeUrl = process.env.CHANGEDESK_RUNTIME_DATABASE_URL;
@@ -28,6 +29,20 @@ const migrationsDirectory = new URL("../../apps/service/migrations/", import.met
 describe("real PostgreSQL API-to-worker vertical with controlled host/provider fixtures", () => {
   beforeAll(async () => { await runMigrations(migrator, migrationsDirectory); });
   afterAll(async () => { await Promise.all([migrator.end(), runtimePool.end(), workerPool.end()]); });
+
+  it("keeps a worker lane alive after one unexpected job failure", async () => {
+    const controller = new AbortController();
+    const runOnce = vi.fn(async () => {
+      if (runOnce.mock.calls.length === 1) throw new Error("fixture job failure");
+      controller.abort();
+      return "idle" as const;
+    });
+    const recoverOrphanedLeases = vi.fn().mockResolvedValue(0);
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    await startWorker({ runOnce, recoverOrphanedLeases } as unknown as DurableWorker, { workerId: "survival", signal: controller.signal, idleDelayMs: 1, recoveryIntervalMs: 60_000 });
+    expect(runOnce).toHaveBeenCalledTimes(2);
+    expect(stderr).toHaveBeenCalledWith(expect.stringMatching(/lease left for fenced recovery/));
+  });
 
   it.each(["direct", "installation"] as const)("exchanges a ticket and executes the %s plan path through durable jobs", async (planPath) => {
     const tenantId = `runtime-${randomUUID()}`, actorId = "admin-operator", hostSessionId = randomUUID();
