@@ -13,6 +13,7 @@ const seedDir=resolve("evidence/local");
 const expectedProvider=process.env.CHANGEDESK_EXPECTED_PROVIDER??"live";
 if(expectedProvider!=="live"&&expectedProvider!=="fake") throw new Error("CHANGEDESK_EXPECTED_PROVIDER must be live or fake");
 const providerLabel=expectedProvider==="live"?"Proveedor real":"Proveedor simulado";
+const observeSafeNetwork=(page:Page)=>{if(process.env.CHANGEDESK_DEBUG_NETWORK==="1")page.on("response",response=>{const url=new URL(response.url());if(url.pathname.includes("changedesk")||url.pathname.startsWith("/v1/")) console.log(JSON.stringify({method:response.request().method(),origin:url.origin,path:url.pathname,status:response.status()}));});};
 
 function json<T>(path:string):T { if(!existsSync(path)) throw new Error(`E2E_BLOCKED_PRIVATE_FIXTURE: ${path.replace(privateDir,"examples/medusa/.local")}`); return JSON.parse(readFileSync(path,"utf8")) as T; }
 async function authenticate(page:Page,tenant:Tenant,role:Role) {
@@ -23,6 +24,7 @@ async function authenticate(page:Page,tenant:Tenant,role:Role) {
   return json<SeedMap>(resolve(seedDir,`seed-map.${tenant}.json`));
 }
 async function openSelection(page:Page,tenant:Tenant,map:SeedMap) {
+  observeSafeNetwork(page);
   await page.goto(`${hosts[tenant]}/app/changedesk`); await expect(page.getByRole("heading",{name:/Acciones de catálogo/})).toBeVisible();
   for(const id of Object.values(map.products)) await page.locator(`input[data-product-id="${id}"]`).check();
   await page.getByRole("button",{name:"Crear acción con esta selección"}).click();
