@@ -1,5 +1,5 @@
 import { createHash, randomBytes, verify, type KeyObject } from "node:crypto";
-import { forbidden, unauthorized } from "../api/errors.js";
+import { ApiError, forbidden, unauthorized } from "../api/errors.js";
 import type { BuyerContext } from "./types.js";
 
 export interface StorefrontBootstrapClaims {
@@ -24,10 +24,21 @@ export interface BuyerHostIdentityPort {
 
 export class BuyerSessionManager {
   readonly #sessions = new Map<string, BuyerContext & { issuer: string }>();
-  constructor(private readonly replay: StorefrontTicketReplayStore, private readonly host: BuyerHostIdentityPort, private readonly options: { audience: string; issuers: readonly string[]; origins: readonly string[]; ticketMaxTtlSeconds: number; sessionTtlSeconds: number; clock?: () => Date }) {}
+  readonly #maxSessions: number;
+  #pendingExchanges = 0;
+  constructor(private readonly replay: StorefrontTicketReplayStore, private readonly host: BuyerHostIdentityPort, private readonly options: { audience: string; issuers: readonly string[]; origins: readonly string[]; ticketMaxTtlSeconds: number; sessionTtlSeconds: number; maxSessions?: number; clock?: () => Date }) {
+    const maxSessions = options.maxSessions ?? 10_000;
+    if (!Number.isSafeInteger(maxSessions) || maxSessions <= 0) throw new RangeError("maxSessions must be a positive safe integer");
+    this.#maxSessions = maxSessions;
+  }
 
   async exchange(ticket: string, origin: string): Promise<{ accessToken: string; expiresAt: string }> {
-    const now = Math.floor((this.options.clock?.() ?? new Date()).getTime() / 1000);
+    const currentTime = this.options.clock?.() ?? new Date();
+    const now = Math.floor(currentTime.getTime() / 1000);
+    this.purgeExpired(currentTime.getTime());
+    if (this.#sessions.size + this.#pendingExchanges >= this.#maxSessions) throw new ApiError(429, "SESSION_CAPACITY", "Session capacity is temporarily exhausted", true);
+    this.#pendingExchanges += 1;
+    try {
     const [payloadPart, signaturePart, extra] = ticket.split(".");
     if (!payloadPart || !signaturePart || extra) throw unauthorized();
     let claims: StorefrontBootstrapClaims;
@@ -45,17 +56,28 @@ export class BuyerSessionManager {
     const expiresAt = new Date(now * 1000 + this.options.sessionTtlSeconds * 1000).toISOString();
     this.#sessions.set(hash(accessToken), { kind: "buyer", issuer: claims.iss, tenantId: claims.tenantId, buyerId: claims.sub, hostSessionId: claims.hostSessionId, policyVersion: current.policyVersion, expiresAt });
     return { accessToken, expiresAt };
+    } finally {
+      this.#pendingExchanges -= 1;
+    }
   }
 
   async authenticate(authorization: string | undefined): Promise<BuyerContext> {
+    const now = (this.options.clock?.() ?? new Date()).getTime();
+    this.purgeExpired(now);
     const match = /^Bearer ([A-Za-z0-9_-]{40,})$/.exec(authorization ?? "");
     if (!match) throw unauthorized();
     const tokenHash = hash(match[1]!); const session = this.#sessions.get(tokenHash);
-    const now = (this.options.clock?.() ?? new Date()).getTime();
-    if (!session || !Number.isFinite(Date.parse(session.expiresAt)) || Date.parse(session.expiresAt) <= now) { this.#sessions.delete(tokenHash); throw unauthorized(); }
+    if (!session) throw unauthorized();
     const current = await this.host.reauthorizeBuyer({ issuer: session.issuer, tenantId: session.tenantId, buyerId: session.buyerId, hostSessionId: session.hostSessionId, policyVersion: session.policyVersion });
-    if (!current.active || current.policyVersion !== session.policyVersion) { this.#sessions.delete(tokenHash); throw unauthorized(); }
+    if (!current.active || current.policyVersion !== session.policyVersion || Date.parse(session.expiresAt) <= (this.options.clock?.() ?? new Date()).getTime()) { this.#sessions.delete(tokenHash); throw unauthorized(); }
     const { issuer: _issuer, ...context } = session; return context;
+  }
+
+  private purgeExpired(now: number): void {
+    for (const [key, session] of this.#sessions) {
+      const expiresAt = Date.parse(session.expiresAt);
+      if (!Number.isFinite(expiresAt) || expiresAt <= now) this.#sessions.delete(key);
+    }
   }
 }
 
