@@ -39,7 +39,7 @@ export interface ExecutionBundle {
   execution: { id: string; planId: string; state: string; cancelRequestedAt?: string };
   plan: CompiledPlan;
   approval: { id: string; actorId: string; expiresAt: string; planHash: string };
-  authority: { actorEnabled: boolean; policyVersion: string; artifactState: "active" | "withdrawn" | "security_revoked" | "disabled"; approvalExpiresAt: string };
+  authority: { actorEnabled: boolean; hostSessionId: string; policyVersion: string; artifactState: "active" | "withdrawn" | "security_revoked" | "disabled"; approvalExpiresAt: string };
   pendingEffects: readonly PlanEffect[];
   unknownEffects: readonly PlanEffect[];
 }
@@ -49,9 +49,9 @@ export type WorkerOutcome =
   | { kind: "authority_expired"; observedEffects: number }
   | { kind: "failed"; reason: string };
 export interface EffectCommand {
-  tenantId: string; actorId: string; executionId: string; rowId: string; stepId: string; planId: string;
-  planHash: string; planVersion: number; approvalId: string; approvalExpiresAt: string; operationKey: string;
-  semanticInputHash: string; argsHash: string; fence: number; policyVersion: string; adapterVersion: string;
+  tenantId: string; actorId: string; hostSessionId: string; executionId: string; rowId: string; stepId: string; planId: string;
+  planHash: string; planVersion: number; approvalId: string; approvalExpiresAt: number; operationKey: string;
+  semanticInputHash: string; argsHash: string; jobId: string; leaseOwner: string; fence: number; policyVersion: string; adapterVersion: string;
   capabilityManifestHash: string; capability: EffectCapability; args: Readonly<Record<string, string>>;
   preconditions: { productStatus: "published"; productUnlocked: true; relationAbsent: true; preconditionFingerprint: string };
 }

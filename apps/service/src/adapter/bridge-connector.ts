@@ -32,12 +32,12 @@ export class SignedBridgeConnector implements HostConnector {
     const now = Math.floor(this.clock().getTime() / 1000);
     const claims = {
       v: 1, typ: "changedesk.effect", iss: registration.issuer, aud: registration.audience, tenantId: command.tenantId,
-      actorId: command.actorId, policyVersion: command.policyVersion, adapterVersion: command.adapterVersion,
+      actorId: command.actorId, hostSessionId: command.hostSessionId, policyVersion: command.policyVersion, adapterVersion: command.adapterVersion,
       capability: command.capability, argsHash: command.argsHash, jti: randomUUID(), iat: now, exp: now + 30,
-      requestId: randomUUID(), executionId: command.executionId, rowId: command.rowId, stepId: command.stepId,
+      executionId: command.executionId, rowId: command.rowId, stepId: command.stepId,
       planId: command.planId, planHash: command.planHash, planVersion: command.planVersion, approvalId: command.approvalId,
       approvalExpiresAt: command.approvalExpiresAt, semanticInputHash: command.semanticInputHash,
-      operationKey: command.operationKey, fence: command.fence, preconditions: command.preconditions,
+      operationKey: command.operationKey, jobId: command.jobId, leaseOwner: command.leaseOwner, fence: command.fence, preconditions: command.preconditions,
     } as const;
     return await this.call(registration, claims, { capability: command.capability, args: command.args }) as { receipt: unknown; observed: boolean };
   }
@@ -49,7 +49,7 @@ export class SignedBridgeConnector implements HostConnector {
       v: 1, typ: "changedesk.reconcile", iss: registration.issuer, aud: registration.audience, tenantId: command.tenantId,
       adapterVersion: "medusa-2.22.1/changedesk-1", capability: command.capability, argsHash: command.argsHash,
       executionId: command.executionId, rowId: command.rowId, stepId: command.stepId, operationKey: command.operationKey, semanticInputHash: command.semanticInputHash,
-      jti: randomUUID(), iat: now, exp: now + 30, requestId: randomUUID(),
+      jti: randomUUID(), iat: now, exp: now + 30,
     } as const;
     const result = await this.call(registration, claims, { operationKey: command.operationKey }) as { status: "confirmed" | "no_effect" | "unknown"; postcondition: boolean };
     return result.status === "confirmed" ? { state: "confirmed" as const, receipt: result } : { state: result.status };
@@ -79,7 +79,7 @@ export class SignedBridgeConnector implements HostConnector {
       const certainty = response.status >= 400 && response.status < 500 ? "not_sent" : "unknown";
       throw new ConnectorError(`bridge_http_${response.status}`, certainty, "Bridge rejected the command");
     }
-    try { return await response.json(); } catch { throw new ConnectorError("bridge_malformed_response", "unknown", "Bridge returned malformed JSON"); }
+    try { const envelope = await response.json() as { result?: unknown }; if (!("result" in envelope)) throw new Error("missing result"); return envelope.result; } catch { throw new ConnectorError("bridge_malformed_response", "unknown", "Bridge returned malformed JSON"); }
   }
 }
 

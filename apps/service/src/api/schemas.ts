@@ -1,10 +1,10 @@
-import * as Ajv2020Module from "ajv/dist/2020.js";
+import { createRequire } from "node:module";
 import type { AnySchema } from "ajv";
-import * as addFormatsModule from "ajv-formats";
+const require = createRequire(import.meta.url);
 
 export function createSchemaCompiler() {
-  const Ajv2020 = Ajv2020Module.default;
-  const addFormats = addFormatsModule.default;
+  const Ajv2020 = require("ajv/dist/2020").default;
+  const addFormats = require("ajv-formats").default;
   const ajv = new Ajv2020({ strict: true, allErrors: true, removeAdditional: false, coerceTypes: false });
   addFormats(ajv);
   return ({ schema }: { schema: AnySchema }) => ajv.compile(schema);

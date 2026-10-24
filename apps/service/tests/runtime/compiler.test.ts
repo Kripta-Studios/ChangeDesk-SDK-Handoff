@@ -37,11 +37,15 @@ describe("deterministic plan compiler", () => {
     expect(() => compilePlan(input(products.slice(0, 7)))).toThrowError(PlanCompileError);
     try { compilePlan(input(products.slice(0, 7))); } catch (error) { expect((error as PlanCompileError).code).toBe("selection_not_authorized"); }
   });
+  it("SEC-PROOF fails closed when trusted policy requires unavailable evidence", () => {
+    const value = input(products);
+    expect(() => compilePlan({ ...value, proofPolicy: { proofRequired: true, evidenceStatus: "blocked", evidenceRefs: ["e1"] } })).toThrowError(expect.objectContaining({ code: "proof_required" }));
+  });
 });
 
 function product(id: string, overrides: Partial<ProductSnapshot> = {}): ProductSnapshot {
   return { id, status: "published", blocked: false, categoryIds: [] as string[], channelIds: [] as string[], protectedDigest: `${id}-digest`, ...overrides };
 }
 function input(readableProducts: typeof products) {
-  return { planId: "plan", tenantId: "atlas", actorId: "operator", requestId: "req", artifactHash: "a".repeat(64), adapterVersion: "medusa-2.22.1/changedesk-1", policyVersion: "p1", capabilityManifestHash: "b".repeat(64), recipe, parameters: { categoryId: "cat", channelId: "channel" }, selectedProductIds: products.map((item) => item.id), readableProducts, expiresAt: "2026-10-24T12:10:00.000Z", planVersion: 1 };
+  return { planId: "plan", tenantId: "atlas", actorId: "operator", requestId: "req", artifactHash: "a".repeat(64), adapterVersion: "medusa-2.22.1/changedesk-1", policyVersion: "p1", capabilityManifestHash: "b".repeat(64), recipe, parameters: { categoryId: "cat", channelId: "channel" }, selectedProductIds: products.map((item) => item.id), readableProducts, expiresAt: "2026-10-24T12:10:00.000Z", planVersion: 1, proofPolicy: { proofRequired: false, evidenceStatus: "not_applicable" as const, evidenceRefs: [] } };
 }
