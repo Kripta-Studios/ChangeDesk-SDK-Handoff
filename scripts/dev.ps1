@@ -13,6 +13,8 @@ if (Test-Path -LiteralPath $pidPath) {
 }
 docker compose --env-file $envPath -f (Join-Path $root "infra/compose.yaml") up -d --wait postgres
 if ($LASTEXITCODE -ne 0) { throw "Docker Compose startup failed with exit code $LASTEXITCODE." }
+& (Join-Path $PSScriptRoot "provision-lab.ps1")
+if ($LASTEXITCODE -ne 0) { throw "Lab provisioning failed with exit code $LASTEXITCODE." }
 New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 $specifications = @(
   @{ name = "api"; script = "service-process.ps1"; arguments = @("-Mode", "api") },
@@ -42,5 +44,8 @@ foreach ($check in $checks) {
     if (-not $ready) { Start-Sleep -Milliseconds 500 }
   } while (-not $ready -and (Get-Date) -lt $deadline)
   if (-not $ready) { throw "$($check.name) did not become ready; inspect .local/run logs and run stop.ps1." }
+}
+foreach ($item in $started) {
+  if (-not (Get-Process -Id $item.pid -ErrorAction SilentlyContinue)) { throw "$($item.name) exited during startup; inspect its .local/run log." }
 }
 Write-Output "Change Desk local lab is ready on API 4100, Atlas 9001, and Boreal 9002."
