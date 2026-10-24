@@ -17,7 +17,10 @@ import type { PlannerConfig } from "./config.js";
 export async function startWorker(worker: DurableWorker, options: { workerId: string; signal: AbortSignal; idleDelayMs?: number; concurrency?: number; recoveryIntervalMs?: number }): Promise<void> {
   const idleDelayMs = options.idleDelayMs ?? 500;
   const concurrency = Math.max(1, Math.min(options.concurrency ?? 1, 32));
-  const lane = async (index: number) => { while (!options.signal.aborted) { const outcome = await worker.runOnce(`${options.workerId}-${index}`, options.signal); if (outcome === "idle") await abortableDelay(idleDelayMs + Math.floor(Math.random() * 200), options.signal); } };
+  const lane = async (index: number) => { while (!options.signal.aborted) {
+    try { const outcome = await worker.runOnce(`${options.workerId}-${index}`, options.signal); if (outcome === "idle") await abortableDelay(idleDelayMs + Math.floor(Math.random() * 200), options.signal); }
+    catch { if (!options.signal.aborted) { process.stderr.write("Worker job failed; lease left for fenced recovery\n"); await abortableDelay(idleDelayMs, options.signal); } }
+  } };
   const recovery = async () => { while (!options.signal.aborted) { await abortableDelay(options.recoveryIntervalMs ?? 10_000, options.signal); if (!options.signal.aborted) await worker.recoverOrphanedLeases(100); } };
   await Promise.all([...Array(concurrency)].map((_, index) => lane(index)).concat([recovery()]));
 }
