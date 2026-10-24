@@ -152,6 +152,16 @@ describe("ChangeDeskPanel", () => {
     expect(sessionStorage.getItem("changedesk:resume:https://desk.example.test:active")).toBe("scope_new");
   });
 
+  it("refuses to restore a plan for a different current product selection", async () => {
+    sessionStorage.setItem("changedesk:resume:https://desk.example.test:active", "scope_1");
+    sessionStorage.setItem("changedesk:resume:https://desk.example.test:scope_1", JSON.stringify({ planId: "plan_old" }));
+    const api = client({ getPlan: vi.fn().mockResolvedValue({ title: "Plan anterior", canApprove: true, permissions: ["approve", "execute"], plan: { id: "plan_old", schemaVersion: "1", tenantId: "hidden", actorId: "hidden", requestId: "req_old", artifactHash: "b".repeat(64), adapterVersion: "1", policyVersion: "1", capabilityManifestHash: "c".repeat(64), parameters: {}, selectionSnapshot: ["prod_old"], state: "ready", planHash: "a".repeat(64), planVersion: 1, createdAt: "2026-01-01T00:00:00Z", expiresAt: "2026-01-01T00:10:00Z", perRecordEffects: [], exclusions: [], evidenceRefs: [], limits: { maxRecords: 100, maxSteps: 12 } } }) });
+    renderInternal(api);
+    expect(await screen.findByText(/preview anterior se invalidó/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Aprobar y ejecutar" })).toBeNull();
+    expect(sessionStorage.getItem("changedesk:resume:https://desk.example.test:scope_1")).not.toContain("plan_old");
+  });
+
   it("uses the English message catalog when locale is en", () => {
     const api = client();
     render(<ChangeDeskProvider config={{ endpoint: "https://desk.example.test", getSession: vi.fn(), locale: "en", getContext: () => ({ selectedProductIds: ["prod_1"], surface: "product.list" }) }} client={api}><InternalPanel /></ChangeDeskProvider>);
