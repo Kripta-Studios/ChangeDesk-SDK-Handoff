@@ -55,6 +55,13 @@ describe("repository pin verification", () => {
     expect((await inspectRepository(await fixture("floating-image", { image: "postgres:17.6" }))).errors.join("\n")).toMatch(/sha256 digest/);
   });
 
+  it("rejects an unpinned Compose image outside the workflow directory", async () => {
+    const root = await fixture("floating-compose-image");
+    await mkdir(path.join(root, "infra"), { recursive: true });
+    await writeFile(path.join(root, "infra", "compose.yaml"), "services:\n  postgres:\n    image: postgres:17.11\n");
+    expect((await inspectRepository(root)).errors.join("\n")).toMatch(/infra.*sha256 digest/);
+  });
+
   it("rejects a fifth source workspace", async () => {
     const root = await fixture("workspace-count");
     await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n  - packages/*\n");

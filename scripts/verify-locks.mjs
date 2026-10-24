@@ -27,6 +27,15 @@ async function workflowFiles(root) {
     .map((entry) => path.join(directory, entry.name));
 }
 
+async function pinPolicyFiles(root) {
+  const files = await workflowFiles(root);
+  for (const relativeName of ["infra/compose.yaml", "infra/compose.yml", "compose.yaml", "compose.yml"]) {
+    const filename = path.join(root, relativeName);
+    if (existsSync(filename)) files.push(filename);
+  }
+  return files;
+}
+
 function parseWorkspacePaths(source) {
   return source.split(/\r?\n/)
     .map((line) => /^\s*-\s+([^#]+?)\s*$/.exec(line)?.[1]?.replace(/^['"]|['"]$/g, ""))
@@ -99,7 +108,7 @@ export async function inspectRepository(root) {
       errors.push(`.github/actions-lock.json: invalid JSON (${error instanceof Error ? error.message : String(error)})`);
     }
   }
-  for (const filename of await workflowFiles(root)) {
+  for (const filename of await pinPolicyFiles(root)) {
     inspectWorkflow(await readFile(filename, "utf8"), path.relative(root, filename), actionLocks, errors);
   }
   return { errors };
