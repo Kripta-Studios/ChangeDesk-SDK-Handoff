@@ -63,6 +63,7 @@
   },
   "notRun": [
     "live Codex provider invocation in this runtime vertical (planner lane verified it separately)",
-    "real Medusa two-store effect flow: 2026-10-24 browser attempt was BLOCKED because the host widget reported Change Desk disabled before any API request or fixture mutation"
+    "real Medusa two-store effect flow: BLOCKED after bootstrap/exchange/create returned 200 because the generation job remained pending with attempt_count=0; no host effect was attempted",
+    "browser serial result: baseline host read passed, requester flow did not reach a candidate, and later mutation cases were not executed"
   ]
 }
