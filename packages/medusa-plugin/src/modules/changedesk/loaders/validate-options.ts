@@ -15,6 +15,9 @@ const requiredStrings: (keyof ChangeDeskModuleOptions)[] = [
 ]
 
 export default async function validateOptions({ options }: LoaderOptions<ChangeDeskModuleOptions>) {
+  if (!options) {
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, "Change Desk plugin options are required")
+  }
   for (const key of requiredStrings) {
     if (typeof options[key] !== "string" || options[key].length === 0) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, `Change Desk option ${key} is required`)

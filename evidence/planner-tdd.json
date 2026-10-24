@@ -57,6 +57,18 @@
       "tests": 24,
       "durationSeconds": 7.91,
       "coverage": "ACL-first reuse, requester generation with mutation capabilities, canonical generic persistence, and viewer provider denial"
+    },
+    {
+      "command": "vitest run tests/planner",
+      "result": "PASS",
+      "files": 5,
+      "tests": 27,
+      "durationSeconds": 3.22,
+      "coverage": "durable provider call wrapper, shared authorized publication lookup, abort-aware generation processor"
+    },
+    {
+      "command": "tsc -b packages/contracts/tsconfig.json apps/service/tsconfig.json --pretty false",
+      "result": "PASS"
     }
   ],
   "separation": {

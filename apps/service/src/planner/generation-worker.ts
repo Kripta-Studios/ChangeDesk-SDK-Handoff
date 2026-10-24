@@ -4,6 +4,7 @@ import type { ArtifactIdentity } from "./catalog-repository.js";
 import { inferRecipeKey } from "./fake-provider.js";
 import { sanitizeRecipeForPublication } from "./publication.js";
 import type { AdapterDescriptor, CatalogPort, PlannerInput, PlannerPort } from "./types.js";
+import { usageTotals, type GenerationBudgetConfig, type GenerationCallToken, type GenerationUsageLedger } from "./generation-budget.js";
 
 export interface GenerationLease {
   readonly jobId: string; readonly tenantId: string; readonly actorId: string; readonly backendKey: string;
@@ -15,6 +16,7 @@ export type GenerationOutcome =
   | { readonly kind: "waiting_reconciliation"; readonly reason: string }
   | { readonly kind: "failed"; readonly reason: string };
 export interface GenerationProcessor { process(lease: GenerationLease, signal?:AbortSignal): Promise<GenerationOutcome>; }
+export interface SingleCallPlannerPort extends PlannerPort {readonly maxCallsPerPlan:1;}
 
 interface GenerationBundle {
   readonly request: { readonly id:string;readonly actorId:string;readonly redactedText:string;readonly contextRef:JsonValue };
@@ -30,14 +32,14 @@ interface PersistedCandidate {
 interface GenerationTx {
   loadGenerationBundle(lease:GenerationLease):Promise<GenerationBundle|null>;
   addRequestCandidates(lease:GenerationLease,requestId:string,candidates:readonly PersistedCandidate[]):Promise<boolean>;
-  persistGeneratedCandidate(lease:GenerationLease,input:{requestId:string;artifact:{id:string;artifactHash:string;schemaVersion:string;canonicalBody:Recipe};candidate:PersistedCandidate}):Promise<boolean>;
+  persistGeneratedCandidate(lease:GenerationLease,input:{requestId:string;artifact:{id:string;artifactHash:string;schemaVersion:string;canonicalBody:Recipe};candidate:PersistedCandidate;generationToken?:GenerationCallToken}):Promise<boolean>;
   updateRequestWithLease(lease:GenerationLease,requestId:string,state:"candidate_offered"|"needs_clarification"|"rejected"|"error"):Promise<boolean>;
 }
 export interface GenerationStore { withTenant<T>(scope:{tenantId:string;actorId:string},work:(tx:GenerationTx)=>Promise<T>):Promise<T>; }
 
 export interface GenerationProcessorOptions {
-  readonly store:GenerationStore;readonly planner:PlannerPort;readonly catalog:CatalogPort;readonly identity:ArtifactIdentity;
-  readonly adapter:AdapterDescriptor;newId(kind:"artifact"|"candidate"):string;
+  readonly store:GenerationStore;readonly planner:SingleCallPlannerPort;readonly catalog:CatalogPort;readonly identity:ArtifactIdentity;
+  readonly adapter:AdapterDescriptor;readonly usageLedger:GenerationUsageLedger;readonly budget:GenerationBudgetConfig;newId(kind:"artifact"|"candidate"):string;
 }
 
 export class PlannerGenerationProcessor implements GenerationProcessor {
@@ -60,14 +62,27 @@ export class PlannerGenerationProcessor implements GenerationProcessor {
       }
     }
 
-    const result=await this.options.planner.plan(input,signal);
-    if(result.kind==="provider_unavailable")return result.retryable?{kind:"waiting_reconciliation",reason:result.code}:this.finishState(lease,bundle.request.id,"error",result.code);
-    if(result.kind==="needs_clarification")return this.finishState(lease,bundle.request.id,"needs_clarification","needs_clarification");
-    if(result.kind==="unsupported")return this.finishState(lease,bundle.request.id,"rejected","unsupported_request");
+    const generationToken=await this.options.usageLedger.reserveCall({tenantId:lease.tenantId,actorId:lease.actorId,requestId:bundle.request.id,intentHash:await this.options.budget.intentHash(input),contractVersion:"1",provider:this.options.budget.provider,model:this.options.budget.model,maxAttempts:this.options.budget.maxAttempts,tokenBudget:this.options.budget.tokenBudget,costBudgetMicros:this.options.budget.costBudgetMicros,leaseOwner:lease.leaseOwner,leaseSeconds:this.options.budget.leaseSeconds});
+    if(!generationToken)return this.finishState(lease,bundle.request.id,"error","provider_call_budget_exhausted");
+    const result=await this.options.planner.plan(input,signal),scope={tenantId:lease.tenantId,actorId:lease.actorId},totals=usageTotals(result.usage);
+    if(result.kind==="provider_unavailable"){
+      if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:result.retryable,success:false}))return{kind:"failed",reason:"generation_reservation_stale"};
+      return result.retryable?{kind:"waiting_reconciliation",reason:result.code}:this.finishState(lease,bundle.request.id,"error",result.code);
+    }
+    if(result.kind==="needs_clarification"){
+      if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:false,success:false}))return{kind:"failed",reason:"generation_reservation_stale"};
+      return this.finishState(lease,bundle.request.id,"needs_clarification","needs_clarification");
+    }
+    if(result.kind==="unsupported"){
+      const retryable=result.usage.length>0&&result.safeMessage.includes("did not produce a valid recipe");
+      if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable,success:false}))return{kind:"failed",reason:"generation_reservation_stale"};
+      return retryable?{kind:"waiting_reconciliation",reason:"provider_output_invalid"}:this.finishState(lease,bundle.request.id,"rejected","unsupported_request");
+    }
+    if(!await this.options.usageLedger.recordCall(scope,generationToken,{...totals,retryable:false,success:true}))return{kind:"failed",reason:"generation_reservation_stale"};
     const recipe=sanitizeRecipeForPublication(result.recipe);
     const artifactHash=await this.options.identity.hash(recipe);
     const candidate:Candidate={id:this.options.newId("candidate"),artifactHash,recipeKey:recipe.recipeKey,displayName:recipe.displayName,version:"1",requiredCapabilities:recipe.requiredCapabilities,missingParameters:Object.keys(recipe.parameters) as Candidate["missingParameters"],compatibility:"compatible",evidenceStatus:"not_run",estimatedCost:latestUsd(result.usage)};
-    const persisted=await this.scoped(lease,async(tx)=>await tx.persistGeneratedCandidate(lease,{requestId:bundle.request.id,artifact:{id:this.options.newId("artifact"),artifactHash,schemaVersion:recipe.schemaVersion,canonicalBody:recipe},candidate:persistedCandidate(candidate,"generated")})&&await tx.updateRequestWithLease(lease,bundle.request.id,"candidate_offered"));
+    const persisted=await this.scoped(lease,async(tx)=>await tx.persistGeneratedCandidate(lease,{requestId:bundle.request.id,artifact:{id:this.options.newId("artifact"),artifactHash,schemaVersion:recipe.schemaVersion,canonicalBody:recipe},candidate:persistedCandidate(candidate,"generated"),generationToken})&&await tx.updateRequestWithLease(lease,bundle.request.id,"candidate_offered"));
     return persisted?{kind:"completed"}:{kind:"failed",reason:"generation_lease_lost"};
   }
 

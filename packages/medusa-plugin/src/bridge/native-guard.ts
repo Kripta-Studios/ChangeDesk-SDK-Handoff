@@ -1,4 +1,4 @@
-import type { AuthenticatedMedusaRequest, MedusaNextFunction, MedusaResponse } from "@medusajs/framework/http"
+import type { AuthenticatedMedusaRequest, MedusaNextFunction, MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
 import { mustDenyAdminMutation, mustDenyAuthMutation } from "./native-policy.ts"
 import { CHANGEDESK_MODULE } from "../modules/changedesk/index.ts"
@@ -7,7 +7,7 @@ import { readActorPolicy } from "./actor.ts"
 import { updateUsersWorkflow } from "@medusajs/core-flows"
 
 export const denyNonLoginAuthMutation = (
-  req: AuthenticatedMedusaRequest,
+  req: MedusaRequest,
   _res: MedusaResponse,
   next: MedusaNextFunction
 ) => {
@@ -16,12 +16,13 @@ export const denyNonLoginAuthMutation = (
 }
 
 export const denyManagedActorNativeMutation = async (
-  req: AuthenticatedMedusaRequest,
+  req: MedusaRequest,
   _res: MedusaResponse,
   next: MedusaNextFunction
 ) => {
+  const authenticated = req as AuthenticatedMedusaRequest
   if (!mustDenyAdminMutation(req.path, true)) return next()
-  const actorId = req.auth_context?.actor_id
+  const actorId = authenticated.auth_context?.actor_id
   if (!actorId) return next(new MedusaError(MedusaError.Types.UNAUTHORIZED, "An actor-bound session is required"))
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const { data } = await query.graph({
@@ -52,11 +53,12 @@ export const denyManagedActorNativeMutation = async (
 }
 
 export const revokeChangeDeskHostSession = async (
-  req: AuthenticatedMedusaRequest,
+  req: MedusaRequest,
   _res: MedusaResponse,
   next: MedusaNextFunction
 ) => {
-  const actorId = req.auth_context?.actor_id
+  const authenticated = req as AuthenticatedMedusaRequest
+  const actorId = authenticated.auth_context?.actor_id
   if (!actorId) return next(new MedusaError(MedusaError.Types.UNAUTHORIZED, "A session is required"))
   const service = req.scope.resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService
   const release = await service.acquireResourceLocks(["authority-mutator"])

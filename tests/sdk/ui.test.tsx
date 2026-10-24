@@ -19,7 +19,7 @@ const renderInternal = (api: ChangeDeskClient) => render(
 );
 
 describe("ChangeDeskPanel", () => {
-  afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+  afterEach(() => { cleanup(); sessionStorage.clear(); vi.restoreAllMocks(); });
 
   it("labels the fake provider and never treats stored HTML as markup", async () => {
     const api = client({
@@ -101,13 +101,12 @@ describe("ChangeDeskPanel", () => {
       getRequest: vi.fn().mockResolvedValue({ requestId: "req_resume", status: "candidate_offered", safeMessage: "Lista", providerMode: "fake", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", candidates: [], permissions: ["request"] }),
     });
     const config = { endpoint: "https://desk.example.test", getSession: vi.fn(), locale: "es" as const, getContext: () => ({ selectedProductIds: ["prod_1"], surface: "product.list" }) };
-    const Harness = () => { const [open, setOpen] = React.useState(true); return <ChangeDeskProvider config={config} client={api}><button onClick={() => setOpen(false)}>Cerrar prueba</button><button onClick={() => setOpen(true)}>Reabrir prueba</button>{open ? <InternalPanel /> : null}</ChangeDeskProvider>; };
-    render(<Harness/>);
+    const first = render(<ChangeDeskProvider config={config} client={api}><InternalPanel /></ChangeDeskProvider>);
     await userEvent.type(screen.getByLabelText("¿Qué necesitas cambiar?"), "Prepara campaña");
     await userEvent.click(screen.getByRole("button", { name: "Buscar una función" }));
     await screen.findByText("Lista");
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar prueba" }));
-    await userEvent.click(screen.getByRole("button", { name: "Reabrir prueba" }));
+    first.unmount();
+    render(<ChangeDeskProvider config={config} client={api}><InternalPanel /></ChangeDeskProvider>);
     await screen.findByText("Lista");
     expect(api.getRequest).toHaveBeenCalledTimes(2);
     expect(api.createRequest).toHaveBeenCalledOnce();
