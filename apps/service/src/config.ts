@@ -13,8 +13,10 @@ export interface ServiceConfig {
   workerLeaseSeconds: number;
   workerGlobalCap: number;
   hosts: readonly HostConfig[];
+  publicationKeyId: string;
+  publicationPrivateKeyPem: string;
 }
-export interface HostConfig { tenantId: string; bootstrapIssuer: string; delegationIssuer: string; audience: string; commandUrl: string; reauthorizeUrl: string; bootstrapPublicKeyPem: string; delegationPrivateKeyPem: string; serviceToken: string; categoryIds: readonly string[]; channelIds: readonly string[] }
+export interface HostConfig { tenantId: string; bootstrapIssuer: string; delegationIssuer: string; audience: string; commandUrl: string; reauthorizeUrl: string; bootstrapPublicKeyPem: string; delegationPrivateKeyPem: string; serviceToken: string; authorityCallbackCredential: string; categoryIds: readonly string[]; channelIds: readonly string[] }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig {
   const origins = splitRequired(env.CHANGEDESK_ORIGINS, "CHANGEDESK_ORIGINS");
@@ -34,9 +36,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
     workerLeaseSeconds: parseInteger(env.CHANGEDESK_WORKER_LEASE_SECONDS ?? "30", "CHANGEDESK_WORKER_LEASE_SECONDS", 5, 300),
     workerGlobalCap: parseInteger(env.CHANGEDESK_WORKER_GLOBAL_CAP ?? "8", "CHANGEDESK_WORKER_GLOBAL_CAP", 1, 100),
     hosts: parseHosts(required(env.CHANGEDESK_HOSTS_JSON, "CHANGEDESK_HOSTS_JSON")),
+    publicationKeyId: required(env.CHANGEDESK_PUBLICATION_KEY_ID, "CHANGEDESK_PUBLICATION_KEY_ID"),
+    publicationPrivateKeyPem: required(env.CHANGEDESK_PUBLICATION_PRIVATE_KEY_PEM, "CHANGEDESK_PUBLICATION_PRIVATE_KEY_PEM"),
   };
 }
-function parseHosts(value: string): HostConfig[] { const parsed: unknown = JSON.parse(value); if (!Array.isArray(parsed) || parsed.length !== 2) throw new Error("CHANGEDESK_HOSTS_JSON must contain exactly two hosts"); return parsed.map((item: any) => { for (const key of ["tenantId","bootstrapIssuer","delegationIssuer","audience","commandUrl","reauthorizeUrl","bootstrapPublicKeyPem","delegationPrivateKeyPem","serviceToken"]) if (typeof item?.[key] !== "string" || !item[key]) throw new Error(`Invalid host ${key}`); if (!Array.isArray(item.categoryIds) || !Array.isArray(item.channelIds)) throw new Error("Host resource allowlists are required"); return item as HostConfig; }); }
+function parseHosts(value: string): HostConfig[] { const parsed: unknown = JSON.parse(value); if (!Array.isArray(parsed) || parsed.length !== 2) throw new Error("CHANGEDESK_HOSTS_JSON must contain exactly two hosts"); return parsed.map((item: any) => { for (const key of ["tenantId","bootstrapIssuer","delegationIssuer","audience","commandUrl","reauthorizeUrl","bootstrapPublicKeyPem","delegationPrivateKeyPem","serviceToken","authorityCallbackCredential"]) if (typeof item?.[key] !== "string" || !item[key]) throw new Error(`Invalid host ${key}`); if (!Array.isArray(item.categoryIds) || !Array.isArray(item.channelIds)) throw new Error("Host resource allowlists are required"); return item as HostConfig; }); }
 function required(value: string | undefined, name: string): string { if (!value) throw new Error(`${name} is required`); return value; }
 function splitRequired(value: string | undefined, name: string): string[] { return required(value, name).split(",").map((item) => item.trim()).filter(Boolean); }
 function parseInteger(value: string, name: string, min: number, max: number): number { const parsed = Number(value); if (!Number.isInteger(parsed) || parsed < min || parsed > max) throw new Error(`${name} is invalid`); return parsed; }
