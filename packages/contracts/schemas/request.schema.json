@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://changedesk.invalid/schemas/request-v1",
+  "title": "Untrusted browser create request body",
+  "type": "object",
+  "properties": {
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "selectedProductIds": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      }
+    },
+    "locale": {
+      "enum": [
+        "es",
+        "en"
+      ]
+    },
+    "clientRequestId": {
+      "type": "string",
+      "format": "uuid"
+    }
+  },
+  "required": [
+    "message",
+    "selectedProductIds",
+    "clientRequestId"
+  ],
+  "additionalProperties": false
+}

@@ -1,5 +1,9 @@
 export type JsonPrimitive = null | boolean | number | string;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+export type ArtifactHash = string;
+export type PlanHash = string;
+export type IdempotencyKey = string;
+export type ClientRequestId = string;
 
 export const RECIPE_KEYS = [
   "catalog.campaign.prepare.v1",
@@ -70,14 +74,15 @@ export interface RequestInput {
   readonly message: string;
   readonly selectedProductIds: readonly string[];
   readonly locale?: "es" | "en";
-  readonly clientRequestId: string;
+  readonly clientRequestId: ClientRequestId;
 }
 
 export interface ApprovalRequestInput {
   readonly planId: string;
-  readonly planHash: string;
+  readonly planHash: PlanHash;
   readonly expectedPlanVersion: number;
-  readonly idempotencyKey: string;
+  /** Must equal the Idempotency-Key request header; mismatch is a 400 before effects. */
+  readonly idempotencyKey: IdempotencyKey;
 }
 
 export const PLAN_STATES = [
@@ -139,7 +144,7 @@ export interface PlannedEffect {
 
 export interface PlanExclusion {
   readonly recordId: string;
-  readonly reason: "status" | "policy" | "already_satisfied";
+  readonly reason: "status" | "policy";
 }
 
 export interface PlanLimits {
@@ -156,7 +161,7 @@ export interface PlanHashInput {
   readonly tenantId: string;
   readonly actorId: string;
   readonly requestId: string;
-  readonly artifactHash: string;
+  readonly artifactHash: ArtifactHash;
   readonly adapterVersion: string;
   readonly policyVersion: string;
   readonly capabilityManifestHash: string;
@@ -173,8 +178,16 @@ export interface PlanHashInput {
 /** Public plan shape from docs/10; every normative field retains its exact API name. */
 export interface Plan extends PlanHashInput {
   readonly createdAt: string;
-  readonly planHash: string;
+  readonly planHash: PlanHash;
   readonly state: PlanState;
+}
+
+/** Presentation data stays outside PlanHashInput and can evolve without changing approval bytes. */
+export interface PlanView {
+  readonly plan: Plan;
+  readonly title: string;
+  readonly canApprove: boolean;
+  readonly permissions: readonly Permission[];
 }
 
 export interface Approval {
@@ -182,7 +195,7 @@ export interface Approval {
   readonly tenantId: string;
   readonly planId: string;
   readonly planVersion: number;
-  readonly planHash: string;
+  readonly planHash: PlanHash;
   readonly actorId: string;
   readonly scope: readonly Permission[];
   readonly expiresAt: string;
@@ -202,13 +215,13 @@ export interface Execution {
 }
 
 export const REQUEST_STATES = [
-  "received", "searching", "candidate_offered", "generating", "needs_clarification", "needs_configuration", "plan_ready", "rejected", "error",
+  "received", "searching", "candidate_offered", "generating", "needs_configuration", "needs_clarification", "plan_ready", "rejected", "error",
 ] as const;
 export type RequestState = (typeof REQUEST_STATES)[number];
 
 export interface Candidate {
   readonly id: string;
-  readonly artifactHash: string;
+  readonly artifactHash: ArtifactHash;
   readonly recipeKey: RecipeKey;
   readonly displayName: string;
   readonly version: string;
@@ -255,7 +268,7 @@ export type InstallationState = (typeof INSTALLATION_STATES)[number];
 
 export interface Installation {
   readonly id: string;
-  readonly artifactHash: string;
+  readonly artifactHash: ArtifactHash;
   readonly recipeKey: RecipeKey;
   readonly displayName: string;
   readonly version: string;
@@ -272,7 +285,7 @@ export interface EvidenceSummary {
   readonly id: string;
   readonly status: EvidenceStatus;
   readonly scope: string;
-  readonly artifactHash: string;
+  readonly artifactHash: ArtifactHash;
   readonly verifierVersion: string;
   readonly createdAt: string;
 }
