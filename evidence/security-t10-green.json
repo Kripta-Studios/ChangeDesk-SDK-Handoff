@@ -46,6 +46,16 @@
       "command": "targeted TypeScript 5.9.3 strict typecheck of apps/service/src/evals",
       "exitCode": 0,
       "result": "7 evaluator source files passed."
+    },
+    {
+      "command": "full Vitest root run with PostgreSQL references after runtime fix",
+      "exitCode": 1,
+      "result": "101 passed, 2 failed, 1 skipped; failures were SDK DOM environment/package corruption and missing @medusajs/test-utils.",
+      "limitations": [
+        "Medusa native-bypass suite did not import and therefore is NOT_RUN.",
+        "Live Codex test remained skipped and therefore is BLOCKED/NOT_RUN, never PASS.",
+        "Root UI/polling failures are outside security ownership and prevent a global green claim."
+      ]
     }
   ],
   "claims": {
