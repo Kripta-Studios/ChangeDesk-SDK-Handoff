@@ -95,6 +95,45 @@ describe("storefront HTTP -> PostgreSQL repository -> forced RLS", () => {
     } finally { client.release(); }
   });
 
+  it("lists the pending review queue even when newer decision history exceeds the page limit", async () => {
+    const client = await pool.connect();
+    const pendingId = crypto.randomUUID();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT set_config('app.tenant_id','boreal',true),set_config('app.storefront_buyer_id','queue-fixture',true),set_config('app.storefront_staff_actor_id','',true)");
+      await client.query(
+        `INSERT INTO storage.storefront_global_proposals(tenant_id,id,buyer_id,base_global_revision,proposed,status,created_at)
+         VALUES('boreal',$1,'queue-fixture',0,'{"theme":"dark","density":"compact","productLayout":"list"}','pending','2025-01-01T00:00:00Z')`,
+        [pendingId],
+      );
+      for (let index = 0; index < 51; index++) {
+        await client.query(
+          `INSERT INTO storage.storefront_global_proposals(tenant_id,id,buyer_id,base_global_revision,proposed,status,created_at)
+           VALUES('boreal',$1,'queue-fixture',0,'{"theme":"light","density":"comfortable","productLayout":"grid"}','pending',$2)`,
+          [crypto.randomUUID(), new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString()],
+        );
+      }
+      await client.query("SELECT set_config('app.storefront_buyer_id','',true),set_config('app.storefront_staff_actor_id','same-id',true)");
+      await client.query(
+        `UPDATE storage.storefront_global_proposals
+         SET status='rejected',proposal_revision=proposal_revision+1,decided_at=clock_timestamp(),decided_by='same-id'
+         WHERE tenant_id='boreal' AND id<>$1`,
+        [pendingId],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+
+    identities.set("admin-boreal", admin("boreal"));
+    const response = await app.inject({ method: "GET", url: "/v1/storefront/admin/global-change-proposals", headers: headers("admin-boreal") });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().proposals).toEqual([
+      expect.objectContaining({ proposalId: pendingId, status: "pending" }),
+    ]);
+  });
+
   it("persists buyer ticket replay without aliasing or requiring a staff actor row", async () => {
     const replay = new PostgresBuyerTicketReplayStore(pool);
     const input = { tenantId: "atlas", buyerId: "same-id", ticketId: "ticket-1", issuer: "atlas-host", jti: "jti-buyer-1", audience: "changedesk:storefront", expiresAt: new Date(Date.now() + 60_000) };

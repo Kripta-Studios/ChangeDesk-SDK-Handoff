@@ -1,0 +1,9 @@
+{
+  "recordedAt": "2026-10-24T15:17:00+02:00",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/storefront/run-postgres-live.ps1 -ConfirmScopedCleanup",
+  "expectedFailure": "the pending proposal created before 51 newer rejected proposals was absent from the default admin list, which returned 50 rejected proposals",
+  "result": "failed 1, passed 6; temporary database and role were dropped",
+  "fix": "listAdminProposals now selects status='pending' and orders oldest-first before LIMIT 50",
+  "greenEvidence": "evidence/storefront/postgres-green.json",
+  "setupNote": "An earlier fixture attempt failed at RLS insertion and was corrected before recording this behavioral RED; it is not claimed as the behavioral test-first result."
+}

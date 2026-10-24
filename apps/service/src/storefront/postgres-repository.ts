@@ -88,7 +88,7 @@ export class PostgresStorefrontRepository implements StorefrontRepository {
   async listAdminProposals(context: StorefrontAdminContext): Promise<readonly StorefrontAdminPreview[]> {
     return this.withAdmin(context, async (tx) => {
       const global = await readGlobal(tx, context.tenantId);
-      const result = await tx.query<ProposalRow>(`${PROPOSAL_SELECT} WHERE tenant_id=$1 ORDER BY created_at DESC,id LIMIT 50`, [context.tenantId]);
+      const result = await tx.query<ProposalRow>(`${PROPOSAL_SELECT} WHERE tenant_id=$1 AND status='pending' ORDER BY created_at ASC,id LIMIT 50`, [context.tenantId]);
       return result.rows.map((row) => preview(proposal(row, context.tenantId), global));
     });
   }
