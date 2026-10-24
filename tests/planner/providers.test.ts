@@ -20,7 +20,6 @@ test("Codex structured output contract accepts each reviewed canonical recipe in
     assert.equal(validate({ kind: "candidate", recipe: canonicalGenericRecipe(recipeKey), safeMessage: null }), true, JSON.stringify(validate.errors));
   }
 });
-
 test("Codex adapter fails closed before spawning when the probed CLI version changes",async()=>{
   let spawned=false; const runner:ProcessRunner={async run(){spawned=true;throw new Error("must not run");}};
   const provider=new CodexCliPlannerProvider(config,runner,new InstalledCodex0164IsolationProbe("0.165.0",executableSha256));
