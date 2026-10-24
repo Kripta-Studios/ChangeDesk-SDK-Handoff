@@ -5,8 +5,8 @@
   "result": "passed",
   "summary": {
     "testFiles": { "passed": 1 },
-    "tests": { "passed": 5 },
-    "durationSeconds": 8.40,
+    "tests": { "passed": 6 },
+    "durationSeconds": 12.36,
     "cleanup": "temporary database and nonowner role dropped"
   },
   "covered": [
@@ -17,6 +17,7 @@
     "approval preserves buyer overrides",
     "SQL finite-value/null checks and PUBLIC execute revocation",
     "buyer quota 5 and tenant quota 100 through non-row-leaking counters"
+    ,"durable buyer ticket replay ledger is separate from staff actors, with first-use success and same-tenant jti replay rejection"
   ],
   "migrationStack": ["001_initial_storage.sql", "002_rls_and_privileges.sql", "003_scheduler.sql", "004_scheduler_rls.sql", "005_worker_fencing.sql", "010_storefront_v1.sql"],
   "independentRerun": "Coordinator reran the exact documented command under Windows PowerShell 5.1: 5/5 passed, Vitest 8.40s, and scoped DROP DATABASE/DROP ROLE both completed with exit 0.",

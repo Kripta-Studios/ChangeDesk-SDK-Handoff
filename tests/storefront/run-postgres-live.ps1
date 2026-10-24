@@ -40,7 +40,7 @@ try {
   Invoke-BootstrapSql $database @"
 GRANT CONNECT ON DATABASE `"$database`" TO `"$runtimeRole`";
 GRANT USAGE ON SCHEMA storage TO `"$runtimeRole`";
-GRANT SELECT,INSERT,UPDATE ON storage.storefront_globals,storage.storefront_buyer_preferences,storage.storefront_global_proposals,storage.storefront_decisions,storage.storefront_idempotency TO `"$runtimeRole`";
+GRANT SELECT,INSERT,UPDATE ON storage.storefront_globals,storage.storefront_buyer_preferences,storage.storefront_global_proposals,storage.storefront_decisions,storage.storefront_idempotency,storage.storefront_session_tickets TO `"$runtimeRole`";
 GRANT EXECUTE ON FUNCTION storage.current_tenant_id(),storage.current_actor_id(),storage.storefront_current_buyer_id(),storage.storefront_current_staff_actor_id(),storage.storefront_admit_pending(text,text),storage.storefront_release_pending(text,text) TO `"$runtimeRole`";
 "@
 

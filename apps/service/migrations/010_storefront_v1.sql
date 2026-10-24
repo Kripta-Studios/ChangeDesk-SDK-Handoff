@@ -83,6 +83,19 @@ CREATE TABLE storage.storefront_idempotency (
   PRIMARY KEY (tenant_id,subject_kind,subject_id,operation,idempotency_key)
 );
 
+CREATE TABLE storage.storefront_session_tickets (
+  tenant_id text NOT NULL REFERENCES storage.tenants(id),
+  id text NOT NULL,
+  buyer_id text NOT NULL,
+  issuer text NOT NULL,
+  jti_hash text NOT NULL CHECK (jti_hash ~ '^[a-f0-9]{64}$'),
+  audience text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  consumed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  PRIMARY KEY (tenant_id,id),
+  UNIQUE (tenant_id,issuer,jti_hash,audience)
+);
+
 -- Derived quota state contains no proposal content and is inaccessible directly to runtime.
 -- Narrow SECURITY DEFINER functions are the sole runtime interface, avoiding an RLS-filtered COUNT.
 CREATE TABLE storage.storefront_tenant_pending_counts (
@@ -180,8 +193,14 @@ CREATE POLICY storefront_idempotency_staff ON storage.storefront_idempotency USI
   tenant_id=storage.current_tenant_id() AND subject_kind='staff' AND subject_id=storage.storefront_current_staff_actor_id() AND storage.storefront_current_buyer_id() IS NULL
 ) WITH CHECK (tenant_id=storage.current_tenant_id() AND subject_kind='staff' AND subject_id=storage.storefront_current_staff_actor_id() AND storage.storefront_current_buyer_id() IS NULL);
 
+ALTER TABLE storage.storefront_session_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.storefront_session_tickets FORCE ROW LEVEL SECURITY;
+CREATE POLICY storefront_session_tickets_buyer ON storage.storefront_session_tickets USING (
+  tenant_id=storage.current_tenant_id() AND buyer_id=storage.storefront_current_buyer_id() AND storage.storefront_current_staff_actor_id() IS NULL
+) WITH CHECK (tenant_id=storage.current_tenant_id() AND buyer_id=storage.storefront_current_buyer_id() AND storage.storefront_current_staff_actor_id() IS NULL);
+
 REVOKE ALL ON storage.storefront_tenant_pending_counts,storage.storefront_buyer_pending_counts FROM PUBLIC,changedesk_runtime;
 GRANT SELECT,INSERT,UPDATE ON storage.storefront_globals,storage.storefront_buyer_preferences,storage.storefront_global_proposals,
-  storage.storefront_decisions,storage.storefront_idempotency TO changedesk_runtime;
+  storage.storefront_decisions,storage.storefront_idempotency,storage.storefront_session_tickets TO changedesk_runtime;
 GRANT EXECUTE ON FUNCTION storage.storefront_current_buyer_id(),storage.storefront_current_staff_actor_id(),
   storage.storefront_admit_pending(text,text),storage.storefront_release_pending(text,text) TO changedesk_runtime;
