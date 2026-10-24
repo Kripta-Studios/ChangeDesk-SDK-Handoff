@@ -1,4 +1,4 @@
-import type { ExecutionState, InstallationState, JsonValue, PlanState, RequestState } from "@changedesk/contracts";
+import type { ActorRole, ExecutionState, InstallationState, JsonValue, PlanState, RequestState } from "@changedesk/contracts";
 
 export type TenantContext = Readonly<{ tenantId: string; actorId: string }>;
 export type JobKind = "generation" | "execution" | "reconcile";
@@ -157,6 +157,7 @@ export interface ExecutionBundle {
   readonly authority: { readonly hostSessionId:string|null };
 }
 
+export interface CapabilityManifestRecord {readonly id:string;readonly manifestHash:string;readonly adapterVersion:string;readonly body:JsonValue}
 export interface GenerationBundle {
   readonly request: {
     readonly id:string;
@@ -168,12 +169,8 @@ export interface GenerationBundle {
     readonly createdAt:Date;
   };
   readonly tenant: { readonly policyVersion:string;readonly backendKey:string };
-  readonly capabilityManifest: {
-    readonly id:string;
-    readonly manifestHash:string;
-    readonly adapterVersion:string;
-    readonly body:JsonValue;
-  };
+  readonly actor: {readonly role:ActorRole;readonly enabled:boolean};
+  readonly capabilityManifest: CapabilityManifestRecord;
 }
 
 export interface CatalogQuery {

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import type {
-  ApprovalRecord, AttemptIntent, AttemptRecord, AttemptState, CatalogArtifact, CatalogQuery, EffectClaimDecision, EvidenceRecord, ExecutionAdmission, ExecutionBundle, ExecutionRecord, GenerationBundle, InstallationRecord, JobLease,
+  ApprovalRecord, AttemptIntent, AttemptRecord, AttemptState, CapabilityManifestRecord, CatalogArtifact, CatalogQuery, EffectClaimDecision, EvidenceRecord, ExecutionAdmission, ExecutionBundle, ExecutionRecord, GenerationBundle, InstallationRecord, JobLease,
   NewApproval, NewExecutionRow, NewPlan, NewRequest, PlanRecord, PublicationKey, PublicationRecord, RequestCandidateRecord, RequestMessageRecord, RequestRecord, SessionRecord, TenantContext,
 } from "./types.js";
 
@@ -74,9 +74,10 @@ export class TenantTx {
 
   async loadGenerationBundle(lease:JobLease):Promise<GenerationBundle|null> {
     const result=await this.client.query<GenerationBundleRow>(`SELECT r.id,r.actor_id,r.redacted_text,r.context_ref,r.budget,r.state,r.created_at,
-      t.policy_version,t.backend_key,m.id manifest_id,m.manifest_hash,m.adapter_version,m.body manifest_body
+      t.policy_version,t.backend_key,ac.role actor_role,ac.state actor_state,m.id manifest_id,m.manifest_hash,m.adapter_version,m.body manifest_body
       FROM storage.jobs j JOIN storage.requests r ON r.tenant_id=j.tenant_id AND r.id=j.request_id
       JOIN storage.tenants t ON t.id=j.tenant_id
+      JOIN storage.actors ac ON ac.tenant_id=j.tenant_id AND ac.actor_id=j.actor_id
       JOIN storage.capability_manifests m ON m.tenant_id=j.tenant_id AND m.active
       WHERE j.id=$1 AND j.tenant_id=$2 AND j.actor_id=$3 AND j.kind='generation' AND j.status='leased'
         AND j.lease_owner=$4 AND j.fence=$5 AND j.lease_until>clock_timestamp()`,
@@ -86,8 +87,17 @@ export class TenantTx {
     return {
       request:{id:row.id,actorId:row.actor_id,redactedText:row.redacted_text,contextRef:row.context_ref,budget:row.budget,state:row.state,createdAt:row.created_at},
       tenant:{policyVersion:row.policy_version,backendKey:row.backend_key},
+      actor:{role:row.actor_role,enabled:row.actor_state==="enabled"},
       capabilityManifest:{id:row.manifest_id,manifestHash:row.manifest_hash,adapterVersion:row.adapter_version,body:row.manifest_body},
     };
+  }
+
+  async getActiveCapabilityManifest():Promise<CapabilityManifestRecord|null> {
+    const result=await this.client.query<{id:string;manifest_hash:string;adapter_version:string;body:CapabilityManifestRecord["body"]}>(
+      "SELECT id,manifest_hash,adapter_version,body FROM storage.capability_manifests WHERE tenant_id=$1 AND active",[this.context.tenantId]);
+    if(result.rowCount!==1) return null;
+    const row=result.rows[0]!;
+    return {id:row.id,manifestHash:row.manifest_hash,adapterVersion:row.adapter_version,body:row.body};
   }
 
   async listRequests(): Promise<RequestRecord[]> {
@@ -136,6 +146,24 @@ export class TenantTx {
       FROM input c,valid ON CONFLICT(tenant_id,request_id,id,version) DO NOTHING RETURNING 1
     ) SELECT EXISTS(SELECT 1 FROM valid) valid`,[lease.jobId,this.context.tenantId,requestId,lease.leaseOwner,lease.fence,JSON.stringify(candidates.map(candidateDbInput))]);
     return result.rows[0]?.valid===true;
+  }
+
+  async persistGeneratedCandidate(lease:JobLease,input:{requestId:string;artifact:{id:string;artifactHash:string;schemaVersion:string;canonicalBody:unknown};candidate:Omit<RequestCandidateRecord,"requestId"|"state"|"selectedChoice">}):Promise<boolean> {
+    const valid=await this.client.query(`SELECT 1 FROM storage.jobs j WHERE j.id=$1 AND j.tenant_id=$2 AND j.actor_id=$3 AND j.request_id=$4
+      AND j.kind='generation' AND j.status='leased' AND j.lease_owner=$5 AND j.fence=$6 AND j.lease_until>clock_timestamp() FOR UPDATE`,
+      [lease.jobId,this.context.tenantId,this.context.actorId,input.requestId,lease.leaseOwner,lease.fence]);
+    if(valid.rowCount!==1) return false;
+    await this.client.query(`INSERT INTO storage.recipe_artifacts(id,owner_tenant_id,artifact_hash,schema_version,canonical_body,state)
+      VALUES($1,$2,$3,$4,$5,'private') ON CONFLICT(owner_tenant_id,artifact_hash) WHERE owner_tenant_id IS NOT NULL DO NOTHING`,
+      [input.artifact.id,this.context.tenantId,input.artifact.artifactHash,input.artifact.schemaVersion,input.artifact.canonicalBody]);
+    const candidate=candidateDbInput(input.candidate);
+    await this.client.query(`INSERT INTO storage.request_candidates(tenant_id,request_id,id,version,artifact_hash,recipe_key,display_name,required_capabilities,
+      compatibility,evidence_status,estimated_cost,safe_metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11::jsonb,$12::jsonb)
+      ON CONFLICT(tenant_id,request_id,id,version) DO NOTHING`,[this.context.tenantId,input.requestId,candidate.id,candidate.version,
+      candidate.artifact_hash,candidate.recipe_key,candidate.display_name,JSON.stringify(candidate.required_capabilities),candidate.compatibility,candidate.evidence_status,JSON.stringify(candidate.estimated_cost),JSON.stringify(candidate.safe_metadata)]);
+    const stillValid=await this.client.query(`SELECT 1 FROM storage.jobs WHERE id=$1 AND lease_owner=$2 AND fence=$3 AND lease_until>clock_timestamp()`,[lease.jobId,lease.leaseOwner,lease.fence]);
+    if(stillValid.rowCount!==1) throw new StorageInvariantError("Generation lease expired while persisting candidate");
+    return true;
   }
 
   async listRequestCandidates(requestId:string):Promise<RequestCandidateRecord[]> {
@@ -339,7 +367,8 @@ export class TenantTx {
         p.publisher_tenant_id,p.signing_key_id,p.signature
        FROM storage.recipe_artifacts a LEFT JOIN storage.publications p
         ON p.artifact_id=a.id AND p.artifact_hash=a.artifact_hash AND p.state='published'
-       WHERE a.artifact_hash=$1 AND (a.state='published' OR a.owner_tenant_id=$2)`,[artifactHash,this.context.tenantId],
+       WHERE a.artifact_hash=$1 AND (a.state='published' OR a.owner_tenant_id=$2)
+       ORDER BY (a.owner_tenant_id=$2) DESC,a.created_at DESC,a.id LIMIT 1`,[artifactHash,this.context.tenantId],
     );
     return result.rowCount===1?catalogRecord(result.rows[0]!):null;
   }
@@ -524,8 +553,10 @@ export class TenantTx {
       JOIN storage.sessions s ON s.tenant_id=e.tenant_id AND s.id=a.host_session_id AND s.actor_id=e.actor_id
       JOIN storage.actors ac ON ac.tenant_id=e.tenant_id AND ac.actor_id=e.actor_id
       JOIN storage.tenants t ON t.id=e.tenant_id
-      JOIN storage.recipe_artifacts ra ON ra.artifact_hash=p.artifact_hash
       LEFT JOIN storage.installations i ON i.tenant_id=p.tenant_id AND i.id=p.installation_id
+      JOIN storage.recipe_artifacts ra ON ra.artifact_hash=p.artifact_hash AND (
+        (p.installation_id IS NULL AND ra.owner_tenant_id=p.tenant_id) OR (p.installation_id IS NOT NULL AND ra.id=i.artifact_id)
+      )
       JOIN storage.jobs j ON j.tenant_id=e.tenant_id AND j.execution_id=e.id
       JOIN storage.step_attempts sa ON sa.tenant_id=e.tenant_id AND sa.execution_id=e.id
       WHERE e.tenant_id=$1 AND e.actor_id=$2 AND e.id=$3 AND e.state='running'
@@ -598,7 +629,7 @@ export class TenantTx {
 
 interface RequestRow extends QueryResultRow { id:string;actor_id:string;state:RequestRecord["state"];created_at:Date }
 interface MessageRow extends QueryResultRow { id:string;request_id:string;actor_id:string;client_request_id:string;redacted_text:string;created_at:Date }
-interface GenerationBundleRow extends QueryResultRow { id:string;actor_id:string;redacted_text:string;context_ref:GenerationBundle["request"]["contextRef"];budget:GenerationBundle["request"]["budget"];state:RequestRecord["state"];created_at:Date;policy_version:string;backend_key:string;manifest_id:string;manifest_hash:string;adapter_version:string;manifest_body:GenerationBundle["capabilityManifest"]["body"] }
+interface GenerationBundleRow extends QueryResultRow { id:string;actor_id:string;redacted_text:string;context_ref:GenerationBundle["request"]["contextRef"];budget:GenerationBundle["request"]["budget"];state:RequestRecord["state"];created_at:Date;policy_version:string;backend_key:string;actor_role:GenerationBundle["actor"]["role"];actor_state:"enabled"|"disabled";manifest_id:string;manifest_hash:string;adapter_version:string;manifest_body:GenerationBundle["capabilityManifest"]["body"] }
 interface CandidateRow extends QueryResultRow { id:string;request_id:string;version:string;artifact_hash:string|null;recipe_key:string;display_name:string;required_capabilities:string[];compatibility:RequestCandidateRecord["compatibility"];evidence_status:RequestCandidateRecord["evidenceStatus"];estimated_cost:RequestCandidateRecord["estimatedCost"];safe_metadata:RequestCandidateRecord["safeMetadata"];state:RequestCandidateRecord["state"];selected_choice:RequestCandidateRecord["selectedChoice"] }
 interface PlanRow extends QueryResultRow { id:string;actor_id:string;plan_version:number;plan_hash:string;state:PlanRecord["state"];expires_at:Date }
 interface ApprovalRow extends QueryResultRow { id:string;plan_id:string;plan_version:number;plan_hash:string;actor_id:string;host_session_id:string|null;expires_at:Date;consumed_execution_id:string|null }

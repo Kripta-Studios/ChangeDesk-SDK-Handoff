@@ -77,12 +77,25 @@ export class PlannerGenerationProcessor implements GenerationProcessor {
 
 function parsePlannerInput(lease:GenerationLease,bundle:GenerationBundle,adapter:AdapterDescriptor):PlannerInput|null {
   const context=bundle.request.contextRef,manifest=bundle.capabilityManifest.body;
-  if(bundle.capabilityManifest.adapterVersion!==adapter.version||!record(context)||!record(manifest))return null;
+  if(bundle.capabilityManifest.adapterVersion!==adapter.id||!record(context)||!record(manifest)||manifest.capabilityContract!==adapter.capabilityContract||manifest.verifiedMedusaVersion!==adapter.version)return null;
   const selected=context.selectedProductIds,locale=context.locale,capabilities=manifest.capabilities;
   if(!Array.isArray(selected)||selected.some((value)=>typeof value!=="string")||(locale!=="en"&&locale!=="es")||!Array.isArray(capabilities)||capabilities.some((value)=>typeof value!=="string"||!isCapabilityId(value)))return null;
-  const structuredIntent=record(context.structuredIntent)?context.structuredIntent as PlannerInput["structuredIntent"]:undefined;
+  const structuredIntent=parseStructuredIntent(context.structuredIntent);
+  if(context.structuredIntent!==undefined&&!structuredIntent)return null;
   return{requestId:bundle.request.id,tenantId:lease.tenantId,actorId:lease.actorId,locale,message:bundle.request.redactedText,selectedProductIds:selected as string[],approvedCapabilities:[...new Set(capabilities as CapabilityId[])],adapter,...(structuredIntent?{structuredIntent}:{})};
 }
 function persistedCandidate(candidate:Candidate,source:"catalog"|"generated"):PersistedCandidate{return{id:candidate.id,version:candidate.version,artifactHash:candidate.artifactHash,recipeKey:candidate.recipeKey,displayName:candidate.displayName,requiredCapabilities:candidate.requiredCapabilities,compatibility:"compatible",evidenceStatus:candidate.evidenceStatus,estimatedCost:candidate.estimatedCost,safeMetadata:{source}};}
 function latestUsd(usage:Awaited<ReturnType<PlannerPort["plan"]>>["usage"]){for(let index=usage.length-1;index>=0;index--){const price=usage[index]?.price;if(price?.currency==="USD")return{value:price.value,currency:"USD"};}return null;}
 function record(value:unknown):value is {[key:string]:JsonValue}{return !!value&&typeof value==="object"&&!Array.isArray(value);}
+function parseStructuredIntent(value:unknown):PlannerInput["structuredIntent"]|undefined {
+  if(value===undefined)return undefined;
+  if(!record(value)||Object.keys(value).some((key)=>key!=="recipeKey"&&key!=="operation"))return undefined;
+  const recipeKey=value.recipeKey,operation=value.operation;
+  if(recipeKey!==undefined&&!(["catalog.campaign.prepare.v1","catalog.category.assign.v1","catalog.channel.assign.v1"] as const).includes(recipeKey as never))return undefined;
+  if(operation!==undefined&&!(["campaign","assign_category","assign_channel"] as const).includes(operation as never))return undefined;
+  if(recipeKey===undefined&&operation===undefined)return undefined;
+  const parsed: {recipeKey?:NonNullable<PlannerInput["structuredIntent"]>["recipeKey"];operation?:NonNullable<PlannerInput["structuredIntent"]>["operation"]}={};
+  if(recipeKey!==undefined)parsed.recipeKey=recipeKey as NonNullable<PlannerInput["structuredIntent"]>["recipeKey"];
+  if(operation!==undefined)parsed.operation=operation as NonNullable<PlannerInput["structuredIntent"]>["operation"];
+  return parsed;
+}
