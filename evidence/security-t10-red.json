@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "phase": "red",
+  "recordedAt": "2026-10-24T14:15:16+02:00",
+  "command": "node root/node_modules/vitest/vitest.mjs run tests/security tests/recovery --config vitest.config.ts",
+  "exitCode": 1,
+  "result": {
+    "testFilesFailed": 5,
+    "testsRun": 0,
+    "reason": "Expected missing implementation modules for attack corpus, impact selection, paired metrics, backend oracle, and evidence verification."
+  },
+  "classification": "behavioral-red",
+  "limitations": ["No actual API or Medusa integration was available in this branch at RED time."]
+}

@@ -1,0 +1,30 @@
+
+ RUN  v4.0.16 C:/Users/Álvaro Schwiedop/Desktop/KriptaStudios/ChangeDesk-SDK-Handoff/.worktrees/environment
+
+ ❯ infra/environment.test.ts (4 tests | 1 failed) 50ms
+     ✓ declares exactly the four normative source workspaces 11ms
+     × pins a namespaced PostgreSQL image and binds it only to loopback 19ms
+     ✓ provisions isolated database owners and unprivileged service roles 8ms
+     ✓ requires an explicit run id and confirmation before deleting local volumes 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  infra/environment.test.ts > local environment contract > pins a namespaced PostgreSQL image and binds it only to loopback
+Error: ENOENT: no such file or directory, open 'C:\Users\Álvaro Schwiedop\Desktop\KriptaStudios\ChangeDesk-SDK-Handoff\.worktrees\environment\infra\compose.yaml'
+ ❯ read infra/environment.test.ts:8:10
+      6| 
+      7| function read(relativePath: string): string {
+      8|   return readFileSync(resolve(root, relativePath), "utf8");
+       |          ^
+      9| }
+     10| 
+ ❯ infra/environment.test.ts:24:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  13:53:27
+   Duration  1.44s (transform 164ms, setup 0ms, import 261ms, tests 50ms, environment 1ms)
+

@@ -1,0 +1,13 @@
+.env
+.worktrees/
+.tools/
+node_modules/
+dist/
+coverage/
+evidence/local/
+playwright-report/
+test-results/
+*.secret.env
+*.tsbuildinfo
+*.log
+

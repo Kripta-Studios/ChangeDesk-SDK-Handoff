@@ -1,0 +1,21 @@
+{
+  "name": "@changedesk/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas.d.ts",
+      "default": "./dist/schemas.js"
+    }
+  },
+  "files": ["dist", "schemas"],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

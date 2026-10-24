@@ -1,18 +1,21 @@
-# Estado para la próxima sesión
+# Estado de implementación
 
-Fecha: 2026-10-24.
+2026-10-24. Objetivo EN CURSO; todavía no LOCAL_VERIFIED ni LIVE_VERIFIED.
 
-- Objetivo actual completado: preparar especificación detallada para futura implementación; consultar revisión final y handoff-validation.json.
-- SDK: **NOT_STARTED**. No dependencias de producto instaladas, ni Medusa arrancado, ni pruebas del SDK ejecutadas.
-- Servicios de este proyecto: ninguno.
-- Git/ramas: no inicializados por esta sesión; revisar si el usuario hizo cambios después.
-- Ruta: raíz de esta carpeta. No tocar directorios vecinos.
-- Entorno observado: Windows/PowerShell, Git/Node/cliente Docker disponibles, ~31 GiB RAM. Docker Engine no respondió; volver a comprobar.
-- Comando documental ejecutable: `python scripts/validate_handoff.py` (requiere jsonschema).
-- Siguiente trabajo: P0 y T00/T01; contratos/core pueden avanzar en paralelo tras fijar interfaces.
-- Estado documental final: `SPEC_READY`, council Astra High `ship`; 84 comprobaciones de integridad/schema/fixtures/modelos/tecnologías/gates correctas, 32 archivos de especificación. Implementación y pruebas de producto siguen `NOT_STARTED`/`NOT_RUN`.
-- Arquitectura mínima final: cuatro workspaces fuente, una imagen de servicio con API/worker, PostgreSQL para datos+jobs, SDK React lazy y polling. Ver `contracts/technology-profile.json` y `docs/13-INTEGRATION-AND-DEPLOYMENT.md`.
-- Modelos solicitados por el usuario: implementación/testing GPT-6.1 Sol High; ideas/coordinación/revisión final GPT-6 Astra High. Ver agent-policy.json.
-- Sin secretos guardados ni solicitados. La integración live requerirá proveedor configurado por referencia externa y presupuesto.
+Baseline documental Git8cfc8c0; rama master, sin remotos/publicación. Propietarios y tareas en TASKBOARD.json. Overrides solicitados implementación/tests gpt-6.1-sol/high, asesoría y revisión gpt-6-astra/high; modelo observado del root no inferido. Las herramientas ofrecen ambos overrides, pero spawn no devuelve modelo observado.
 
-Conservar las especificaciones como baseline. Actualizar este documento con progreso real, servicios, commits y pruebas al finalizar cada sesión de implementación.
+Entorno: Windows, Node22.23.4 en `.worktrees/environment/.tools/node-v22.23.4-win-x64/node.exe`, pnpm11.22.0, Docker29.4.2, PostgreSQL17.11 real. Node25 del sistema no usar para gates. Instala dependencias solo environment; lockfile/workspace dirty suyos, preservar. Medusa completa todavía no instalada; TypeScript ya accesible por junction. PostgreSQL localhost5432, proyecto changedesk-sdk-local, tres bases changedesk/atlas/boreal y propietarios/roles separados; runtime y worker sin superuser/BYPASSRLS. Secretos solo `.env` ignorado; cargar variables sin imprimir valores. No resetear DB ni servicios ajenos.
+
+Checkpoints integrados: core11fa27b, storage95992c4, runtime9fea856, plannercd3ad06, frontend410daf6 inicial, pluginfd9c9c4. Reconsultar git log antes de merge. API y worker tienen composición ejecutable; generación espera bundle durable de storage. Publicación/firma/evidence wiring pendientes. Frontend corrige ejecución instalación, sesión, followup y detalles de preview tras revisión root. Medusa official runner tests nuevos12f46c3/4e791a6 aún pendientes merge/ejecución.
+
+Evidencia: core29 y bridge/guard9 unitarios pasan en root. Almacenamiento12 pasó con PostgreSQL desde worktree. Reejecución integrada en `evidence/parent-substrate-tests.json`:42PASS,8 no ejecutadas por fallo setup checksum migración1. Confirmado root CRLF vs worktree LF; DB coincide con LF. Reparar bytes checkout según gitattributes, sin debilitar checksum ni modificar tabla migrations. Storage añade migración6 y loadGenerationBundle bajo fence; coordinar integración. Los mutation-red de core se etiquetan honestamente, no equivalen a primer test previo a implementación.
+
+Usuario autoriza Codex local autenticado por defecto para demo, APIs DeepSeek/OpenCode/OpenAI configurables con presupuesto explícito para gasto. No leer/copiar auth.json. Codex0.164.0 probado con herramientas efectivamente denegadas; función residual falla cerrada. Ver `evidence/codex-isolation-feasibility.json`. Planner obtuvo respuesta estructurada live, no E2E ni benchmark. Root detectó probe hardcoded por versión y pidió vinculación real a ejecutable/hash/flags y prueba de arranque; no aceptar hardcoded como gate. Tokens/coste desconocidos deben seguir null.
+
+Ownership: environment tooling raíz/lock/infra/validator/scripts de laboratorio; core contracts/core/policy/laws; storage SQL/storage; medusa backend plugin/host/seed; frontend sdk-react/admin; runtime API/adapter/worker; planner providers/catalog; security evals/ataques/recovery. Root docs/contratos raíz/TASKBOARD/handoff. Usar rutas absolutas worktree con apply_patch. Hay worktree packaging creado, aún sin agente porque slots ocupados. Sesión externa buyer-storefront posee su worktree y evidence/BUYER-STOREFRONT-COORDINATION.md: conservar sin integrar parcial.
+
+Siguiente: completar instalación Medusa, aplicar reparación LF, ejecutar typecheck conjunto y pruebas reales; startup dos hosts/seed8actores/API/worker; Playwright pipeline fake; Codex E2E; catálogo/reuse; ataques/recovery; Bend real y falsa ley; perf/tarball/CI y reviewer Astra fresco de solo lectura. No demos navegador reales todavía. FINAL-REPORT pendiente; no declarar criterios completados solo por existencia de código.
+
+Actualización posterior: root73 pruebas combinadas PASS en19archivos después de normalizar SQL LF, evidencia parent-integration-tests.json; conservar fallo previo como historia. Storage5e520f0 y4213aea incorporados (migraciones6/7, generation bundle, session-bound approval, estados attempts). Runtime0b410bb corrige bridge/leases/health y cierra provisionalmente rutas incompletas con503: siguen bloqueantes funcionales, agente continúa implementándolas. Planner d0dd08c incorpora interfaz reserva durable presupuesto API; debe cablearse a storage antes de API live. Codex smoke semántico FALLÓ por receta inválida (11747input/294output/64reasoning), quedó rechazado; planner está corrigiendo schema y repetirá acotado, no sustituir por fake. Core3ad30ad Bend model/leyes TS listo; checker ordinario pasa, kernel Lean/BENDTT pendiente y no contado verificado. Root pidió endurecer vínculo binary/proof/hash y lane real que falle si kernel falta.
+
+Environment a076783 ya integrado: full4workspace install verde central, root lock reproducible; ts-node añadido por CLI gap en8baacbf, host ejemplo instalación en curso. Root dirty pnpm anterior se salvó en .tools/merge-backups y sustituyó por checkpoint autoritativo. Frontend4e6b6dc/6b019fe/372ea93 integrados;15tests, acciones instalación sin request, reset sesión y boundary import. Frontend hace tarball smoke/perf mientras host queda listo. Root tsc-b iniciado antes de nuevos merges fue cancelado al mezclar snapshots y emitir20 JS/maps en SDK src por tsconfig sin emitDeclarationOnly; se eliminaron solo esos20untracked verificados y frontend corrige config. No presentar ese build como PASS. Validator documental84checks/32files PASS, no tests producto.

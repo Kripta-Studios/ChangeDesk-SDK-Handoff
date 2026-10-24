@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "packageStatus": "SPEC_READY",
-  "implementationStatus": "NOT_STARTED",
+  "implementationStatus": "IN_PROGRESS",
   "tasks": [
     {
       "id": "T00",
@@ -9,8 +9,8 @@
       "ownerRole": "environment",
       "title": "Inspect and pin local environment",
       "dependsOn": [],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/environment",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -24,8 +24,8 @@
       "dependsOn": [
         "T00"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/medusa",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -39,9 +39,13 @@
       "dependsOn": [
         "T00"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
-      "evidence": [],
+      "status": "done",
+      "assignedAgent": "/root/core",
+      "evidence": [
+        "evidence/core-tdd.json",
+        "evidence/parent-core-verification.json",
+        "evidence/parent-integration-tests.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -54,9 +58,12 @@
       "dependsOn": [
         "T02"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
-      "evidence": [],
+      "status": "in_progress",
+      "assignedAgent": "/root/storage",
+      "evidence": [
+        "evidence/storage-tdd.json",
+        "evidence/parent-integration-tests.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -70,8 +77,8 @@
         "T01",
         "T03"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/runtime",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -86,8 +93,8 @@
         "T02",
         "T04"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/frontend",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -101,8 +108,8 @@
       "dependsOn": [
         "T04"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/runtime",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -117,8 +124,8 @@
         "T03",
         "T06"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/planner",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -133,8 +140,8 @@
         "T02",
         "T07"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/planner",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -150,8 +157,8 @@
         "T07",
         "T08"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/frontend",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -166,8 +173,8 @@
         "T06",
         "T08"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/security",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -181,8 +188,8 @@
       "dependsOn": [
         "T02"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/core",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -197,9 +204,11 @@
         "T09",
         "T10"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
-      "evidence": [],
+      "status": "in_progress",
+      "assignedAgent": "/root/frontend",
+      "evidence": [
+        "evidence/frontend-bundle.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
