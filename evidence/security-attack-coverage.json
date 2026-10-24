@@ -1,0 +1,285 @@
+{
+  "schemaVersion": "1.0",
+  "recordedAt": "2026-10-24T14:20:00+02:00",
+  "corpus": "fixtures/attack-cases.json",
+  "corpusClassification": "public-regression-not-holdout",
+  "summary": {
+    "publicCases": 24,
+    "passedLanes": 0,
+    "failedLanes": 0,
+    "blockedLiveLanes": 9,
+    "notRunDeterministicLanes": 21
+  },
+  "cases": [
+    {
+      "id": "ATK-001",
+      "gate": "llm",
+      "deterministic": {
+        "status": "NOT_APPLICABLE"
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-002",
+      "gate": "both",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-003",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-004",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-005",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-006",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-007",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-008",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-009",
+      "gate": "both",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-010",
+      "gate": "both",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-011",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-012",
+      "gate": "llm",
+      "deterministic": {
+        "status": "NOT_APPLICABLE"
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-013",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-014",
+      "gate": "both",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-015",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-016",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-017",
+      "gate": "both",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-018",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-019",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-020",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-021",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "ATK-022",
+      "gate": "llm",
+      "deterministic": {
+        "status": "NOT_APPLICABLE"
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-023",
+      "gate": "both",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "BLOCKED",
+        "limitation": "Requires sealed non-public holdout, effective-authority probe, live provider execution, and explicit budget."
+      }
+    },
+    {
+      "id": "ATK-024",
+      "gate": "deterministic",
+      "deterministic": {
+        "status": "NOT_RUN",
+        "limitation": "Actual Fastify route plus independent Medusa/host readback not executed in this branch."
+      },
+      "live": {
+        "status": "NOT_APPLICABLE"
+      }
+    }
+  ]
+}

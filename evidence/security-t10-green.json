@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0",
+  "phase": "green",
+  "recordedAt": "2026-10-24T14:21:10+02:00",
+  "commands": [
+    {
+      "command": "node root/node_modules/vitest/vitest.mjs run tests/security tests/recovery --config vitest.config.ts",
+      "exitCode": 0,
+      "result": "6 files passed; 12 tests passed"
+    },
+    {
+      "command": "tsc (5.9.3) targeted apps/service/src/evals/*.ts --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes",
+      "exitCode": 0,
+      "result": "targeted security evaluator typecheck passed"
+    },
+    {
+      "command": "node root/node_modules/vitest/vitest.mjs run --config vitest.config.ts",
+      "exitCode": 1,
+      "result": "30 tests passed; two suites blocked before tests",
+      "limitations": [
+        "PostgreSQL integration requires CHANGEDESK_MIGRATOR_DATABASE_URL and CHANGEDESK_RUNTIME_DATABASE_URL.",
+        "Medusa integration could not resolve @medusajs/test-utils because native dependency installation was incomplete."
+      ]
+    },
+    {
+      "command": "tsc -p apps/service/tsconfig.json --noEmit",
+      "exitCode": 1,
+      "result": "Existing policy/storage strictness errors outside security ownership; no evaluator errors were reported."
+    }
+  ],
+  "claims": {
+    "unitHarness": "PASS",
+    "actualFastifyAttackRoutes": "NOT_RUN",
+    "independentMedusaReadback": "NOT_RUN",
+    "liveLlmEvaluation": "BLOCKED",
+    "sealedHoldout": "BLOCKED"
+  }
+}
