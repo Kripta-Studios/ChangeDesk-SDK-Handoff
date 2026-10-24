@@ -42,7 +42,9 @@ export class PostgresCatalogRepository implements CatalogRepository {
   }
   publish(actor: ActorContext, input: NewPublicationRecord): Promise<PublicationRecord> {
     return this.store.withTenant(actor, async (tx) => {
-      const artifact=await tx.insertArtifact({id:input.artifactId,artifactHash:input.artifactHash,schemaVersion:input.recipe.schemaVersion,canonicalBody:input.recipe,idempotencyKey:`${input.idempotencyKey}:artifact`,requestHash:input.requestHash});
+      const existing=await tx.getAuthorizedArtifact(input.artifactHash);
+      const artifact=existing?.ownerTenantId===actor.tenantId&&existing.id===input.artifactId?existing:
+        await tx.insertArtifact({id:input.artifactId,artifactHash:input.artifactHash,schemaVersion:input.recipe.schemaVersion,canonicalBody:input.recipe,idempotencyKey:`${input.idempotencyKey}:artifact`,requestHash:input.requestHash});
       const publication=await tx.insertPublication({id:input.publicationId,artifactId:artifact.id,artifactHash:input.artifactHash,signingKeyId:input.keyId,signature:input.signature,visibility:input.visibility,state:"published",reviewedMetadata:input.reviewedMetadata,idempotencyKey:input.idempotencyKey,requestHash:input.requestHash});
       for(const tenantId of input.allowedTenantIds) await tx.grantArtifact({id:this.newId("grant"),artifactId:artifact.id,recipientScope:"tenant",recipientTenantId:tenantId,rights:["read","install"],idempotencyKey:`${input.idempotencyKey}:grant:${tenantId}`,requestHash:input.requestHash});
       return publication;
