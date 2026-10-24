@@ -1,6 +1,7 @@
 .env
 .worktrees/
 .tools/
+.playwright-mcp/
 .local/
 **/.medusa/
 node_modules/

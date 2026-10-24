@@ -48,7 +48,8 @@
       "license": "Apache-2.0",
       "archiveSha256": "caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b",
       "source": "https://github.com/leanprover/lean4/releases/download/v4.34.0/lean-4.34.0-linux.tar.zst",
-      "status": "INSTALL_IN_PROGRESS; Bend verdict remains BLOCKED until the checksum-verified archive is extracted and the kernel builds"
+      "binarySha256": "e8baaa71855a616dc351028f3ad2200051b0671f423a1696a100e809302d5550",
+      "status": "PASS_VERSION_4.34.0_COMMIT_293d5d0"
     },
     "playwrightChromium": {
       "packageVersion": "1.64.1",
@@ -85,6 +86,13 @@
     "databasesAndOwners": { "changedesk": "changedesk_migrator", "atlas": "atlas_owner", "boreal": "boreal_owner" },
     "serviceRoles": ["changedesk_runtime", "changedesk_worker"],
     "roleInvariant": "All five application roles are LOGIN and NOINHERIT/NOSUPERUSER/NOCREATEDB/NOCREATEROLE/NOBYPASSRLS; public CONNECT revoked and runtime/worker receive only CONNECT before migrations."
+  },
+  "bendKernelProof": {
+    "status": "PASS_REVIEWED_PROOF",
+    "bendBinarySha256": "2ec160fa4486d33aff51e9eedcc294d6b531dc10c279c00b0c00685dae2045cd",
+    "bendttPath": "/home/alvaro/.bend/bendtt/e951a3ff12c837f2/bendtt",
+    "observedOutput": "ALL PROOFS CHECK",
+    "mutantLane": "PENDING_EXPLICIT_CORE_LIVE_TEST"
   },
   "dependencyDecisions": [
     {
