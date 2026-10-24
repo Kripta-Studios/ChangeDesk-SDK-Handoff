@@ -36,6 +36,8 @@ Export público `@changedesk/react/storefront`: cliente finito, provider/hook, c
 
 Backend: registrar rutas mediante módulo explícito en la API existente, sin nuevo proceso/servicio. Almacén PostgreSQL parametrizado, RLS forzada y contexto transaccional tenant+buyer separado del actor staff; tablas propias con prefijo storefront, CAS e idempotencia durables. Migración nueva asignada exclusivamente al implementador y numerada sin colisión tras inspección. No alterar migraciones previas. Adaptadores de prueba en memoria deben quedar solo en tests y etiquetados como tales.
 
+ADR-SF-005 (coordinación concurrente, 2026-10-24): la rama principal asignó 010 a presupuesto de generación mientras esta ampliación seguía aislada. La reserva inicial 010 no evitó la colisión. La migración storefront pasa a `1000_storefront_v1.sql`, antes de cualquier aplicación fuera de bases efímeras de prueba ya eliminadas. No se cambia SQL histórico de la sesión principal ni checksums aplicados; runner y evidencia futura usan 1000 y comprueban el stack real integrado. El número 1000 queda reservado explícitamente para esta ampliación.
+
 El implementador posee únicamente nuevos módulos/contratos/tests storefront y su evidencia en esta rama. Cambios imprescindibles en manifests, exports, config Vite, middleware/entrypoints se entregan en commit de integración separado; no cambia lockfile/dependencias ni archivos de otros worktrees. El coordinador conserva este documento y apéndices docs00/10. No fusionar sobre master activo de la otra sesión.
 
 ## Verificación requerida
