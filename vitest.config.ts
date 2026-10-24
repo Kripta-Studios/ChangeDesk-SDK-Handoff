@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
+const liveLane = process.env.CHANGEDESK_VITEST_LIVE_LANE;
+
 export default defineConfig({
   resolve: {
     alias: [
@@ -18,14 +20,23 @@ export default defineConfig({
     tsconfigRaw: {
       compilerOptions: {
         target: "ES2022",
-        useDefineForClassFields: true
+        useDefineForClassFields: true,
+        jsx: "react-jsx",
+        jsxImportSource: "react"
       }
     }
   },
   test: {
     environment: "node",
     include: ["{apps,packages,infra,tests}/**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["tests/e2e/**", "**/node_modules/**", "**/dist/**"],
+    exclude: [
+      "tests/e2e/**",
+      "tests/medusa/integration/**",
+      ...(liveLane === "planner" ? [] : ["tests/planner/live.codex.test.ts"]),
+      ...(liveLane === "bend" ? [] : ["tests/laws/**/*.live.test.ts"]),
+      "**/node_modules/**",
+      "**/dist/**"
+    ],
     passWithNoTests: false,
     restoreMocks: true,
     clearMocks: true,

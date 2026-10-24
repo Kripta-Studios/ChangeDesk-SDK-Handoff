@@ -1,6 +1,8 @@
 .env
 .worktrees/
 .tools/
+.local/
+**/.medusa/
 node_modules/
 dist/
 coverage/
