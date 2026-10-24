@@ -41,4 +41,10 @@ describe("CI lane contracts", () => {
     expect(() => validatePostgresEnvironment({ ...common, CHANGEDESK_MIGRATOR_DATABASE_URL: "postgresql://migrator:x@127.0.0.1/changedesk" })).toThrow(/run-scoped/);
     expect(() => validatePostgresEnvironment({ ...common, CHANGEDESK_MIGRATOR_DATABASE_URL: "postgresql://migrator:x@127.0.0.1/changedesk_test_123" })).not.toThrow();
   });
+
+  it("keeps PostgreSQL suites serialized in one run-scoped scheduler database", () => {
+    const args = verificationCommands("postgres")[0].args.join(" ");
+    expect(args).toContain("catalog.pg.integration.test.ts");
+    expect(args).toContain("--no-file-parallelism");
+  });
 });

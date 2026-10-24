@@ -30,13 +30,13 @@ export function verificationCommands(lane = "deterministic") {
       { name: "functional storefront, planner and backend security", command: process.execPath, args: [
         "node_modules/vitest/vitest.mjs", "run",
         "tests/storefront", "tests/recovery", "tests/medusa/storefront-logout-middleware.test.ts",
-        "tests/planner",
+        "tests/planner/bootstrap.test.ts", "tests/planner/catalog.test.ts", "tests/planner/generation-worker.test.ts", "tests/planner/planner.test.ts", "tests/planner/providers.test.ts",
         "tests/security/actual-fastify-attacks.test.ts", "tests/security/attack-corpus.test.ts", "tests/security/backend-effect-oracle.test.ts", "tests/security/change-impact.test.ts", "tests/security/coverage-report.test.ts", "tests/security/paired-metrics.test.ts",
         "--config", "vitest.config.ts", "--reporter=dot"
       ] }
     ],
     postgres: [
-      { name: "PostgreSQL storage and runtime integration", command: process.execPath, args: ["node_modules/vitest/vitest.mjs", "run", "tests/storage/store.integration.test.ts", "tests/runtime/real-pg-vertical.integration.test.ts", "tests/security/storage-operations-adversarial.integration.test.ts", "--config", "vitest.config.ts", "--reporter=dot"] }
+      { name: "PostgreSQL storage and runtime integration", command: process.execPath, args: ["node_modules/vitest/vitest.mjs", "run", "tests/storage/store.integration.test.ts", "tests/runtime/real-pg-vertical.integration.test.ts", "tests/security/storage-operations-adversarial.integration.test.ts", "tests/planner/catalog.pg.integration.test.ts", "--config", "vitest.config.ts", "--reporter=dot", "--no-file-parallelism"] }
     ],
     medusa: [
       { name: "Medusa official integration runner", command: process.execPath, args: ["--experimental-vm-modules", "../../node_modules/jest/bin/jest.js", "--config", "jest.config.cjs", "--runInBand", "--forceExit"], cwd: "examples/medusa" }

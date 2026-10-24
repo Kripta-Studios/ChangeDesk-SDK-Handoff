@@ -6,6 +6,7 @@ $pidPath = Join-Path $runRoot "processes.json"
 if (-not (Test-Path -LiteralPath $envPath)) { throw "Run bootstrap.ps1 and initialize-lab-secrets.ps1 first." }
 foreach ($tenant in @("atlas", "boreal")) {
   if (-not (Test-Path -LiteralPath (Join-Path $root "evidence/local/seed-map.$tenant.json"))) { throw "Seed $tenant before starting the lab." }
+  if (-not (Test-Path -LiteralPath (Join-Path $root "evidence/local/buyer-map.$tenant.json"))) { throw "Run the buyer-only seed for $tenant before starting the lab." }
 }
 if (Test-Path -LiteralPath $pidPath) {
   $alive = @(Get-Content -Raw -LiteralPath $pidPath -Encoding utf8 | ConvertFrom-Json | Where-Object { Get-Process -Id $_.pid -ErrorAction SilentlyContinue })
@@ -20,7 +21,8 @@ $specifications = @(
   @{ name = "api"; script = "service-process.ps1"; arguments = @("-Mode", "api") },
   @{ name = "worker"; script = "service-process.ps1"; arguments = @("-Mode", "worker") },
   @{ name = "atlas"; script = "medusa-host.ps1"; arguments = @("-Tenant", "atlas", "-Command", "start") },
-  @{ name = "boreal"; script = "medusa-host.ps1"; arguments = @("-Tenant", "boreal", "-Command", "start") }
+  @{ name = "boreal"; script = "medusa-host.ps1"; arguments = @("-Tenant", "boreal", "-Command", "start") },
+  @{ name = "storefront"; script = "storefront-process.ps1"; arguments = @() }
 )
 $started = @()
 foreach ($specification in $specifications) {
@@ -34,7 +36,8 @@ $checks = @(
   @{ name = "api health"; url = "http://127.0.0.1:4100/healthz" },
   @{ name = "api readiness"; url = "http://127.0.0.1:4100/readyz" },
   @{ name = "Atlas"; url = "http://127.0.0.1:9001/health" },
-  @{ name = "Boreal"; url = "http://127.0.0.1:9002/health" }
+  @{ name = "Boreal"; url = "http://127.0.0.1:9002/health" },
+  @{ name = "buyer storefront"; url = "http://127.0.0.1:8000/" }
 )
 $deadline = (Get-Date).AddSeconds(60)
 foreach ($check in $checks) {
@@ -48,4 +51,4 @@ foreach ($check in $checks) {
 foreach ($item in $started) {
   if (-not (Get-Process -Id $item.pid -ErrorAction SilentlyContinue)) { throw "$($item.name) exited during startup; inspect its .local/run log." }
 }
-Write-Output "Change Desk local lab is ready on API 4100, Atlas 9001, and Boreal 9002."
+Write-Output "Change Desk local lab is ready on API 4100, storefront 8000, Atlas 9001, and Boreal 9002."
