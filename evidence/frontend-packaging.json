@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-24",
+  "status": "PASS_WITH_BROWSER_LIMITATION",
+  "artifacts": {
+    "sdk": {
+      "file": "changedesk-react-0.0.0.tgz",
+      "bytes": 37496,
+      "sha256": "50C9D22996D61DBD71DE2A552364EC35D34CD90AF73702945CA9E81CF11C16C5"
+    },
+    "contractsPeer": {
+      "file": "changedesk-contracts-0.0.0.tgz",
+      "bytes": 21203,
+      "sha256": "0DE566E234F752D518D92EA096172A192CBBDB5AABEC4CF8739134C7349E7897"
+    }
+  },
+  "cleanConsumer": {
+    "location": ".tools/frontend-tarball-smoke-clean3 (gitignored)",
+    "install": "PASS, pnpm 11.22.0, 11.1s, exact allowBuilds esbuild:true",
+    "typecheck": "PASS, TypeScript 5.9.3",
+    "build": "PASS, Vite 7.3.7, 7.33s",
+    "output": {
+      "entryRawBytes": 149600,
+      "entryGzipBytes": 49030,
+      "lazyPanelRawBytes": 26030,
+      "lazyPanelGzipBytes": 8480
+    },
+    "dependencyInspection": {
+      "react": "18.3.1 (one resolved instance)",
+      "reactDom": "18.3.1 (one resolved instance)",
+      "contracts": "0.0.0 direct + satisfied SDK peer",
+      "sdkPeers": ["@changedesk/contracts 0.0.0", "react >=18.3.1 <19", "react-dom >=18.3.1 <19"]
+    }
+  },
+  "browserWaterfall": {
+    "browser": "installed system Chrome driven by Playwright 1.64.1",
+    "idleAssets": ["/", "/assets/index-D5DAwTn1.js"],
+    "idlePanelRequests": 0,
+    "idleApiRequests": 0,
+    "afterOpenAssets": ["/assets/InternalPanel-BLPM-Lp--4AIYjx9B.js"],
+    "afterOpenApiRequests": 1,
+    "postUnmountRequestGrowthAfter2500Ms": 0,
+    "dialogAfterClose": 0,
+    "computedStyles": { "launcherBackground": "rgb(239, 255, 122)", "panelDisplay": "grid", "panelBackground": "rgb(244, 241, 232)", "backdropPosition": "fixed" }
+  },
+  "limitations": [
+    "The pinned Playwright-managed Chromium executable is not installed; the waterfall diagnostic used installed system Chrome. The release browser matrix remains BLOCKED until environment installs the pinned browser.",
+    "This proves package consumption, lazy loading, idle network behavior and unmount cleanup, not real Medusa authorization or backend effects."
+  ]
+}

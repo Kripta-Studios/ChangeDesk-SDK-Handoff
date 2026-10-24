@@ -3,22 +3,22 @@
   "command": "vite build; CHANGEDESK_ALL_IN=1 vite build; node zlib.gzipSync per emitted JS/CSS file",
   "status": "PASS",
   "peerExternalized": {
-    "launcher": { "javascriptGzipBytes": 2329, "cssGzipBytes": 344, "totalGzipBytes": 2673, "limitGzipBytes": 15360 },
-    "lazyPanel": { "javascriptGzipBytes": 6896, "cssGzipBytes": 2167, "totalGzipBytes": 9063, "limitGzipBytes": 153600 }
+    "launcher": { "javascriptGzipBytes": 3084, "cssGzipBytes": 0, "totalGzipBytes": 3084, "limitGzipBytes": 15360 },
+    "lazyPanel": { "javascriptGzipBytes": 9220, "cssGzipBytes": 0, "totalGzipBytes": 9220, "limitGzipBytes": 153600 }
   },
   "allInDiagnostic": {
     "includedPeerModules": ["react", "react/jsx-runtime"],
     "reactDomImportedBySdk": false,
-    "sharedReactGzipBytes": 21197,
-    "launcherStubGzipBytes": 212,
-    "launcherCssGzipBytes": 344,
-    "lazyPanelJavascriptGzipBytes": 6865,
-    "lazyPanelCssGzipBytes": 2167,
-    "aggregateEmittedGzipBytes": 30785
+    "sharedReactAndLauncherGzipBytes": 21780,
+    "launcherStubGzipBytes": 210,
+    "launcherCssGzipBytes": 0,
+    "lazyPanelJavascriptGzipBytes": 9197,
+    "lazyPanelCssGzipBytes": 0,
+    "aggregateEmittedGzipBytes": 31187
   },
   "notes": [
     "React and react-dom are peer dependencies in the accepted SDK build.",
-    "CSS code splitting keeps panel styling out of the launcher path.",
+    "Developer-owned CSS is compiled as inline module text: launcher styling stays in the entry and panel styling stays in the lazy panel chunk, avoiding an unreferenced library CSS artifact.",
     "The launcher chunk contains a dynamic import for InternalPanel; neither the panel JS nor InternalPanel.css is fetched while the widget stays closed.",
     "ReactDOM remains a compatible peer for host integration but contributes zero bytes because this SDK never imports it directly.",
     "The all-in build is reported separately and is not the distributed peer-externalized artifact.",

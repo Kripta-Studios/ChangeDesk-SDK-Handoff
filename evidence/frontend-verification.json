@@ -20,7 +20,7 @@
     {
       "command": "pnpm --filter @changedesk/react build",
       "status": "PASS",
-      "result": "Vite bundle emitted; peer-externalized launcher 2673 gzip bytes, lazy panel 9063 gzip bytes including split CSS; declarations verified separately by tsc"
+      "result": "Vite bundle emitted; peer-externalized launcher 3084 gzip bytes, lazy panel 9220 gzip bytes with styles retained in their respective JS chunks; declarations verified separately by tsc"
     },
     {
       "command": "pnpm test:e2e",
