@@ -1,0 +1,32 @@
+{
+  "recordedAt": "2026-10-24",
+  "medusaVersion": "2.22.1",
+  "status": "review_required_before_distribution",
+  "facts": {
+    "repositoryLicense": "MIT except Enterprise Edition materials identified by ENTERPRISE-LICENSE.md",
+    "installedPackageContainsEnterpriseDependencies": ["@medusajs/rbac", "@medusajs/auth-oidc"],
+    "observedFeatureDefaults": {
+      "rbac": false,
+      "rbac_filter_fields": false
+    },
+    "hostConfiguration": {
+      "explicitlyEnabledFeatureFlags": [],
+      "authMethodsPerActor": {"user": ["emailpass"]},
+      "importsEnterpriseRbac": false,
+      "importsEnterpriseOidc": false,
+      "changeDeskAuthorization": "Own host guard and actor policy; does not rely on Medusa Enterprise RBAC"
+    }
+  },
+  "limits": [
+    "Installing a package that contains Enterprise Edition materials is not represented as an all-MIT distribution.",
+    "No Enterprise feature will be enabled or imported to satisfy Change Desk permission tests.",
+    "A distribution/legal review remains required before redistributing the assembled Medusa host."
+  ],
+  "sources": [
+    "https://raw.githubusercontent.com/medusajs/medusa/v2.22.1/LICENSE",
+    "https://github.com/medusajs/medusa/blob/v2.22.1/ENTERPRISE-LICENSE.md",
+    "installed:@medusajs/medusa@2.22.1/package.json",
+    "installed:@medusajs/medusa@2.22.1/dist/feature-flags/rbac.js",
+    "installed:@medusajs/medusa@2.22.1/dist/feature-flags/rbac-filter-fields.js"
+  ]
+}

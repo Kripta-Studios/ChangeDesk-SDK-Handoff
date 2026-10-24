@@ -54,8 +54,11 @@ const handle = async (req: MedusaRequest, res: MedusaResponse) => {
   await service.consumeJti(claims.jti, claims.exp)
 
   const result = claims.typ === "changedesk.read"
-      ? await executeRead(req.scope as never, command, actor)
-    : await executeEffect(req.scope as never, command, claims as EffectDelegationClaims)
+    ? await executeRead(req.scope as never, command, actor)
+    : await executeEffect(req.scope as never, command, claims as EffectDelegationClaims).then((receipt) => ({
+        receipt,
+        observed: receipt.status === "confirmed" || receipt.status === "no_effect",
+      }))
   res.setHeader("Cache-Control", "no-store")
   return res.status(200).json({ result })
 }

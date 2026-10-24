@@ -6,7 +6,7 @@ import { medusaChangeDeskConfig } from "../changedesk-config.js";
 
 const ChangeDeskProductWidget = ({ data }: DetailWidgetProps<AdminProduct>) => {
   const config = useMemo(() => medusaChangeDeskConfig(() => [data.id], "product.details"), [data.id]);
-  return <section aria-label="Change Desk" style={{ border: "1px solid #d1d9d5", borderRadius: 8, padding: 18, background: "#fff" }}><div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}><div><strong>Change Desk</strong><p style={{ margin: "4px 0 0", color: "#63736d", fontSize: 13 }}>Crea una acción contextual para este producto.</p></div><ChangeDeskProvider config={config}><ChangeDeskLauncher label="Crear acción"/></ChangeDeskProvider></div></section>;
+  return <section aria-label="Change Desk" style={{ border: "1px solid #d1d9d5", borderRadius: 8, padding: 18, background: "#fff" }}><div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}><div><strong>Change Desk</strong><p style={{ margin: "4px 0 0", color: "#63736d", fontSize: 13 }}>{config ? "Crea una acción contextual para este producto." : "Integración desactivada; configura el endpoint para habilitarla."}</p></div>{config ? <ChangeDeskProvider config={config}><ChangeDeskLauncher label="Crear acción"/></ChangeDeskProvider> : null}</div></section>;
 };
 
 export const config = defineWidgetConfig({ zone: "product.details", id: "changedesk:product-details" });

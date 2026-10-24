@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "scope": "T02 contracts, pure core and policy unit evidence",
+  "environment": {
+    "node": "22.23.4",
+    "pnpm": "11.22.0",
+    "vitest": "4.0.16",
+    "ajv": "8.20.0",
+    "canonicalize": "5.1.0"
+  },
+  "dependencyReferences": [
+    "https://ajv.js.org/json-schema.html#draft-2020-12",
+    "https://github.com/erdtman/canonicalize",
+    "https://www.rfc-editor.org/rfc/rfc8785"
+  ],
+  "red": [
+    {
+      "control": "capability permission is derived server-side",
+      "mutation": "temporarily replaced capability-derived permissions with an empty list; expectations were not changed",
+      "command": "vitest run tests/core/policy.test.ts -t 'does not allow approval to amplify requester authority'",
+      "result": "FAIL as expected: requester plus medusa.product_categories.products.add returned allowed:true"
+    },
+    {
+      "control": "hashes are separated by type domain",
+      "mutation": "temporarily removed domain from the canonical SHA-256 frame; expectations were not changed",
+      "command": "vitest run tests/core/hashing.test.ts -t 'sensitive to domain'",
+      "result": "FAIL as expected: artifact and plan domains produced the same digest"
+    },
+    {
+      "control": "recipe key fixes the exact mutation form",
+      "mutation": "temporarily disabled recipe.form comparison; expectations were not changed",
+      "command": "vitest run tests/core/contracts.test.ts -t 'exact recipe forms'",
+      "result": "FAIL as expected: the required recipe.form issue disappeared"
+    }
+  ],
+  "green": [
+    {
+      "command": "vitest run tests/core --config vitest.config.ts --reporter=dot",
+      "result": "PASS: 4 files, 29 tests"
+    },
+    {
+      "command": "tsc -p tests/core/tsconfig.json --pretty false",
+      "result": "PASS: exit 0"
+    },
+    {
+      "command": "tsc -p packages/contracts/tsconfig.json --pretty false",
+      "result": "PASS: exit 0"
+    }
+  ],
+  "boundaries": [
+    "These are pure unit/contract tests; they do not claim Medusa, PostgreSQL, browser, worker recovery, or live LLM integration.",
+    "The first attempted suite execution was NOT_RUN because the shared Vitest/service configuration did not yet exist; mutation-red executions above are the actual behavioral red evidence.",
+    "Schema copies are compared by Git blob hash because Git may materialize CRLF or LF differently on Windows; committed blob bytes are identical."
+  ],
+  "challengedHypothesis": "A caller-supplied requiredPermissions list is not a safe authorization ceiling. Capability permissions must be derived again from the trusted manifest; the mutation-red test proved a requester would otherwise gain a write capability."
+}

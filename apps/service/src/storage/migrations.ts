@@ -21,7 +21,7 @@ export async function runMigrations(pool:Pool,directory:URL|string):Promise<void
       const checksum=createHash("sha256").update(sql).digest("hex");
       const existing=await client.query<{checksum:string}>("SELECT checksum FROM public.changedesk_schema_migrations WHERE version=$1",[version]);
       if(existing.rowCount===1) {
-        if(existing.rows[0].checksum!==checksum) throw new Error(`Migration checksum mismatch at version ${version}`);
+        if(existing.rows[0]!.checksum!==checksum) throw new Error(`Migration checksum mismatch at version ${version}`);
         continue;
       }
       await client.query("BEGIN");

@@ -62,7 +62,8 @@ export const parseDelegationClaims = (value: unknown): DelegationClaims => {
   if (!Number.isSafeInteger(value.planVersion) || !Number.isSafeInteger(value.approvalExpiresAt) || !Number.isSafeInteger(value.fence) || !isRecord(value.preconditions)) {
     throw new BridgeError(401, "invalid_claims", "Effect numeric claims or preconditions are invalid")
   }
-  exactKeys(value.preconditions, ["productStatus", "productUnlocked", "relationAbsent"])
+  exactKeys(value.preconditions, ["productStatus", "productUnlocked", "relationAbsent", "preconditionFingerprint"])
+  claimString(value.preconditions.preconditionFingerprint, "preconditionFingerprint")
   return value as unknown as DelegationClaims
 }
 

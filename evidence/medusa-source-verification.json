@@ -16,12 +16,12 @@
   "runtime": {
     "observedNode": "25.8.1",
     "requiredNode": ">=22.22.0 <23",
-    "status": "BLOCKED_WRONG_NODE_MAJOR"
+    "status": "PINNED_NODE_22_AVAILABLE_AT_COORDINATOR_PROVIDED_TOOL_PATH"
   },
   "docker": {
     "client": "29.4.3",
-    "server": null,
-    "status": "BLOCKED_ENGINE_UNAVAILABLE"
+    "server": "29.4.2",
+    "status": "AVAILABLE_POSTGRES_HEALTHY_REPORTED_BY_ENVIRONMENT"
   },
   "packages": [
     {"name":"canonicalize","version":"5.1.0","license":"Apache-2.0","integrity":"sha512-bab9+WefZljqQ8jT0qRwVmTyzAUU63K97QIQD3agynIBrb6sa5M2eAy8Hv8K3p4V9+ONVYZKtGYl4Dg+/5Gumw=="},

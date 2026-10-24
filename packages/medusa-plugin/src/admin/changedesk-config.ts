@@ -4,9 +4,9 @@ type BridgeTicket = { ticket: string; expiresAt: string };
 type ExchangedSession = { accessToken: string; expiresAt: string };
 
 const endpoint = import.meta.env.VITE_CHANGEDESK_ENDPOINT as string | undefined;
-if (!endpoint) throw new Error("VITE_CHANGEDESK_ENDPOINT es obligatorio para montar Change Desk");
 
 async function getSession(): Promise<ExchangedSession> {
+  if (!endpoint) throw new Error("Change Desk no está configurado");
   const bridge = await fetch("/admin/changedesk/session", {
     method: "POST",
     credentials: "include",
@@ -25,6 +25,7 @@ async function getSession(): Promise<ExchangedSession> {
   return exchange.json() as Promise<ExchangedSession>;
 }
 
-export function medusaChangeDeskConfig(getSelectedProductIds: () => string[], surface: string): ChangeDeskConfig {
+export function medusaChangeDeskConfig(getSelectedProductIds: () => string[], surface: string): ChangeDeskConfig | null {
+  if (!endpoint) return null;
   return { endpoint, getSession, locale: "es", getContext: () => ({ selectedProductIds: getSelectedProductIds(), surface }) };
 }

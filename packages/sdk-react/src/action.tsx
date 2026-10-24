@@ -6,7 +6,7 @@ export function ChangeDeskAction({ installationId, label }: { installationId: st
   return (
     <>
       <button className="cd-button cd-button--secondary" type="button" data-installation-id={installationId} onClick={() => setOpen(true)}>{label}</button>
-      {open ? <ChangeDeskPanel onClose={() => setOpen(false)} /> : null}
+      {open ? <ChangeDeskPanel initialInstallationId={installationId} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }

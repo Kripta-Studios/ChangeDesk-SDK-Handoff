@@ -7,6 +7,7 @@ export type JobFinishStatus = "pending" | "completed" | "failed" | "cancelled";
 export interface JobLease {
   readonly jobId: string;
   readonly tenantId: string;
+  readonly actorId: string;
   readonly backendKey: string;
   readonly kind: JobKind;
   readonly requestId: string | null;
@@ -41,6 +42,7 @@ export interface ApprovalRecord {
   readonly planVersion: number;
   readonly planHash: string;
   readonly actorId: string;
+  readonly hostSessionId:string|null;
   readonly expiresAt: Date;
   readonly consumedExecutionId: string | null;
 }
@@ -92,6 +94,7 @@ export interface NewApproval {
   readonly planVersion: number;
   readonly planHash: string;
   readonly actorId: string;
+  readonly hostSessionId:string;
   readonly scope: readonly string[];
   readonly expiresAt: Date;
   readonly idempotencyKey: string;
@@ -119,6 +122,19 @@ export interface AttemptIntent {
   readonly operationKey: string;
 }
 
+export type AttemptState="intent_recorded"|"sent"|"confirmed"|"no_effect"|"rejected"|"unknown";
+export interface AttemptRecord {
+  readonly operationKey:string;
+  readonly attemptNo:number;
+  readonly state:AttemptState;
+  readonly receiptRef:string|null;
+  readonly observationRef:string|null;
+  readonly errorCode:string|null;
+  readonly inserted:boolean;
+}
+
+export interface NewExecutionRow { readonly rowId:string;readonly resourceRef:string;readonly preconditionFingerprint:string }
+
 export interface ExecutionBundle {
   readonly execution: Record<string, unknown>;
   readonly plan: Record<string, unknown>;
@@ -128,6 +144,26 @@ export interface ExecutionBundle {
   readonly actor: Record<string, unknown>;
   readonly rows: readonly Record<string, unknown>[];
   readonly attempts: readonly Record<string, unknown>[];
+  readonly authority: { readonly hostSessionId:string|null };
+}
+
+export interface GenerationBundle {
+  readonly request: {
+    readonly id:string;
+    readonly actorId:string;
+    readonly redactedText:string;
+    readonly contextRef:JsonValue;
+    readonly budget:JsonValue;
+    readonly state:RequestState;
+    readonly createdAt:Date;
+  };
+  readonly tenant: { readonly policyVersion:string;readonly backendKey:string };
+  readonly capabilityManifest: {
+    readonly id:string;
+    readonly manifestHash:string;
+    readonly adapterVersion:string;
+    readonly body:JsonValue;
+  };
 }
 
 export interface CatalogQuery {
