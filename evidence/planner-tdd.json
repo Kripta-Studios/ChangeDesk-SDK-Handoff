@@ -16,20 +16,22 @@
   ],
   "green": [
     {
-      "command": "node_modules/.bin/vitest.cmd run tests/planner --exclude tests/planner/live.codex.test.ts",
+      "command": "node_modules/.bin/vitest.cmd run tests/planner",
       "result": "PASS",
-      "files": 3,
-      "tests": 18,
-      "durationSeconds": 6.07
+      "files": 4,
+      "tests": 19,
+      "durationSeconds": 7.84,
+      "note": "live file remains in the default project and asserts an explicit BLOCKED_LIVE_SETTINGS gate when live settings are absent; it is never skipped"
     },
     {
       "command": "CHANGEDESK_RUN_CODEX_LIVE=1 CHANGEDESK_CODEX_MODEL=gpt-6.1-sol vitest run tests/planner/live.codex.test.ts",
-      "result": "BLOCKED: transport/schema wrapper passed but the next bounded live run failed full Ajv/semantic validation; no recipe accepted",
+      "result": "PASS: hardened closed schema produced a recipe accepted by contract Ajv and finite semantic assertions; an earlier attempt was rejected and remains recorded",
       "files": 1,
       "tests": 1,
-      "testDurationSeconds": 18.634,
+      "testDurationSeconds": 22.241,
       "observedModel": "not_observed_by_codex_jsonl",
-      "tokenMetric": {"input":11747,"cachedInput":0,"output":294,"reasoningOutput":64}
+      "tokenMetric": {"input":13554,"cachedInput":0,"output":227,"reasoningOutput":0},
+      "priorRejectedAttempt": {"input":11747,"cachedInput":0,"output":294,"reasoningOutput":64}
     }
   ],
   "separation": {

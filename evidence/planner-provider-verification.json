@@ -19,18 +19,24 @@
       "versionChangeBehavior": "BLOCKED_TOOL_ISOLATION"
     },
     "liveSchemaSmoke": {
-      "status": "blocked_invalid_recipe",
+      "status": "passed_validated_recipe",
       "configuredModel": "gpt-6.1-sol",
       "observedModel": null,
       "price": null,
       "reasonPriceNull": "local subscription CLI does not surface a price",
-      "testDurationSeconds": 18.634,
-      "inputTokens": 11747,
+      "testDurationSeconds": 22.241,
+      "inputTokens": 13554,
       "cachedInputTokens": 0,
-      "outputTokens": 294,
-      "reasoningOutputTokens": 64,
-      "providerLatencyMs": 11843.4114,
-      "evidenceLimitation": "transport and effective tool denial passed, but the candidate failed recipe JSON Schema and semantic acceptance; no executable recipe was accepted"
+      "outputTokens": 227,
+      "reasoningOutputTokens": 0,
+      "providerLatencyMs": 11705.171,
+      "acceptedRecipeKey": "catalog.category.assign.v1",
+      "validation": "provider closed schema, contract Ajv 2020-12, finite recipe family and approved capability subset",
+      "attempts": [
+        {"status":"rejected_invalid_recipe","inputTokens":11747,"cachedInputTokens":0,"outputTokens":294,"reasoningOutputTokens":64,"providerLatencyMs":11843.4114},
+        {"status":"accepted","inputTokens":13554,"cachedInputTokens":0,"outputTokens":227,"reasoningOutputTokens":0,"providerLatencyMs":11705.171}
+      ],
+      "evidenceLimitation": "one synthetic category intent passed; this is not evidence of broad model reliability, and the exact Codex model was configured but not surfaced by JSONL"
     }
   },
   "futureApiConfigurations": [

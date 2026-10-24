@@ -2,14 +2,24 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import Ajv2020 from "ajv/dist/2020.js";
 import { BudgetedApiPlannerProvider, VERIFIED_API_CONFIGS } from "../../apps/service/src/planner/api-provider.ts";
 import { CodexCliPlannerProvider, InstalledCodex0164IsolationProbe, codexExecArgv } from "../../apps/service/src/planner/codex-cli-provider.ts";
 import type { PlannerInput } from "../../apps/service/src/planner/types.ts";
 import type { ProcessRunner } from "../../apps/service/src/planner/process-runner.ts";
+import { canonicalGenericRecipe } from "../../apps/service/src/planner/publication.ts";
 
 const input:PlannerInput={requestId:"req",tenantId:"atlas",actorId:"actor",locale:"en",message:"assign category",selectedProductIds:["p01"],approvedCapabilities:["medusa.products.list"],adapter:{id:"medusa-v2",capabilityContract:"1",version:"2.22.1"}};
 const executableSha256=createHash("sha256").update(readFileSync(process.execPath)).digest("hex");
 const config={executable:process.execPath,executableSha256,model:"explicit-model",allowedModels:["explicit-model"],isolatedCwd:"C:/isolated",outputSchemaPath:"C:/schema.json",timeoutMs:30_000,maxOutputBytes:64_000,maxReportedInputTokens:120_000,environment:{PATH:"fixed"}};
+
+test("Codex structured output contract accepts each reviewed canonical recipe instance", () => {
+  const schema = JSON.parse(readFileSync("apps/service/src/planner/provider-output.schema.json", "utf8"));
+  const validate = new Ajv2020({ strict: true, allErrors: true }).compile(schema);
+  for (const recipeKey of ["catalog.category.assign.v1", "catalog.channel.assign.v1", "catalog.campaign.prepare.v1"] as const) {
+    assert.equal(validate({ kind: "candidate", recipe: canonicalGenericRecipe(recipeKey), safeMessage: null }), true, JSON.stringify(validate.errors));
+  }
+});
 
 test("Codex adapter fails closed before spawning when the probed CLI version changes",async()=>{
   let spawned=false; const runner:ProcessRunner={async run(){spawned=true;throw new Error("must not run");}};
