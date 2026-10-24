@@ -1,4 +1,4 @@
-import { planHash } from "../core/hashing.js";
+import { hashCanonical, planHash } from "../core/hashing.js";
 import type { CompiledPlan, CompiledPlanBody, ProductSnapshot, Recipe } from "./types.js";
 import type { PlanExclusion } from "@changedesk/contracts";
 import type { EvidenceStatus } from "@changedesk/contracts";
@@ -35,25 +35,36 @@ export function compilePlan(input: CompilePlanInput): CompiledPlan {
     else if (product.blocked) exclusions.push({ recordId: product.id, reason: "policy" });
   }
   const eligible = products.filter((product) => product.status === "published" && !product.blocked);
-  const effects = eligible.flatMap((product) => input.recipe.steps.map((step) => {
-    const args = resolveArguments(step.arguments, product.id, input.parameters);
-    const relationId = step.capability === "medusa.product_categories.products.add" ? args.categoryId : args.channelId;
-    const alreadyPresent = step.capability === "medusa.product_categories.products.add"
-      ? product.categoryIds.includes(relationId!) : product.channelIds.includes(relationId!);
-    return { recordId: product.id, stepId: step.id, capability: step.capability, arguments: args,
-      expected: alreadyPresent ? "no_op" as const : "apply" as const, preconditionFingerprint: product.protectedDigest };
-  }));
+  const effects = eligible.flatMap((product) => {
+    const categoryIds = new Set(product.categoryIds);
+    const channelIds = new Set(product.channelIds);
+    return input.recipe.steps.map((step) => {
+      const args = resolveArguments(step.arguments, product.id, input.parameters);
+      const categories = step.capability === "medusa.product_categories.products.add";
+      const relationId = categories ? args.categoryId! : args.channelId!;
+      const relations = categories ? categoryIds : channelIds;
+      const alreadyPresent = relations.has(relationId);
+      const preconditionFingerprint = stepPreconditionFingerprint(product.protectedDigest, categoryIds, channelIds);
+      if (!alreadyPresent) relations.add(relationId);
+      return { recordId: product.id, stepId: step.id, capability: step.capability, arguments: args,
+        expected: alreadyPresent ? "no_op" as const : "apply" as const, preconditionFingerprint };
+    });
+  });
   const body: CompiledPlanBody = {
     schemaVersion: "1.0", id: input.planId, tenantId: input.tenantId, actorId: input.actorId, requestId: input.requestId,
     artifactHash: input.artifactHash, adapterVersion: input.adapterVersion,
     policyVersion: input.policyVersion, capabilityManifestHash: input.capabilityManifestHash,
     parameters: Object.fromEntries(Object.entries(input.parameters).sort(([a], [b]) => a.localeCompare(b))),
-    selectionSnapshot: eligible.map(({ id, protectedDigest }) => ({ productId: id, preconditionFingerprint: protectedDigest })),
+    selectionSnapshot: eligible.map(({ id, protectedDigest, categoryIds, channelIds }) => ({ productId: id, preconditionFingerprint: stepPreconditionFingerprint(protectedDigest, new Set(categoryIds), new Set(channelIds)) })),
     perRecordEffects: effects, exclusions,
     limits: { maxRecords: 100, maxSteps: 12 }, expiresAt: input.expiresAt, evidenceRefs: [...input.proofPolicy.evidenceRefs].sort(),
     planVersion: input.planVersion, ...(input.priorExecutionId ? { priorExecutionId: input.priorExecutionId } : {}),
   };
   return { ...body, planHash: planHash(body) };
+}
+
+function stepPreconditionFingerprint(protectedDigest: string, categoryIds: ReadonlySet<string>, channelIds: ReadonlySet<string>): string {
+  return hashCanonical("medusa-step-precondition", "1", { protectedDigest, categoryIds: [...categoryIds].sort(), channelIds: [...channelIds].sort() });
 }
 
 function resolveArguments(spec: Recipe["steps"][number]["arguments"], productId: string, parameters: Readonly<Record<string, string>>): Readonly<Record<string, string>> {

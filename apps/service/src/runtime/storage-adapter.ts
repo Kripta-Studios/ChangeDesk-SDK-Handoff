@@ -4,6 +4,9 @@ import { hashCanonical } from "../core/hashing.js";
 
 interface StorageTx {
   loadExecutionBundle(executionId: string): Promise<any | null>;
+  insertExecutionRows(lease: JobLease, executionId: string, rows: readonly { rowId: string; resourceRef: string; preconditionFingerprint: string }[]): Promise<boolean>;
+  updateExecutionWithLease(lease: JobLease, executionId: string, state: string, expectedRevision: number): Promise<any | null>;
+  updateRowWithLease(lease: JobLease, input: { executionId: string; rowId: string; state: string }): Promise<boolean>;
   recordAttemptIntent(lease: any, input: any): Promise<any | null>;
   adoptAttemptForReconciliation(lease: any, input: any): Promise<any | null>;
   transitionAttempt(lease: any, input: any, state: string, receiptRef?: string, observationRef?: string, errorCode?: string): Promise<boolean>;
@@ -22,6 +25,28 @@ export class StorageRuntimeAdapter implements RuntimeStorePort {
   recoverOrphanedLeases(limit?: number): Promise<number> { return this.jobs.recoverExpired(limit); }
   heartbeat(lease: JobLease): Promise<boolean> { return this.jobs.heartbeat(lease, this.options.leaseSeconds); }
   loadExecutionBundle(lease: JobLease) { return this.scoped(lease, async (tx) => { const raw = await tx.loadExecutionBundle(lease.executionId!); if (!raw) throw new Error("Execution bundle not found"); return mapBundle(raw); }); }
+  prepareExecution(lease: JobLease, bundle: ExecutionBundle): Promise<ExecutionBundle | null> {
+    if (bundle.execution.state !== "queued") return Promise.resolve(bundle);
+    return this.scoped(lease, async (tx) => {
+      const rows = bundle.plan.selectionSnapshot.map((row) => ({ rowId: row.productId, resourceRef: row.productId, preconditionFingerprint: row.preconditionFingerprint }));
+      if (!await tx.insertExecutionRows(lease, bundle.execution.id, rows)) return null;
+      const execution = await tx.updateExecutionWithLease(lease, bundle.execution.id, "running", bundle.execution.revision);
+      return execution ? { ...bundle, execution: { ...bundle.execution, state: execution.state, revision: Number(execution.revision) } } : null;
+    });
+  }
+  updateRowState(lease: JobLease, rowId: string, state: "running" | "succeeded" | "unknown" | "failed") {
+    return this.scoped(lease, (tx) => tx.updateRowWithLease(lease, { executionId: lease.executionId!, rowId, state }));
+  }
+  settleExecution(lease: JobLease, outcome: WorkerOutcome): Promise<boolean> {
+    return this.scoped(lease, async (tx) => {
+      const raw = await tx.loadExecutionBundle(lease.executionId!); if (!raw) return false;
+      if (outcome.kind === "waiting_reconciliation") return true;
+      const bundle = mapBundle(raw);
+      if (outcome.kind === "completed") for (const row of bundle.rows) if (row.state === "pending" || row.state === "running") if (!await tx.updateRowWithLease(lease, { executionId: bundle.execution.id, rowId: row.rowId, state: "succeeded" })) return false;
+      const state = outcome.kind === "completed" ? "succeeded" : outcome.kind === "cancelled" ? "cancelled" : outcome.kind === "authority_expired" && outcome.observedEffects > 0 ? "partial" : "failed";
+      return (await tx.updateExecutionWithLease(lease, bundle.execution.id, state, bundle.execution.revision)) !== null;
+    });
+  }
   recordAttemptIntent(lease: JobLease, input: Parameters<RuntimeStorePort["recordAttemptIntent"]>[1]) { const handle = { executionId: lease.executionId!, rowId: input.rowId, stepId: input.stepId, attemptNo: 1, semanticInputHash: input.semanticInputHash, operationKey: input.operationKey }; return this.scoped(lease, async (tx) => { const record = lease.kind === "reconcile" ? await tx.adoptAttemptForReconciliation(lease, handle) : await tx.recordAttemptIntent(lease, handle); return record ? { attemptId: Buffer.from(JSON.stringify(handle)).toString("base64url"), state: record.state, operationKey: record.operationKey, semanticInputHash: input.semanticInputHash } as Attempt : null; }); }
   markAttemptSent(lease: JobLease, attemptId: string) { return this.transition(lease, attemptId, "sent"); }
   confirmAttempt(lease: JobLease, attemptId: string, receipt: unknown) { return this.transition(lease, attemptId, "confirmed", receipt); }
@@ -43,7 +68,7 @@ export class StorageRuntimeAdapter implements RuntimeStorePort {
 
 function mapBundle(raw: any): ExecutionBundle {
   const plan = raw.plan.body ?? raw.plan;
-  const execution = { id: raw.execution.id, planId: raw.execution.plan_id ?? raw.execution.planId, state: raw.execution.state, ...(raw.execution.cancel_requested_at ? { cancelRequestedAt: new Date(raw.execution.cancel_requested_at).toISOString() } : {}) };
+  const execution = { id: raw.execution.id, planId: raw.execution.plan_id ?? raw.execution.planId, state: raw.execution.state, revision: Number(raw.execution.revision), ...(raw.execution.cancel_requested_at ? { cancelRequestedAt: new Date(raw.execution.cancel_requested_at).toISOString() } : {}) };
   const attempts = raw.attempts ?? [];
   const effects = (plan.perRecordEffects ?? []).filter((effect: any) => effect.expected === "apply");
   const unknownEffects = effects.filter((effect: any) => attempts.some((a: any) => a.row_id === effect.recordId && a.step_id === effect.stepId && ["sent", "unknown"].includes(a.state)));
@@ -52,5 +77,6 @@ function mapBundle(raw: any): ExecutionBundle {
   if (typeof hostSessionId !== "string" || !hostSessionId) throw new Error("Execution authority lacks host session binding");
   const artifactState = raw.installation?.status ?? raw.artifact?.state;
   if (!["active", "withdrawn", "security_revoked", "disabled"].includes(artifactState)) throw new Error("Execution authority lacks artifact state");
-  return { execution, plan: { ...plan, planHash: raw.plan.plan_hash ?? raw.plan.planHash }, approval: { id: raw.approval.id, actorId: raw.approval.actor_id ?? raw.approval.actorId, expiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString(), planHash: raw.approval.plan_hash ?? raw.approval.planHash }, authority: { actorEnabled: raw.actor.state === "active", hostSessionId, policyVersion: raw.plan.policy_version ?? plan.policyVersion, artifactState, approvalExpiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString() }, pendingEffects, unknownEffects };
+  const rows = (raw.rows ?? []).map((row: any) => ({ rowId: row.row_id ?? row.rowId, state: row.state }));
+  return { execution, plan: { ...plan, planHash: raw.plan.plan_hash ?? raw.plan.planHash }, approval: { id: raw.approval.id, actorId: raw.approval.actor_id ?? raw.approval.actorId, expiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString(), planHash: raw.approval.plan_hash ?? raw.approval.planHash }, authority: { actorEnabled: raw.actor.state === "enabled", hostSessionId, policyVersion: raw.plan.policy_version ?? plan.policyVersion, artifactState, approvalExpiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString() }, pendingEffects, unknownEffects, rows };
 }

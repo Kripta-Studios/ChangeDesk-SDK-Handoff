@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compilePlan, PlanCompileError } from "../../src/runtime/compiler.js";
 import type { ProductSnapshot, Recipe } from "../../src/runtime/types.js";
+import { hashCanonical } from "../../src/core/hashing.js";
 
 const recipe: Recipe = {
   schemaVersion: "1.0", recipeKey: "catalog.campaign.prepare.v1",
@@ -21,6 +22,11 @@ const products = [
 ];
 
 describe("deterministic plan compiler", () => {
+  it("matches the ADR009 host step-precondition vector", () => {
+    expect(hashCanonical("medusa-step-precondition", "1", { protectedDigest: "a".repeat(64), categoryIds: ["pcat_a", "pcat_b"], channelIds: ["sc_1"] }))
+      .toBe("4e805931337f3672307b7632110716217dae20045813116311c0ffb5289b1b1e");
+  });
+
   it("ACC-005 materializes 5 eligible, 3 excluded and 6 additions without writes", () => {
     const writes: unknown[] = [];
     const plan = compilePlan(input(products));
@@ -29,6 +35,9 @@ describe("deterministic plan compiler", () => {
       { recordId: "p05", reason: "status" }, { recordId: "p06", reason: "status" }, { recordId: "p07", reason: "policy" },
     ]);
     expect(plan.perRecordEffects.filter((effect) => effect.expected === "apply")).toHaveLength(6);
+    const firstRow = plan.perRecordEffects.filter((effect) => effect.recordId === "p01");
+    expect(firstRow[0]?.preconditionFingerprint).toBe(hashCanonical("medusa-step-precondition", "1", { protectedDigest: "p01-digest", categoryIds: [], channelIds: [] }));
+    expect(firstRow[1]?.preconditionFingerprint).toBe(hashCanonical("medusa-step-precondition", "1", { protectedDigest: "p01-digest", categoryIds: ["cat"], channelIds: [] }));
     expect(writes).toHaveLength(0);
     expect(compilePlan(input([...products].reverse())).planHash).toBe(plan.planHash);
   });

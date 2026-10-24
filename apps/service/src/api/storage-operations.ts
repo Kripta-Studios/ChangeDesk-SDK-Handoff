@@ -23,14 +23,54 @@ export class StorageApiOperations implements ApiOperations {
     }));
     return { resources };
   }
-  async createPlan() { throw new ApiError(503, "ACTIVE_CAPABILITY_MANIFEST_UNAVAILABLE", "Plan compilation requires an active persisted capability manifest", true); }
-  getPlan(a: ActorContext, id: string) { return this.run(a, async (tx: any) => { const r = await tx.getPlan(id); this.owner(a, r?.actorId); return r; }); }
+  async createPlan(c: MutationContext, b: any) {
+    const source = await this.run(c.actor, async (tx: any) => {
+      const manifest = await tx.getActiveCapabilityManifest();
+      if (!manifest) throw new ApiError(503, "ACTIVE_CAPABILITY_MANIFEST_UNAVAILABLE", "Plan compilation requires an active persisted capability manifest", true);
+      if (b.requestId) {
+        const request = await tx.getRequest(b.requestId); this.owner(c.actor, request?.actorId); if (!request) throw notFound();
+        const candidate = (await tx.listRequestCandidates(b.requestId)).find((item: any) => item.state === "selected");
+        if (!candidate?.artifactHash) throw new ApiError(409, "CANDIDATE_NOT_SELECTED", "A generated or catalog candidate must be selected", false);
+        const artifact = await tx.getAuthorizedArtifact(candidate.artifactHash); if (!artifact) throw notFound();
+        return { requestId: request.id, installationId: undefined, artifact, manifest };
+      }
+      const installed = await tx.getInstallationForPlan(b.installationId); if (!installed || installed.installation.status !== "active") throw notFound();
+      return { requestId: undefined, installationId: installed.installation.id, artifact: installed.artifact, manifest };
+    });
+    const readableProducts = await Promise.all((b.selectedProductIds as string[]).map(async (productId) => parseProduct(productId, await this.connector.readAuthorized({ capability: "medusa.products.retrieve", args: { productId }, actor: c.actor }))));
+    const planId = randomUUID();
+    const requestId = source.requestId ?? randomUUID();
+    const compiled = compilePlan({ planId, tenantId: c.actor.tenantId, actorId: c.actor.actorId, requestId, artifactHash: source.artifact.artifactHash,
+      adapterVersion: "medusa-2.22.1/changedesk-1", policyVersion: c.actor.policyVersion, capabilityManifestHash: source.manifest.manifestHash,
+      recipe: source.artifact.canonicalBody as Recipe, parameters: b.parameters, selectedProductIds: b.selectedProductIds, readableProducts,
+      expiresAt: new Date(this.clock().getTime() + 10 * 60_000).toISOString(), planVersion: 1,
+      ...(b.priorExecutionId ? { priorExecutionId: b.priorExecutionId } : {}), proofPolicy: { proofRequired: false, evidenceStatus: "not_applicable", evidenceRefs: [] } });
+    const { planHash, ...body } = compiled;
+    return this.run(c.actor, async (tx: any) => {
+      if (!source.requestId) await tx.createInstalledActionRequest({ id: requestId, actorId: c.actor.actorId, redactedText: "Installed action preview", contextRef: { source: "installed_action", installationId: source.installationId, selectedProductIds: b.selectedProductIds }, budget: {}, idempotencyKey: c.idempotencyKey, requestHash: c.requestHash });
+      const plan = await tx.createPlan({ id: planId, requestId, ...(source.installationId ? { installationId: source.installationId } : {}), actorId: c.actor.actorId, artifactHash: source.artifact.artifactHash,
+        adapterVersion: compiled.adapterVersion, policyVersion: compiled.policyVersion, capabilityManifestHash: compiled.capabilityManifestHash, body, planHash, planVersion: 1, state: "ready", expiresAt: new Date(compiled.expiresAt), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash });
+      await tx.updateRequestState(requestId, "plan_ready");
+      return { planId: plan.id, status: plan.state };
+    });
+  }
+  getPlan(a: ActorContext, id: string) { return this.run(a, async (tx: any) => {
+    const detail = await tx.getPlanDetail(id); this.owner(a, detail?.actorId); if (!detail) return null;
+    const body = detail.body as Record<string, unknown>;
+    const plan = { ...body, id: detail.id, requestId: detail.requestId, artifactHash: detail.artifactHash, adapterVersion: detail.adapterVersion, policyVersion: detail.policyVersion, capabilityManifestHash: detail.capabilityManifestHash, planVersion: detail.planVersion, planHash: detail.planHash, state: detail.state, expiresAt: detail.expiresAt.toISOString(), createdAt: detail.createdAt.toISOString() };
+    const permissions = uiPermissions(a);
+    return { plan, title: "Change plan", canApprove: detail.state === "ready" && permissions.includes("approve"), permissions };
+  }); }
   createApproval(c: MutationContext, b: any) { return this.run(c.actor, async (tx: any) => { const p = await tx.getPlan(b.planId); this.owner(c.actor, p?.actorId); if (!p) throw notFound(); const r = await tx.createApproval({ id: randomUUID(), planId: b.planId, planVersion: b.expectedPlanVersion, planHash: b.planHash, actorId: c.actor.actorId, hostSessionId: c.actor.hostSessionId, scope: ["execute"], expiresAt: new Date(Math.min(p.expiresAt.getTime(), this.clock().getTime() + 600_000)), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }); return { approvalId: r.id }; }); }
   startExecution(c: MutationContext, b: any) { return this.run(c.actor, async (tx: any) => { const r = await tx.admitExecution({ id: randomUUID(), approvalId: b.approvalId, actorId: c.actor.actorId, jobId: randomUUID(), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }); return { executionId: r.id, status: r.state }; }); }
   getExecution(a: ActorContext, id: string) { return this.run(a, async (tx: any) => { const r = await tx.getExecution(id); this.owner(a, r?.actorId); return r; }); }
   cancelExecution(c: MutationContext, id: string) { return this.run(c.actor, async (tx: any) => { const r = await tx.getExecution(id); this.owner(c.actor, r?.actorId); return r ? tx.cancelExecution(id, c) : null; }); }
   resumeExecution(c: MutationContext, id: string) { return this.run(c.actor, async (tx: any) => { const r = await tx.getExecution(id); this.owner(c.actor, r?.actorId); return r ? tx.enqueueReconciliation({ executionId: id, jobId: randomUUID(), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }) : null; }); }
-  getInstallations(a: ActorContext) { return this.run(a, async (tx: any) => ({ installations: await tx.listInstallations(), permissions: uiPermissions(a) })); }
+  getInstallations(a: ActorContext) { return this.run(a, async (tx: any) => {
+    const permissions = uiPermissions(a);
+    const records = await tx.listInstallationDetails();
+    return { installations: records.map((record: any) => ({ id: record.id, artifactHash: record.artifactHash, recipeKey: record.recipeKey, displayName: record.displayName, version: record.version, state: record.status, policyVersion: record.policyVersion, evidenceStatus: record.evidenceStatus, permissions, installedAt: record.installedAt.toISOString(), ...(record.lastValidatedAt ? { lastValidatedAt: record.lastValidatedAt.toISOString() } : {}) })), permissions };
+  }); }
   async createInstallation(c: MutationContext, b: any) { if (!this.catalog) throw new ApiError(503, "AUTHORIZED_CATALOG_UNAVAILABLE", "Installation requires catalog authorization", true); const allowed = this.resourceIds[c.actor.tenantId] ?? { category: [], channel: [] }; return this.catalog.installAuthorized({ actor: catalogActor(c.actor), artifactHash: b.artifactHash, bindings: b.configuration, policyVersion: c.actor.policyVersion, idempotencyKey: c.idempotencyKey, adapter: { id: "medusa-v2", capabilityContract: "1", version: "2.22.1" }, approvedCapabilities: ["medusa.products.list","medusa.products.retrieve","medusa.product_categories.retrieve","medusa.sales_channels.retrieve","medusa.product_categories.products.add","medusa.sales_channels.products.add"], allowedResourceIds: { categoryId: allowed.category, channelId: allowed.channel } }); }
   disableInstallation(c: MutationContext, id: string) { return this.run(c.actor, (tx: any) => tx.disableInstallation(id, c)); }
   async createPublication(c: MutationContext, b: any) { if (!this.catalog || !this.publicationKeyId) throw new ApiError(503, "PUBLICATION_SIGNER_UNAVAILABLE", "Publication signer is not configured", true); const allowed = Object.keys(this.resourceIds).filter((tenantId) => tenantId !== c.actor.tenantId); const recipients: string[] = b.allowedTenantIds ?? allowed; if (recipients.some((id) => !allowed.includes(id)) || recipients.length < 1) throw forbidden(); return this.catalog.publishAuthorized({ actor: catalogActor(c.actor), sourceArtifactHash: b.artifactHash, visibility: b.visibility, allowedTenantIds: recipients, consent: true, keyId: this.publicationKeyId, idempotencyKey: c.idempotencyKey }); }
