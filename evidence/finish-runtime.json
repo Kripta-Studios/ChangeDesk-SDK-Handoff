@@ -15,6 +15,10 @@
     {
       "command": "vitest run apps/service/tests/runtime/runtime-completion.test.ts apps/service/tests/runtime/storage-adapter.test.ts --config vitest.config.ts",
       "result": "FAIL: partial-row replan recreated a confirmed step; mismatched verifier bindings were accepted; JSON-string plan body was not decoded"
+    },
+    {
+      "command": "vitest run apps/service/tests/runtime/runtime-completion.test.ts --config vitest.config.ts",
+      "result": "FAIL: verified plan evidence did not materialize separate generic artifact evidence, making proof-required publication impossible"
     }
   ],
   "green": [

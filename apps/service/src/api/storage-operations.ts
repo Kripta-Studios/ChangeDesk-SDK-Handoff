@@ -64,6 +64,7 @@ export class StorageApiOperations implements ApiOperations {
     const planId = randomUUID();
     const requestId = source.requestId ?? randomUUID();
     const evidenceId = this.proofRequired ? randomUUID() : undefined;
+    const artifactEvidenceId = this.proofRequired ? randomUUID() : undefined;
     if (this.proofRequired && (!this.lawVerifier || !this.proofEnvironmentDigest)) throw new ApiError(503, "PROOF_VERIFIER_UNAVAILABLE", "Required proof verifier is not configured", true);
     const compiled = compilePlan({ planId, tenantId: c.actor.tenantId, actorId: c.actor.actorId, requestId, artifactHash: source.artifact.artifactHash,
       adapterVersion: "medusa-2.22.1/changedesk-1", policyVersion: c.actor.policyVersion, capabilityManifestHash: source.manifest.manifestHash,
@@ -88,7 +89,10 @@ export class StorageApiOperations implements ApiOperations {
     }
     const { planHash, ...body } = compiled;
     return this.run(c.actor, async (tx: any) => {
-      if (proof) await tx.insertEvidence(proofEvidence(evidenceId!, source.artifact.artifactHash, recipe.recipeKey, planHash, c.actor.policyVersion, this.proofEnvironmentDigest!, proof, "passed"));
+      if (proof) {
+        await tx.insertEvidence(proofEvidence(evidenceId!, source.artifact.artifactHash, recipe.recipeKey, planHash, c.actor.policyVersion, this.proofEnvironmentDigest!, proof, "passed"));
+        await tx.insertEvidence(artifactProofEvidence(artifactEvidenceId!, source.artifact.artifactHash, recipe.recipeKey, c.actor.policyVersion, this.proofEnvironmentDigest!, proof));
+      }
       if (!source.requestId) await tx.createInstalledActionRequest({ id: requestId, actorId: c.actor.actorId, redactedText: "Installed action preview", contextRef: { source: "installed_action", installationId: source.installationId, selectedProductIds: b.selectedProductIds }, budget: {}, idempotencyKey: c.idempotencyKey, requestHash: c.requestHash });
       const plan = await tx.createPlan({ id: planId, requestId, ...(source.installationId ? { installationId: source.installationId } : {}), actorId: c.actor.actorId, artifactHash: source.artifact.artifactHash,
         adapterVersion: compiled.adapterVersion, policyVersion: compiled.policyVersion, capabilityManifestHash: compiled.capabilityManifestHash, body, planHash, planVersion: 1, state: "ready", expiresAt: new Date(compiled.expiresAt), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash });
@@ -196,5 +200,10 @@ function proofEvidence(id: string, artifactHash: string, recipeKey: string, plan
   return { id, artifactHash, environmentDigest, suiteVersion: proof.verifierVersion, status, privacyScope: "private" as const,
     artifactRefs: { bindingKind: "plan", artifactHash, recipeKey, planHash, policyVersion, scope: proof.scope,
       verifier: { version: proof.verifierVersion, binarySha256: proof.binarySha256, modelHash: proof.modelHash, lawsHash: proof.lawsHash, proofHash: proof.proofHash, toolchainHash: proof.toolchainHash, exitCode: proof.exitCode, reason: proof.reason } } };
+}
+function artifactProofEvidence(id: string, artifactHash: string, recipeKey: string, policyVersion: string, environmentDigest: string, proof: LawVerificationResult) {
+  return { id, artifactHash, environmentDigest, suiteVersion: proof.verifierVersion, status: "passed" as const, privacyScope: "generic" as const,
+    artifactRefs: { bindingKind: "artifact", artifactHash, recipeKey, policyVersion, scope: proof.scope,
+      verifier: { version: proof.verifierVersion, binarySha256: proof.binarySha256, modelHash: proof.modelHash, lawsHash: proof.lawsHash, proofHash: proof.proofHash, toolchainHash: proof.toolchainHash, exitCode: proof.exitCode } } };
 }
 function uiIdentity(actor: ActorContext) { const role = actor.roles.includes("admin") ? "admin" : actor.roles.includes("operator") ? "operator" : actor.roles.includes("requester") ? "requester" : "viewer"; return { tenantName: actor.tenantId, actorName: actor.actorId, role, scopeId: hashCanonical("ui-scope", "1", { tenantId: actor.tenantId, actorId: actor.actorId }) }; }

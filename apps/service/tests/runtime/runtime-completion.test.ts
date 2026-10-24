@@ -64,22 +64,29 @@ describe("runtime completion invariants", () => {
     const recipe = canonicalGenericRecipe("catalog.category.assign.v1");
     const insertEvidence = vi.fn();
     const createPlan = vi.fn(async (input) => ({ id: input.id, state: input.state }));
+    const publishAuthorized = vi.fn().mockResolvedValue({ publicationId: "publication" });
     const tx = {
       getActiveCapabilityManifest: vi.fn().mockResolvedValue({ manifestHash, body: { capabilityContract: "1", verifiedMedusaVersion: "2.22.1", capabilities: recipe.requiredCapabilities } }),
       getInstallationForPlan: vi.fn().mockResolvedValue({ installation: { id: "installation", status: "active" }, artifact: { artifactHash, canonicalBody: recipe } }),
       createInstalledActionRequest: vi.fn().mockResolvedValue({ id: "request" }), insertEvidence, createPlan, updateRequestState: vi.fn(),
+      hasApplicableArtifactEvidence: vi.fn(async () => insertEvidence.mock.calls.some(([input]) => input.artifactRefs.bindingKind === "artifact" && input.status === "passed")),
     };
     const store = { withTenant: vi.fn(async (_scope, work) => work(tx)) };
     const connector = { readAuthorized: vi.fn(async ({ args }) => "categoryId" in args ? { id: "category" } : { id: args.productId, status: "published", categories: [], sales_channels: [], protectedDigest: "c".repeat(64) }) };
     const verifier = { verify: vi.fn(async (request) => ({ status: "verified", scope: request.scope, verifierVersion: "2.0.39", binarySha256: "2ec160fa4486d33aff51e9eedcc294d6b531dc10c279c00b0c00685dae2045cd", modelHash: "ac9d10d08692f9259301edf9d897ddb782eb403b98f1fbeff13b9e987baa1596", lawsHash: "02584a23199db88ec67974a4e458a0e7f16f8ed9196b8c1ba5b0a08cfa6937ac", proofHash: "827e041bc627ff9db7416e9f7f25693e08a170c9d1146330a4c9221c40a344ae", toolchainHash: proofEnvironmentDigest, exitCode: 0, stdout: "ALL PROOFS CHECK", stderr: "", durationMs: 1, ...request })) };
-    const operations = new StorageApiOperations(store as any, connector as any, { atlas: { category: ["category"], channel: [] } }, undefined, undefined, undefined, true, "unavailable", verifier as any, proofEnvironmentDigest);
+    const operations = new StorageApiOperations(store as any, connector as any, { atlas: { category: ["category"], channel: [] }, boreal: { category: [], channel: [] } }, { publishAuthorized } as any, "key", undefined, true, "unavailable", verifier as any, proofEnvironmentDigest);
 
     await expect(operations.createPlan(context(), { installationId: "installation", selectedProductIds: ["pending"], parameters: { categoryId: "category" } })).resolves.toMatchObject({ status: "ready" });
-    const evidence = insertEvidence.mock.calls[0]![0];
+    const evidence = insertEvidence.mock.calls.find(([input]) => input.artifactRefs.bindingKind === "plan")![0];
+    const artifactEvidence = insertEvidence.mock.calls.find(([input]) => input.artifactRefs.bindingKind === "artifact")?.[0];
     const persistedPlan = createPlan.mock.calls[0]![0];
     expect(persistedPlan.body.evidenceRefs).toEqual([evidence.id]);
     expect(evidence).toMatchObject({ artifactHash, environmentDigest: proofEnvironmentDigest, status: "passed", artifactRefs: { bindingKind: "plan", artifactHash, planHash: persistedPlan.planHash, policyVersion: "p1", scope: "association-set-laws-v1", recipeKey: "catalog.category.assign.v1" } });
     expect(verifier.verify).toHaveBeenCalledWith(expect.objectContaining({ artifactHash, planHash: persistedPlan.planHash, policyVersion: "p1", scope: "association-set-laws-v1" }));
+    expect(artifactEvidence).toMatchObject({ artifactHash, environmentDigest: proofEnvironmentDigest, status: "passed", privacyScope: "generic", artifactRefs: { bindingKind: "artifact", artifactHash, policyVersion: "p1", scope: "association-set-laws-v1", recipeKey: "catalog.category.assign.v1" } });
+    expect(artifactEvidence.artifactRefs).not.toHaveProperty("planHash");
+    await expect(operations.createPublication(context(), { artifactHash, visibility: "shared_allowlist", allowedTenantIds: ["boreal"] })).resolves.toEqual({ publicationId: "publication" });
+    expect(publishAuthorized).toHaveBeenCalledOnce();
   });
 
   it("fails closed when proof policy is required but no reviewed verifier is configured", async () => {

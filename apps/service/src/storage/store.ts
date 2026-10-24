@@ -705,7 +705,7 @@ export class TenantTx {
     const result=await this.client.query(`SELECT 1 FROM storage.approvals a
       JOIN storage.plans p ON p.tenant_id=a.tenant_id AND p.id=a.plan_id AND p.plan_version=a.plan_version
       JOIN LATERAL jsonb_array_elements_text(COALESCE(p.body->'evidenceRefs','[]'::jsonb)) ref(id) ON true
-      JOIN storage.evidence_bundles eb ON eb.id=ref.id AND eb.owner_tenant_id=p.tenant_id
+      JOIN storage.evidence_bundles eb ON eb.id::text=ref.id AND eb.owner_tenant_id=p.tenant_id
       WHERE a.tenant_id=$1 AND a.id=$2 AND a.actor_id=$3 AND eb.status='passed' AND eb.environment_digest=$4
         AND eb.artifact_hash=p.artifact_hash AND eb.artifact_refs->>'bindingKind'='plan'
         AND eb.artifact_refs->>'artifactHash'=p.artifact_hash AND eb.artifact_refs->>'planHash'=p.plan_hash
