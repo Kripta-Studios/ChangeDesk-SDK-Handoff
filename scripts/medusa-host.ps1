@@ -18,7 +18,17 @@ function Ensure-Junction([string]$Path, [string]$Target) {
   }
 }
 $modules = Join-Path $hostRoot "node_modules"
-Ensure-Junction (Join-Path $modules "@medusajs") (Join-Path $root "packages/medusa-plugin/node_modules/@medusajs")
+New-Item -ItemType Directory -Force -Path (Join-Path $modules "@medusajs") | Out-Null
+$medusaLink = Get-Item -LiteralPath (Join-Path $root "packages/medusa-plugin/node_modules/@medusajs/medusa") -Force
+$medusaTarget = [IO.Path]::GetFullPath((Join-Path (Split-Path $medusaLink.FullName -Parent) ([string]$medusaLink.Target)))
+$medusaScope = Split-Path $medusaTarget -Parent
+foreach ($package in Get-ChildItem -LiteralPath $medusaScope -Directory) {
+  Ensure-Junction (Join-Path $modules "@medusajs/$($package.Name)") $package.FullName
+}
+foreach ($packageName in @("admin-sdk", "admin-shared", "cli", "test-utils")) {
+  Ensure-Junction (Join-Path $modules "@medusajs/$packageName") (Join-Path $root "packages/medusa-plugin/node_modules/@medusajs/$packageName")
+}
+Ensure-Junction (Join-Path $modules "@medusajs/dashboard") (Join-Path $root "node_modules/.pnpm/node_modules/@medusajs/dashboard")
 Ensure-Junction (Join-Path $modules "@changedesk/medusa-plugin") (Join-Path $root "packages/medusa-plugin")
 Ensure-Junction (Join-Path $modules "@swc/core") (Join-Path $root "packages/medusa-plugin/node_modules/@swc/core")
 Ensure-Junction (Join-Path $modules "@swc/jest") (Join-Path $root "node_modules/@swc/jest")

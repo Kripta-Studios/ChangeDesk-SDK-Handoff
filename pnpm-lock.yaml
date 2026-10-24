@@ -95,7 +95,19 @@ importers:
       canonicalize:
         specifier: 5.1.0
         version: 5.1.0
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-router-dom:
+        specifier: ^6.30.4 || ^7.0.0
+        version: 7.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
+      '@medusajs/admin-sdk':
+        specifier: 2.22.1
+        version: 2.22.1
+      '@medusajs/admin-shared':
+        specifier: 2.22.1
+        version: 2.22.1
       '@medusajs/cli':
         specifier: 2.22.1
         version: 2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
@@ -107,7 +119,7 @@ importers:
         version: 2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0)
       '@medusajs/medusa':
         specifier: 2.22.1
-        version: 2.22.1(c39f484b2280a7aec6d2efa8124dfae1)
+        version: 2.22.1(d389575a7817cb8a277685ea06256b0a)
       '@medusajs/test-utils':
         specifier: 2.22.1
         version: 2.22.1(@medusajs/core-flows@2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0)))(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))(@medusajs/medusa@2.22.1)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
@@ -123,15 +135,16 @@ importers:
 
   packages/sdk-react:
     dependencies:
-      '@changedesk/contracts':
-        specifier: workspace:*
-        version: link:../contracts
       react:
         specifier: '>=18.3.1 <19'
         version: 18.3.1
       react-dom:
         specifier: '>=18.3.1 <19'
         version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@changedesk/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
 packages:
 
@@ -1119,6 +1132,9 @@ packages:
   '@medusajs/admin-bundler@2.22.1':
     resolution: {integrity: sha512-hZsDuEZR/sAwtPe3I1OsSD670s+jl3yvkZTft4t3TYbaS1xER97G2dgJ7not3KK9tWLjPsY6f+f9w7U/isjmag==}
     engines: {node: '>=22.22.0'}
+
+  '@medusajs/admin-sdk@2.22.1':
+    resolution: {integrity: sha512-T7oV/JatLdTA9T35dqd8nGzXWou7xj90U5OgpkbdXf5lT42EgGqpMevglvPAGWtcTg7v6U2c3ubTXmkVzdhGZg==}
 
   '@medusajs/admin-shared@2.22.1':
     resolution: {integrity: sha512-qrs5frQNNWM2nTFnNg2YYgUkcvziyWzJWe8VOCxwMEbR5oTy9XEBc6pTmU3ErPSsrCqX176JsR0fPeDl5TrQ2A==}
@@ -7902,6 +7918,11 @@ snapshots:
       - yaml
       - yup
 
+  '@medusajs/admin-sdk@2.22.1':
+    dependencies:
+      '@medusajs/admin-shared': 2.22.1
+      zod: 4.2.0
+
   '@medusajs/admin-shared@2.22.1': {}
 
   '@medusajs/admin-vite-plugin@2.22.1(picomatch@4.0.7)(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))':
@@ -8156,7 +8177,7 @@ snapshots:
       - supports-color
       - tedious
 
-  '@medusajs/draft-order@2.22.1(981874b4d16e89c5744988550514cc11)':
+  '@medusajs/draft-order@2.22.1(07b4198126da0a241a3d58e5b61ac676)':
     dependencies:
       '@ariakit/react': 0.4.42(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@babel/runtime': 7.29.10
@@ -8173,6 +8194,7 @@ snapshots:
       react-hook-form: 7.83.0(react@18.3.1)
       zod: 4.2.0
     optionalDependencies:
+      '@medusajs/admin-sdk': 2.22.1
       '@medusajs/cli': 2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
       '@medusajs/dashboard': 2.22.1(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(ajv@8.13.0)(typescript@5.9.3)
       '@medusajs/icons': 2.22.1(react@18.3.1)
@@ -8327,7 +8349,7 @@ snapshots:
     dependencies:
       '@medusajs/framework': 2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0)
 
-  '@medusajs/medusa@2.22.1(c39f484b2280a7aec6d2efa8124dfae1)':
+  '@medusajs/medusa@2.22.1(d389575a7817cb8a277685ea06256b0a)':
     dependencies:
       '@inquirer/checkbox': 2.5.0
       '@inquirer/confirm': 2.0.17
@@ -8350,7 +8372,7 @@ snapshots:
       '@medusajs/core-flows': 2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))
       '@medusajs/currency': 2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))
       '@medusajs/customer': 2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))
-      '@medusajs/draft-order': 2.22.1(981874b4d16e89c5744988550514cc11)
+      '@medusajs/draft-order': 2.22.1(07b4198126da0a241a3d58e5b61ac676)
       '@medusajs/event-bus-local': 2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))
       '@medusajs/event-bus-redis': 2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))(supports-color@8.1.1)
       '@medusajs/file': 2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))
@@ -8619,7 +8641,7 @@ snapshots:
       ulid: 2.4.0
     optionalDependencies:
       '@medusajs/core-flows': 2.22.1(@medusajs/framework@2.22.1(@medusajs/cli@2.22.1(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@22.19.0)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@22.19.0)(jiti@1.21.7)(yaml@2.9.1))(zod@4.2.0))
-      '@medusajs/medusa': 2.22.1(c39f484b2280a7aec6d2efa8124dfae1)
+      '@medusajs/medusa': 2.22.1(d389575a7817cb8a277685ea06256b0a)
     transitivePeerDependencies:
       - debug
       - supports-color

@@ -14,6 +14,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@medusajs/admin-bundler@2.22.1'
+  - '@medusajs/admin-sdk@2.22.1'
   - '@medusajs/admin-shared@2.22.1'
   - '@medusajs/admin-vite-plugin@2.22.1'
   - '@medusajs/analytics-local@2.22.1'
