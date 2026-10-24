@@ -1,7 +1,9 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const liveLane = process.env.CHANGEDESK_VITEST_LIVE_LANE;
+const requireFromService = createRequire(new URL("./apps/service/package.json", import.meta.url));
 
 export default defineConfig({
   resolve: {
@@ -13,6 +15,10 @@ export default defineConfig({
       {
         find: "@changedesk/contracts",
         replacement: fileURLToPath(new URL("./packages/contracts/src/index.ts", import.meta.url))
+      },
+      {
+        find: /^fastify$/,
+        replacement: requireFromService.resolve("fastify")
       }
     ]
   },
