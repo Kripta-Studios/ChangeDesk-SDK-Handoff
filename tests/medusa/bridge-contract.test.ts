@@ -4,7 +4,7 @@ import { signEnvelope, sha256Json, verifyEnvelope } from "../../packages/medusa-
 import { BridgeError } from "../../packages/medusa-plugin/src/bridge/errors.ts"
 import { authorizeDelegation, buildBootstrapClaims, parseCommand, parseDelegationClaims } from "../../packages/medusa-plugin/src/bridge/validation.ts"
 import type { ActorPolicy, EffectDelegationClaims, ReadDelegationClaims } from "../../packages/medusa-plugin/src/bridge/types.ts"
-import { protectedProductFingerprint } from "../../packages/medusa-plugin/src/bridge/protected-state.ts"
+import { productStepPreconditionFingerprint, protectedProductFingerprint, stepPreconditionFingerprint } from "../../packages/medusa-plugin/src/bridge/protected-state.ts"
 import { buildAuthorityCheckInput } from "../../packages/medusa-plugin/src/bridge/authority.ts"
 
 const { privateKey, publicKey } = generateKeyPairSync("ed25519")
@@ -25,7 +25,7 @@ it("argsHash matches the ADR006 NUL-framed JCS vector", () => {
   ).toBe("52578f36f4e7ab3083bd06158123a9ca0d467bab028d3ff635ceac81dc2c1366")
 })
 
-it("protected fingerprint ignores associations but detects status and price changes", () => {
+it("step fingerprint predicts own deltas and detects unrelated protected changes", () => {
   const product = {
     id: "prod_1", title: "Desk", handle: "desk", description: "Preserve this", status: "published",
     metadata: { changedesk_locked: false }, tags: [{ id: "tag_b" }, { id: "tag_a" }],
@@ -35,6 +35,22 @@ it("protected fingerprint ignores associations but detects status and price chan
   expect(protectedProductFingerprint({ ...product, categories: [{ id: "pcat_new" }], sales_channels: [{ id: "sc_new" }] } as typeof product)).toBe(baseline)
   expect(protectedProductFingerprint({ ...product, status: "draft" })).not.toBe(baseline)
   expect(protectedProductFingerprint({ ...product, variants: [{ ...product.variants[0], prices: [{ id: "price_1", amount: 2000, currency_code: "eur" }] }] })).not.toBe(baseline)
+  const current = { ...product, categories: [{ id: "pcat_base" }], sales_channels: [{ id: "sc_base" }] }
+  const currentStep = productStepPreconditionFingerprint(current)
+  expect(productStepPreconditionFingerprint({ ...current, categories: [...current.categories, { id: "pcat_campaign" }] })).not.toBe(currentStep)
+  expect(stepPreconditionFingerprint({
+    protectedDigest: baseline,
+    categoryIds: ["pcat_campaign", "pcat_base"],
+    channelIds: ["sc_base"],
+  })).toBe(productStepPreconditionFingerprint({ ...current, categories: [...current.categories, { id: "pcat_campaign" }] }))
+})
+
+it("step fingerprint matches the ADR009 cross-boundary vector", () => {
+  expect(stepPreconditionFingerprint({
+    protectedDigest: "a".repeat(64),
+    categoryIds: ["pcat_b", "pcat_a"],
+    channelIds: ["sc_1"],
+  })).toBe("4e805931337f3672307b7632110716217dae20045813116311c0ffb5289b1b1e")
 })
 
 const readClaims = (capability: ReadDelegationClaims["capability"], args: object): ReadDelegationClaims => ({
