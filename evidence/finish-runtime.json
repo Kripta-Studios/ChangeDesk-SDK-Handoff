@@ -19,12 +19,16 @@
     {
       "command": "vitest run apps/service/tests/runtime/runtime-completion.test.ts --config vitest.config.ts",
       "result": "FAIL: verified plan evidence did not materialize separate generic artifact evidence, making proof-required publication impossible"
+    },
+    {
+      "command": "fresh PostgreSQL recovery vertical",
+      "result": "FAIL: capacity_leases_scope_type_scope_id_job_id_key duplicate when a recovered job was reclaimed; recovery removed leases by independent timestamp instead of recovered job identity"
     }
   ],
   "green": [
     {
       "command": "vitest run apps/service/tests/runtime --config vitest.config.ts",
-      "result": "PASS 40 tests in 11 files"
+      "result": "PASS 41 tests in 11 files"
     },
     {
       "command": "tsc -p apps/service/tsconfig.json --noEmit --pretty false",
