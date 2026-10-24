@@ -84,8 +84,10 @@ describe("storefront administrator review UI", () => {
     const adminClient: StorefrontAdminClient = { listProposals: vi.fn(async () => ({ proposals: [{ proposalId: "p1", proposalRevision: 1, current: preferences.effective, proposed: { theme: "dark", density: "compact", productLayout: "list" }, globalRevision: 0, precedenceNotice: "Los overrides personales se conservan.", status: "pending" }] })), getProposal: vi.fn(), approveProposal: vi.fn(async () => { throw Object.assign(new Error("stale"), { status: 409 }); }), rejectProposal: vi.fn(), clearSession: vi.fn() };
     render(<StorefrontAdminPanel client={adminClient} />);
     expect(await screen.findByText(/overrides personales se conservan/i)).toBeTruthy();
-    expect(screen.getByText(/system/i)).toBeTruthy();
-    expect(screen.getByText(/dark/i)).toBeTruthy();
+    expect(screen.getByText("Sistema")).toBeTruthy();
+    expect(screen.getByText("Oscuro")).toBeTruthy();
+    expect(screen.getByText("Pendiente")).toBeTruthy();
+    expect(screen.getByText(/Versión global 0/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Aprobar cambio global" }));
     expect((await screen.findByRole("alert")).textContent).toMatch(/ha cambiado.*revisar/i);
     expect(screen.queryByText(/aplicado correctamente/i)).toBeNull();

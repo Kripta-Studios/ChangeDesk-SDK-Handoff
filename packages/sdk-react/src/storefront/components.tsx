@@ -68,6 +68,8 @@ export function StorefrontPreferencesPanel() {
 }
 
 const valueLabels = { theme: "Tema", density: "Densidad", productLayout: "Productos" } as const;
+const enumLabels: Record<string, string> = { light: "Claro", dark: "Oscuro", system: "Sistema", comfortable: "Cómoda", compact: "Compacta", grid: "Cuadrícula", list: "Lista" };
+const statusLabels: Record<StorefrontAdminProposalPreview["status"], string> = { pending: "Pendiente", approved: "Aprobada", rejected: "Rechazada" };
 function ProposalCard({ proposal, client, onUpdate }: { proposal: StorefrontAdminProposalPreview; client: StorefrontAdminClient; onUpdate(next: StorefrontAdminProposalPreview, message: string): void }) {
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState("");
@@ -82,8 +84,8 @@ function ProposalCard({ proposal, client, onUpdate }: { proposal: StorefrontAdmi
     finally { setBusy(null); }
   };
   return <article className="changedesk-storefront-proposal">
-    <header><div><span className="changedesk-storefront-status-chip">{proposal.status}</span><h3>Propuesta {proposal.proposalId}</h3></div><span>global rev. {proposal.globalRevision}</span></header>
-    <dl className="changedesk-storefront-diff">{(Object.keys(valueLabels) as Array<keyof typeof valueLabels>).map((field) => <div key={field}><dt>{valueLabels[field]}</dt><dd><span>{proposal.current[field]}</span><b aria-hidden="true">→</b><strong>{proposal.proposed[field]}</strong></dd></div>)}</dl>
+    <header><div><span className="changedesk-storefront-status-chip">{statusLabels[proposal.status]}</span><h3>Propuesta {proposal.proposalId}</h3></div><span>Versión global {proposal.globalRevision}</span></header>
+    <dl className="changedesk-storefront-diff">{(Object.keys(valueLabels) as Array<keyof typeof valueLabels>).map((field) => <div key={field}><dt>{valueLabels[field]}</dt><dd><span>{enumLabels[proposal.current[field]]}</span><b aria-hidden="true">→</b><strong>{enumLabels[proposal.proposed[field]]}</strong></dd></div>)}</dl>
     <p className="changedesk-storefront-notice">{proposal.precedenceNotice}</p>
     {proposal.status === "pending" ? <div className="changedesk-storefront-actions"><button className="changedesk-storefront-button changedesk-storefront-button--primary" type="button" disabled={busy !== null} onClick={() => void decide("approve")}>{busy === "approve" ? "Aprobando…" : "Aprobar cambio global"}</button><button className="changedesk-storefront-button" type="button" disabled={busy !== null} onClick={() => void decide("reject")}>{busy === "reject" ? "Rechazando…" : "Rechazar propuesta"}</button></div> : null}
     {error ? <p className="changedesk-storefront-error" role="alert">{error}</p> : null}
