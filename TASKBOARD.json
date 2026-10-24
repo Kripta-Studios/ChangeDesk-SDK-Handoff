@@ -175,8 +175,12 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/security",
-      "evidence": [],
-      "blocker": null,
+      "evidence": [
+        "evidence/security-attack-coverage.json",
+        "evidence/evaluation-runtime-blocker.json",
+        "evidence/holdout-manifest.json"
+      ],
+      "blocker": "Independent evaluation agent runtime filter rejected both continuation and narrowed defensive follow-up; remaining adversarial live evaluation BLOCKED. Completed tests retain scoped evidence.",
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
     },
@@ -223,8 +227,8 @@
         "T09",
         "T11"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/core",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
