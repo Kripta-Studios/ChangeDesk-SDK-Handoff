@@ -28,6 +28,7 @@
     "@medusajs/medusa": "2.22.1"
   },
   "dependencies": {
+    "@changedesk/react": "workspace:*",
     "canonicalize": "5.1.0"
   },
   "devDependencies": {
