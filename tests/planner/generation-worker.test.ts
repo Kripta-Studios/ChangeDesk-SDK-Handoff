@@ -6,7 +6,7 @@ import { canonicalGenericRecipe } from "../../apps/service/src/planner/publicati
 
 const lease:GenerationLease={jobId:"job-1",tenantId:"atlas",actorId:"atlas.requester",backendKey:"atlas",kind:"generation",requestId:"request-1",leaseOwner:"worker-1",fence:1,leaseUntil:new Date(Date.now()+60_000).toISOString(),attemptCount:1};
 const capabilities=canonicalGenericRecipe("catalog.category.assign.v1").requiredCapabilities;
-function bundle(role:"viewer"|"requester"="requester"){return{request:{id:"request-1",actorId:"atlas.requester",redactedText:"Assign selected products to a category",contextRef:{selectedProductIds:["product-1"],locale:"en"}},actor:{role,enabled:true},tenant:{policyVersion:"policy-1"},capabilityManifest:{adapterVersion:"2.22.1",body:{capabilities}}};}
+function bundle(role:"viewer"|"requester"="requester"){return{request:{id:"request-1",actorId:"atlas.requester",redactedText:"Assign selected products to a category",contextRef:{selectedProductIds:["product-1"],locale:"en"}},actor:{role,enabled:true},tenant:{policyVersion:"policy-1"},capabilityManifest:{adapterVersion:"medusa-v2",body:{capabilities,capabilityContract:"1",verifiedMedusaVersion:"2.22.1"}}};}
 function fixture(options:{reused?:readonly Candidate[];role?:"viewer"|"requester"}={}){
   let persisted:any=null,state:string|null=null,plannerCalls=0;
   const tx={async loadGenerationBundle(){return bundle(options.role);},async addRequestCandidates(_l:any,_r:any,c:any){persisted=c;return true;},async persistGeneratedCandidate(_l:any,input:any){persisted=input;return true;},async updateRequestWithLease(_l:any,_r:any,next:string){state=next;return true;}};
