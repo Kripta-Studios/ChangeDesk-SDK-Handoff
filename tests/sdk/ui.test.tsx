@@ -9,7 +9,7 @@ import { ChangeDeskProvider } from "../../packages/sdk-react/src/provider.js";
 import type { ChangeDeskClient } from "../../packages/sdk-react/src/client.js";
 
 const client = (overrides: Partial<ChangeDeskClient> = {}) => ({
-  createRequest: vi.fn(), getRequest: vi.fn(), sendMessage: vi.fn(), selectCandidate: vi.fn(), createPlan: vi.fn(), getPlan: vi.fn(), approvePlan: vi.fn(), startExecution: vi.fn(), getExecution: vi.fn(), cancelExecution: vi.fn(), resumeExecution: vi.fn(), getInstallations: vi.fn().mockResolvedValue({ installations: [], permissions: ["read", "request", "preview"] }), getResources: vi.fn(), installAction: vi.fn(), publishAction: vi.fn(), revokePublication: vi.fn(), getEvidence: vi.fn(), clearSession: vi.fn(), ...overrides,
+  createRequest: vi.fn(), getRequest: vi.fn(), sendMessage: vi.fn(), selectCandidate: vi.fn(), createPlan: vi.fn(), getPlan: vi.fn(), approvePlan: vi.fn(), startExecution: vi.fn(), getExecution: vi.fn(), cancelExecution: vi.fn(), resumeExecution: vi.fn(), getInstallations: vi.fn().mockResolvedValue({ installations: [], permissions: ["read", "request", "preview"], identity: { tenantName: "tenant_1", actorName: "actor_1", role: "requester", scopeId: "scope_1" } }), getResources: vi.fn(), installAction: vi.fn(), publishAction: vi.fn(), revokePublication: vi.fn(), getEvidence: vi.fn(), clearSession: vi.fn(), ...overrides,
 }) as ChangeDeskClient;
 
 const renderInternal = (api: ChangeDeskClient) => render(
@@ -110,6 +110,20 @@ describe("ChangeDeskPanel", () => {
     await screen.findByText("Lista");
     expect(api.getRequest).toHaveBeenCalledTimes(2);
     expect(api.createRequest).toHaveBeenCalledOnce();
+  });
+
+  it("drops durable identifiers before a different actor scope can fetch them", async () => {
+    sessionStorage.setItem("changedesk:resume:https://desk.example.test:active", "scope_old");
+    sessionStorage.setItem("changedesk:resume:https://desk.example.test:scope_old", JSON.stringify({ planId: "plan_private" }));
+    const api = client({
+      getInstallations: vi.fn().mockResolvedValue({ installations: [], permissions: ["read"], identity: { tenantName: "tenant_1", actorName: "actor_2", role: "admin", scopeId: "scope_new" } }),
+      getPlan: vi.fn(),
+    });
+    renderInternal(api);
+    await screen.findByText(/actor_2/);
+    expect(api.getPlan).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("changedesk:resume:https://desk.example.test:scope_old")).toBeNull();
+    expect(sessionStorage.getItem("changedesk:resume:https://desk.example.test:active")).toBe("scope_new");
   });
 
   it("uses the English message catalog when locale is en", () => {
