@@ -19,7 +19,7 @@
     "buyer quota 5 and tenant quota 100 through non-row-leaking counters"
     ,"durable buyer ticket replay ledger is separate from staff actors, with first-use success and same-tenant jti replay rejection"
   ],
-  "migrationStack": ["001_initial_storage.sql", "002_rls_and_privileges.sql", "003_scheduler.sql", "004_scheduler_rls.sql", "005_worker_fencing.sql", "010_storefront_v1.sql"],
+  "migrationStack": ["001_initial_storage.sql", "002_rls_and_privileges.sql", "003_scheduler.sql", "004_scheduler_rls.sql", "005_worker_fencing.sql", "1000_storefront_v1.sql"],
   "independentRerun": "Coordinator reran the exact documented command under Windows PowerShell 5.1: 5/5 passed, Vitest 8.40s, and scoped DROP DATABASE/DROP ROLE both completed with exit 0.",
   "setupNote": "Earlier invocations first found no tests due to selection configuration and later exposed a PowerShell 5.1 docker-inspect quoting issue. Both were setup failures, not RED security behavior. The runner now uses the repository's single vitest.config.ts and JSON label inspection compatible with PowerShell 5.1.",
   "limits": "This gate does not verify Medusa customer authentication or a real browser."

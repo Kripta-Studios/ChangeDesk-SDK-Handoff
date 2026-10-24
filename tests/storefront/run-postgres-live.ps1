@@ -30,8 +30,8 @@ try {
   Invoke-BootstrapSql "postgres" "CREATE DATABASE `"$database`" OWNER changedesk_bootstrap;"
   $databaseCreated = $true
   $migrationRoot = Join-Path $PSScriptRoot "..\..\apps\service\migrations"
-  $migrationFiles = Get-ChildItem -LiteralPath $migrationRoot -Filter '*.sql' | Where-Object { $_.Name -match '^(00[1-5]|010)_' } | Sort-Object Name
-  if (($migrationFiles.Name -join ',') -ne '001_initial_storage.sql,002_rls_and_privileges.sql,003_scheduler.sql,004_scheduler_rls.sql,005_worker_fencing.sql,010_storefront_v1.sql') { throw "Unexpected migration stack" }
+  $migrationFiles = Get-ChildItem -LiteralPath $migrationRoot -Filter '*.sql' | Where-Object { $_.Name -match '^(00[1-5]|1000)_' } | Sort-Object { [int]($_.Name -replace '^([0-9]+).*','$1') }
+  if (($migrationFiles.Name -join ',') -ne '001_initial_storage.sql,002_rls_and_privileges.sql,003_scheduler.sql,004_scheduler_rls.sql,005_worker_fencing.sql,1000_storefront_v1.sql') { throw "Unexpected migration stack" }
   foreach ($migration in $migrationFiles) {
     Get-Content -LiteralPath $migration.FullName -Raw | & docker exec -i $container psql -X -v ON_ERROR_STOP=1 -U changedesk_bootstrap -d $database
     if ($LASTEXITCODE -ne 0) { throw "Migration stack failed at $($migration.Name)" }

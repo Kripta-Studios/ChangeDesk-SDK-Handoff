@@ -1,4 +1,4 @@
--- Buyer storefront preferences and reviewed global configuration.
+-- Migration 1000: buyer storefront preferences and reviewed global configuration.
 -- Requires storage schema/functions/roles from migrations 001/002.
 
 CREATE FUNCTION storage.storefront_current_buyer_id() RETURNS text
