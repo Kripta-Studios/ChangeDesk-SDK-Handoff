@@ -29,6 +29,7 @@ export interface BuyerContext {
 
 export interface StorefrontPreferencesResponse {
   readonly overrides: StorefrontOverrides;
+  readonly inherited: StorefrontValues;
   readonly effective: StorefrontValues;
   readonly buyerRevision: number;
   readonly globalRevision: number;
