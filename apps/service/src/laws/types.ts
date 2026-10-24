@@ -21,6 +21,8 @@ export interface LawVerificationResult {
   readonly binarySha256: string;
   readonly modelHash?: string;
   readonly lawsHash?: string;
+  readonly proofHash?: string;
+  readonly toolchainHash?: string;
   readonly exitCode: number | null;
   readonly stdout: string;
   readonly stderr: string;

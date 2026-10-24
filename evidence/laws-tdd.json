@@ -41,7 +41,7 @@
   "kernelGate": {
     "status": "blocked",
     "reason": "Bend --verdict requires the Lean 4.34.0 BendTT kernel; workspace provisioning is in progress. Non-kernel output is not counted as verified.",
-    "exactPendingStep": "Run tests/laws/bend.integration.test.ts with CHANGEDESK_BENDTT_LINUX pointing to the built v2.0.39 BendTT kernel; production law must return verified and false-law fixture must return failed."
+    "exactPendingStep": "Run the explicit tests/laws/bend.live.test.ts lane with CHANGEDESK_BEND_BINARY_WINDOWS, CHANGEDESK_BEND_BINARY_LINUX and CHANGEDESK_BENDTT_LINUX; production law must return verified and false-law fixture must return failed. The default unit lane excludes this live file and tests unavailable as unavailable, never as proof success."
   },
   "boundary": "The four laws prove only the reviewed pure boolean association model. Adapter correspondence and external Medusa effects require separate integration evidence.",
   "challengedHypothesis": "Bend exit code zero and ALL PROOFS CHECK from the ordinary checker are insufficient. Historical unsafe-proof behavior and v2.0.39 requirements make --verdict plus the BendTT kernel mandatory."
