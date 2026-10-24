@@ -15,11 +15,14 @@
     "durationMs": 948.8196,
     "scope": "Bridge behavior before replacing the local canonicalizer with canonicalize@5.1.0; not final ADR006 evidence"
   },
+  "finalAdr006Green": {
+    "command": "Node 22.23.4 path + Vitest 4.0.16 run tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts",
+    "exitCode": 0,
+    "tests": {"files":2,"pass":9,"fail":0},
+    "durationMs": 7600,
+    "reportedBy": "root coordinator after central dependency install"
+  },
   "notRun": [
-    {
-      "gate": "final_bridge_unit_after_adr006",
-      "reason": "canonicalize@5.1.0 is declared and source-verified but not installed in this worktree; lockfile/install ownership belongs to the environment agent. TypeScript syntax check passed."
-    },
     {
       "gate": "official_medusa_integration_runner",
       "reason": "Node is 25.8.1 instead of pinned Node 22 LTS, Docker/PostgreSQL engine is unavailable, and the environment owner has not installed the pinned dependency graph."
