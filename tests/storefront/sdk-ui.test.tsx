@@ -14,6 +14,10 @@ function withInvalidation(client: Omit<StorefrontClient, "subscribeSessionInvali
   return { ...client, clearSession, subscribeSessionInvalidation(listener) { listeners.add(listener); return () => listeners.delete(listener); } };
 }
 const buyerClient: StorefrontClient = withInvalidation({ getPreferences: vi.fn(async () => preferences), replacePreferences: vi.fn(async (input) => ({ ...preferences, overrides: input.overrides, buyerRevision: 1 })), createGlobalProposal: vi.fn(async (input) => ({ id: "p1", ...input, status: "pending", proposalRevision: 1, createdAt: "2026-10-24T12:00:00.000Z" })), getOwnProposal: vi.fn(), clearSession: vi.fn() });
+function withAdminInvalidation(client: Omit<StorefrontAdminClient, "subscribeSessionInvalidation">): StorefrontAdminClient {
+  const listeners = new Set<() => void>();
+  return { ...client, clearSession() { client.clearSession(); for (const listener of listeners) listener(); }, subscribeSessionInvalidation(listener) { listeners.add(listener); return () => listeners.delete(listener); } };
+}
 afterEach(() => cleanup());
 
 describe("storefront buyer UI", () => {
@@ -81,7 +85,7 @@ describe("storefront buyer UI", () => {
 
 describe("storefront administrator review UI", () => {
   it("shows preview and precedence notice, then exposes stale 409 without claiming apply", async () => {
-    const adminClient: StorefrontAdminClient = { listProposals: vi.fn(async () => ({ proposals: [{ proposalId: "p1", proposalRevision: 1, current: preferences.effective, proposed: { theme: "dark", density: "compact", productLayout: "list" }, globalRevision: 0, precedenceNotice: "Los overrides personales se conservan.", status: "pending" }] })), getProposal: vi.fn(), approveProposal: vi.fn(async () => { throw Object.assign(new Error("stale"), { status: 409 }); }), rejectProposal: vi.fn(), clearSession: vi.fn() };
+    const adminClient = withAdminInvalidation({ listProposals: vi.fn(async () => ({ proposals: [{ proposalId: "p1", proposalRevision: 1, current: preferences.effective, proposed: { theme: "dark", density: "compact", productLayout: "list" }, globalRevision: 0, precedenceNotice: "Los overrides personales se conservan.", status: "pending" }] })), getProposal: vi.fn(), approveProposal: vi.fn(async () => { throw Object.assign(new Error("stale"), { status: 409 }); }), rejectProposal: vi.fn(), clearSession: vi.fn() });
     render(<StorefrontAdminPanel client={adminClient} />);
     expect(await screen.findByText(/overrides personales se conservan/i)).toBeTruthy();
     expect(screen.getByText("Sistema")).toBeTruthy();
@@ -95,12 +99,33 @@ describe("storefront administrator review UI", () => {
 
   it("requires an explicit reject action and reports it without claiming a global apply", async () => {
     const preview = { proposalId: "p1", proposalRevision: 1, current: preferences.effective, proposed: { theme: "dark" as const, density: "compact" as const, productLayout: "list" as const }, globalRevision: 0, precedenceNotice: "Los overrides personales se conservan.", status: "pending" as const };
-    const adminClient: StorefrontAdminClient = { listProposals: vi.fn(async () => ({ proposals: [preview] })), getProposal: vi.fn(), approveProposal: vi.fn(), rejectProposal: vi.fn(async () => ({ ...preview, proposalRevision: 2, status: "rejected" })), clearSession: vi.fn() };
+    const adminClient = withAdminInvalidation({ listProposals: vi.fn(async () => ({ proposals: [preview] })), getProposal: vi.fn(), approveProposal: vi.fn(), rejectProposal: vi.fn(async () => ({ ...preview, proposalRevision: 2, status: "rejected" })), clearSession: vi.fn() });
     const user = userEvent.setup();
     render(<StorefrontAdminPanel client={adminClient} />);
     await user.click(await screen.findByRole("button", { name: "Rechazar propuesta" }));
     expect(adminClient.rejectProposal).toHaveBeenCalledWith("p1", 1, expect.anything());
     expect(await screen.findByText(/propuesta rechazada/i)).toBeTruthy();
     expect(screen.queryByText(/aplicado correctamente/i)).toBeNull();
+  });
+
+  it("removes resolved tenant proposals immediately when the same admin client is cleared", async () => {
+    const preview = { proposalId: "atlas-proposal", proposalRevision: 1, current: preferences.effective, proposed: { theme: "dark" as const, density: "compact" as const, productLayout: "list" as const }, globalRevision: 0, precedenceNotice: "Los overrides personales se conservan.", status: "pending" as const };
+    const client = withAdminInvalidation({ listProposals: vi.fn(async () => ({ proposals: [preview] })), getProposal: vi.fn(), approveProposal: vi.fn(), rejectProposal: vi.fn(), clearSession: vi.fn() });
+    render(<StorefrontAdminPanel client={client} />);
+    expect(await screen.findByText("Propuesta atlas-proposal")).toBeTruthy();
+    client.clearSession();
+    await waitFor(() => expect(screen.queryByText("Propuesta atlas-proposal")).toBeNull());
+    expect(screen.getByText(/sesión.*invalidada/i)).toBeTruthy();
+  });
+
+  it("does not repopulate proposals from a late list response after same-client clearSession", async () => {
+    let finish!: (value: { proposals: readonly [{ proposalId: string; proposalRevision: number; current: typeof preferences.effective; proposed: typeof preferences.effective; globalRevision: number; precedenceNotice: string; status: "pending" }] }) => void;
+    const client = withAdminInvalidation({ listProposals: vi.fn(() => new Promise((resolve) => { finish = resolve; })), getProposal: vi.fn(), approveProposal: vi.fn(), rejectProposal: vi.fn(), clearSession: vi.fn() });
+    render(<StorefrontAdminPanel client={client} />);
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    client.clearSession();
+    finish({ proposals: [{ proposalId: "atlas-late", proposalRevision: 1, current: preferences.effective, proposed: preferences.effective, globalRevision: 0, precedenceNotice: "No debe aparecer", status: "pending" }] });
+    await waitFor(() => expect(screen.getByText(/sesión.*invalidada/i)).toBeTruthy());
+    expect(screen.queryByText("Propuesta atlas-late")).toBeNull();
   });
 });

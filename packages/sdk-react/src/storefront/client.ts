@@ -24,6 +24,7 @@ export interface StorefrontAdminClient {
   getProposal(id: string, signal?: AbortSignal): Promise<StorefrontAdminProposalPreview>;
   approveProposal(id: string, expectedProposalRevision: number, expectedGlobalRevision: number, signal?: AbortSignal): Promise<StorefrontAdminProposalPreview>;
   rejectProposal(id: string, expectedProposalRevision: number, signal?: AbortSignal): Promise<StorefrontAdminProposalPreview>;
+  subscribeSessionInvalidation(listener: () => void): () => void;
   clearSession(): void;
 }
 
@@ -207,6 +208,7 @@ export function createStorefrontAdminClient(options: StorefrontClientOptions): S
     getProposal: (id, signal) => transport.get(`${base}/${encodeURIComponent(id)}`, parseAdminPreview, signal),
     approveProposal: (id, expectedProposalRevision, expectedGlobalRevision, signal) => transport.mutate("POST", `${base}/${encodeURIComponent(id)}/approve`, { expectedProposalRevision, expectedGlobalRevision }, parseAdminPreview, signal),
     rejectProposal: (id, expectedProposalRevision, signal) => transport.mutate("POST", `${base}/${encodeURIComponent(id)}/reject`, { expectedProposalRevision }, parseAdminPreview, signal),
+    subscribeSessionInvalidation: transport.subscribeSessionInvalidation,
     clearSession: transport.clearSession,
   };
 }

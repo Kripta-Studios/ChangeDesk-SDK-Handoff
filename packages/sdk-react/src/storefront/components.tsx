@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { StorefrontAdminProposalPreview, StorefrontOverrides } from "@changedesk/contracts";
 import { StorefrontApiError, type StorefrontAdminClient } from "./client.js";
 import { useStorefront } from "./provider.js";
@@ -92,16 +92,34 @@ function ProposalCard({ proposal, client, onUpdate }: { proposal: StorefrontAdmi
   </article>;
 }
 
-export function StorefrontAdminPanel({ client }: { client: StorefrontAdminClient }) {
+export function StorefrontAdminPanel({ client, sessionKey = "default" }: { client: StorefrontAdminClient; sessionKey?: string | number }) {
   const [proposals, setProposals] = useState<readonly StorefrontAdminProposalPreview[]>([]);
   const [status, setStatus] = useState("Cargando propuestas…");
   const [error, setError] = useState("");
+  const sessionEpoch = useRef(0);
   useEffect(() => {
     const controller = new AbortController();
-    client.listProposals(controller.signal).then(({ proposals: items }) => { setProposals(items); setStatus(items.length ? "" : "No hay propuestas pendientes."); }, (cause) => { if ((cause as { name?: string }).name !== "AbortError") { setError(errorMessage(cause)); setStatus(""); } });
-    return () => controller.abort();
-  }, [client]);
-  const update = (next: StorefrontAdminProposalPreview, message: string) => { setProposals((items) => items.map((item) => item.proposalId === next.proposalId ? next : item)); setStatus(message); };
+    const expectedEpoch = ++sessionEpoch.current;
+    setProposals([]); setStatus("Cargando propuestas…"); setError("");
+    const unsubscribe = client.subscribeSessionInvalidation(() => {
+      sessionEpoch.current += 1;
+      controller.abort();
+      setProposals([]); setError(""); setStatus("Sesión administrativa invalidada. Vuelve a validar la sesión para revisar propuestas.");
+    });
+    client.listProposals(controller.signal).then(({ proposals: items }) => {
+      if (controller.signal.aborted || expectedEpoch !== sessionEpoch.current) return;
+      setProposals(items); setStatus(items.length ? "" : "No hay propuestas pendientes.");
+    }, (cause) => {
+      if (controller.signal.aborted || expectedEpoch !== sessionEpoch.current || (cause as { name?: string }).name === "AbortError") return;
+      setError(errorMessage(cause)); setStatus("");
+    });
+    return () => { unsubscribe(); controller.abort(); if (sessionEpoch.current === expectedEpoch) sessionEpoch.current += 1; };
+  }, [client, sessionKey]);
+  const renderEpoch = sessionEpoch.current;
+  const update = (next: StorefrontAdminProposalPreview, message: string) => {
+    if (renderEpoch !== sessionEpoch.current) return;
+    setProposals((items) => items.map((item) => item.proposalId === next.proposalId ? next : item)); setStatus(message);
+  };
   return <section className="changedesk-storefront-panel changedesk-storefront-admin" aria-labelledby="changedesk-storefront-admin-title"><header className="changedesk-storefront-panel__header"><div><p className="changedesk-storefront-eyebrow">Revisión global</p><h2 id="changedesk-storefront-admin-title">Propuestas de compradores</h2></div><span className="changedesk-storefront-count">{proposals.length}</span></header>{error ? <p className="changedesk-storefront-error" role="alert">{error}</p> : null}<div className="changedesk-storefront-status" aria-live="polite">{status ? <p>{status}</p> : null}</div><div className="changedesk-storefront-proposals">{proposals.map((proposal) => <ProposalCard key={proposal.proposalId} proposal={proposal} client={client} onUpdate={update} />)}</div></section>;
 }
 

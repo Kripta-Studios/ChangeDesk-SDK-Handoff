@@ -44,6 +44,7 @@ describe("storefront buyer client", () => {
     const session = async () => ({ accessToken: "scoped-token", expiresAt: "2099-01-01T00:00:00Z" });
     const buyer = createStorefrontClient({ endpoint: "https://desk.example.test", getSession: session, fetch: fetcher });
     const admin = createStorefrontAdminClient({ endpoint: "https://desk.example.test", getSession: session, fetch: fetcher });
+    const adminInvalidated = vi.fn(); admin.subscribeSessionInvalidation(adminInvalidated);
     expect("approveProposal" in buyer).toBe(false);
     await buyer.createGlobalProposal({ baseGlobalRevision: 0, proposed: preferences.effective });
     await admin.listProposals();
@@ -58,5 +59,6 @@ describe("storefront buyer client", () => {
     expect(JSON.parse(String(requests[2]?.init?.body))).toEqual({ expectedProposalRevision: 1, expectedGlobalRevision: 0 });
     expect(JSON.parse(String(requests[3]?.init?.body))).toEqual({ expectedProposalRevision: 1 });
     expect(requests.slice(0, 1).concat(requests.slice(2)).every((item) => /^[0-9a-f-]{36}$/.test(new Headers(item.init?.headers).get("Idempotency-Key") ?? ""))).toBe(true);
+    admin.clearSession(); expect(adminInvalidated).toHaveBeenCalledOnce();
   });
 });
