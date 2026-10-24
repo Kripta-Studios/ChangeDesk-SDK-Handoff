@@ -51,16 +51,42 @@ function Host-Configuration([string]$tenant, [int]$port) {
   }
 }
 
-$codex = (Get-Command codex.exe -ErrorAction Stop).Source
-$expectedCodexSha256 = "6f267830b029ee25d9339864aa867cd45de9f8fd4c5ea007d2e63c13a0c66d36"
-$actualCodexSha256 = Get-Sha256 $codex
-if ($actualCodexSha256 -ne $expectedCodexSha256) { throw "Codex executable digest does not match the reviewed 0.164.0 binary." }
-$plannerCwd = Join-Path $root ".local/planner"
-New-Item -ItemType Directory -Force -Path $plannerCwd | Out-Null
+$provider = [Environment]::GetEnvironmentVariable("CHANGEDESK_PLANNER_PROVIDER", "Process")
+if (-not $provider) { $provider = "codex-cli" }
+$env:CHANGEDESK_PLANNER_PROVIDER = $provider
+switch ($provider) {
+  "codex-cli" {
+    $codex = (Get-Command codex.exe -ErrorAction Stop).Source
+    $expectedCodexSha256 = "6f267830b029ee25d9339864aa867cd45de9f8fd4c5ea007d2e63c13a0c66d36"
+    $actualCodexSha256 = Get-Sha256 $codex
+    if ($actualCodexSha256 -ne $expectedCodexSha256) { throw "Codex executable digest does not match the reviewed 0.164.0 binary." }
+    $plannerCwd = Join-Path $root ".local/planner"
+    New-Item -ItemType Directory -Force -Path $plannerCwd | Out-Null
+    $env:CHANGEDESK_CODEX_EXECUTABLE = $codex
+    $env:CHANGEDESK_CODEX_EXECUTABLE_SHA256 = $expectedCodexSha256
+    $env:CHANGEDESK_PLANNER_MODEL = "gpt-6.1-sol"
+    $env:CHANGEDESK_PLANNER_ALLOWED_MODELS = "gpt-6.1-sol"
+    $env:CHANGEDESK_PLANNER_ISOLATED_CWD = $plannerCwd
+    $env:CHANGEDESK_PLANNER_OUTPUT_SCHEMA_PATH = Join-Path $root "apps/service/src/planner/provider-output.schema.json"
+    $env:CHANGEDESK_PLANNER_MAX_OUTPUT_BYTES = "65536"
+  }
+  { $_ -in @("openai", "deepseek", "opencode") } {
+    $keyName = @{ openai = "OPENAI_API_KEY"; deepseek = "DEEPSEEK_API_KEY"; opencode = "OPENCODE_API_KEY" }[$provider]
+    [void](Required-Environment $keyName)
+    [void](Required-Environment "CHANGEDESK_PLANNER_AUTHORIZED_BUDGET_USD")
+    [void](Required-Environment "CHANGEDESK_PLANNER_MAX_PRICE_PER_CALL_USD")
+  }
+  "fake-test" {
+    if ([Environment]::GetEnvironmentVariable("CHANGEDESK_ALLOW_TEST_FAKE", "Process") -ne "true") {
+      throw "CHANGEDESK_ALLOW_TEST_FAKE=true is required for fake-test."
+    }
+  }
+  default { throw "Unsupported CHANGEDESK_PLANNER_PROVIDER '$provider'." }
+}
 
 $env:CHANGEDESK_API_DATABASE_URL = Required-Environment "CHANGEDESK_RUNTIME_DATABASE_URL"
 $env:CHANGEDESK_WORKER_DATABASE_URL = Required-Environment "CHANGEDESK_WORKER_DATABASE_URL"
-$env:CHANGEDESK_ORIGINS = "http://127.0.0.1:9001,http://127.0.0.1:9002"
+$env:CHANGEDESK_ORIGINS = "http://127.0.0.1:8000,http://127.0.0.1:9001,http://127.0.0.1:9002"
 $env:CHANGEDESK_SESSION_AUDIENCE = "changedesk-api"
 $env:CHANGEDESK_SESSION_ISSUERS = "atlas-plugin,boreal-plugin"
 $env:CHANGEDESK_HOSTS_JSON = @(
@@ -70,14 +96,7 @@ $env:CHANGEDESK_HOSTS_JSON = @(
 $env:CHANGEDESK_PUBLICATION_KEY_ID = "local-publication-v1"
 $env:CHANGEDESK_PUBLICATION_PRIVATE_KEY_PEM = Read-Pem "CHANGEDESK_PUBLICATION_PRIVATE_KEY_PATH"
 $env:CHANGEDESK_PROOF_REQUIRED = "false"
-$env:CHANGEDESK_CODEX_EXECUTABLE = $codex
-$env:CHANGEDESK_CODEX_EXECUTABLE_SHA256 = $expectedCodexSha256
-$env:CHANGEDESK_PLANNER_MODEL = "gpt-6.1-sol"
-$env:CHANGEDESK_PLANNER_ALLOWED_MODELS = "gpt-6.1-sol"
-$env:CHANGEDESK_PLANNER_ISOLATED_CWD = $plannerCwd
-$env:CHANGEDESK_PLANNER_OUTPUT_SCHEMA_PATH = Join-Path $root "apps/service/src/planner/provider-output.schema.json"
 $env:CHANGEDESK_PLANNER_TIMEOUT_MS = "120000"
-$env:CHANGEDESK_PLANNER_MAX_OUTPUT_BYTES = "65536"
 $env:CHANGEDESK_PLANNER_MAX_INPUT_TOKENS = "120000"
 $env:CHANGEDESK_HOST = "127.0.0.1"
 $env:CHANGEDESK_PORT = "4100"

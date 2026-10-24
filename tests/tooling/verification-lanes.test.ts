@@ -5,12 +5,20 @@ import { validatePostgresEnvironment, verificationCommands } from "../../scripts
 
 describe("CI lane contracts", () => {
   it("defines concrete, non-empty commands for every non-live lane", () => {
-    for (const lane of ["deterministic", "build", "unit", "postgres", "medusa", "browser", "inventory"]) {
+    for (const lane of ["deterministic", "build", "unit", "functional", "postgres", "medusa", "browser", "inventory"]) {
       const commands = verificationCommands(lane);
       expect(commands.length, lane).toBeGreaterThan(0);
       expect(commands.every((command: { command?: string; args?: string[] }) => command.command && command.args?.length)).toBe(true);
       if (lane !== "deterministic") expect(commands.map((command: { name: string }) => command.name).join(" ")).toMatch(new RegExp(lane, "i"));
     }
+  });
+
+  it("runs storefront, planner and backend security functional suites without live-provider or PostgreSQL tests", () => {
+    const args = verificationCommands("functional").flatMap((command: { args: string[] }) => command.args).join(" ");
+    expect(args).toMatch(/tests\/storefront/);
+    expect(args).toMatch(/tests\/planner/);
+    expect(args).toMatch(/tests\/security/);
+    expect(args).not.toMatch(/live\.codex|\.integration|postgres\.live/);
   });
 
   it("keeps database, Medusa and browser execution out of the deterministic lane", () => {

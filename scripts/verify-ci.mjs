@@ -26,6 +26,15 @@ export function verificationCommands(lane = "deterministic") {
     unit: [
       { name: "unit SDK runtime and Medusa bridge", command: process.execPath, args: ["node_modules/vitest/vitest.mjs", "run", "tests/sdk", "apps/service/tests/runtime", "tests/medusa/bridge-contract.test.ts", "tests/medusa/native-guard.test.ts", "--config", "vitest.config.ts", "--reporter=dot"] }
     ],
+    functional: [
+      { name: "functional storefront, planner and backend security", command: process.execPath, args: [
+        "node_modules/vitest/vitest.mjs", "run",
+        "tests/storefront/api-wiring.test.ts", "tests/storefront/backend-routes.test.ts", "tests/storefront/buyer-auth.test.ts", "tests/storefront/medusa-buyer-ticket.test.ts", "tests/storefront/medusa-session-registry.test.ts", "tests/storefront/sdk-admin-host.test.tsx", "tests/storefront/sdk-client.test.ts", "tests/storefront/sdk-ui.test.tsx",
+        "tests/planner/bootstrap.test.ts", "tests/planner/catalog.test.ts", "tests/planner/generation-worker.test.ts", "tests/planner/planner.test.ts", "tests/planner/providers.test.ts",
+        "tests/security/actual-fastify-attacks.test.ts", "tests/security/attack-corpus.test.ts", "tests/security/backend-effect-oracle.test.ts", "tests/security/change-impact.test.ts", "tests/security/coverage-report.test.ts", "tests/security/paired-metrics.test.ts",
+        "--config", "vitest.config.ts", "--reporter=dot"
+      ] }
+    ],
     postgres: [
       { name: "PostgreSQL storage and runtime integration", command: process.execPath, args: ["node_modules/vitest/vitest.mjs", "run", "tests/storage/store.integration.test.ts", "tests/runtime/real-pg-vertical.integration.test.ts", "tests/security/storage-operations-adversarial.integration.test.ts", "--config", "vitest.config.ts", "--reporter=dot"] }
     ],

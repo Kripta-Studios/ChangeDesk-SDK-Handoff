@@ -54,6 +54,8 @@ jobs:
         run: node scripts/verify-ci.mjs --lane build
       - name: Run SDK, service runtime and Medusa bridge unit suites
         run: node scripts/verify-ci.mjs --lane unit
+      - name: Run storefront, planner and backend security functional suites
+        run: node scripts/verify-ci.mjs --lane functional
       - name: Verify exact dependency versions and licenses
         run: node scripts/verify-ci.mjs --lane inventory
 

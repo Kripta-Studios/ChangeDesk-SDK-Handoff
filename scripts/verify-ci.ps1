@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("deterministic", "build", "unit", "postgres", "medusa", "browser", "inventory")]
+  [ValidateSet("deterministic", "build", "unit", "functional", "postgres", "medusa", "browser", "inventory")]
   [string]$Lane = "deterministic"
 )
 $ErrorActionPreference = "Stop"

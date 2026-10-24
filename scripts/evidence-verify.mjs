@@ -3,7 +3,8 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ALLOWED_TOP_LEVEL = new Set(["manifest.json", "acceptance.json", "review.md", "results", "state", "metrics", "ui"]);
-const STATUSES = new Set(["PASS", "FAIL", "BLOCKED", "NOT_RUN"]);
+const STATUSES = new Set(["PASS", "FAIL", "BLOCKED", "NOT_RUN", "NOT_APPLICABLE"]);
+const PERFORMANCE_EXCLUSION_REFERENCE = "docs/14-IMPLEMENTATION-DECISIONS.md#adr-012";
 const SECRET_PATTERNS = [
   /Authorization\s*:\s*Bearer\s+\S+/i,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
@@ -48,15 +49,20 @@ export async function verifyEvidenceDirectory(directory, profile = "ci-local") {
   const criteria = acceptance?.criteria;
   if (!Array.isArray(criteria)) errors.push("acceptance criteria missing");
   else for (const criterion of criteria) {
+    const isExplicitPerformanceExclusion = criterion?.id === "ACC-015" &&
+      criterion?.status === "NOT_APPLICABLE" &&
+      Array.isArray(criterion?.evidence) && criterion.evidence.includes(PERFORMANCE_EXCLUSION_REFERENCE) &&
+      typeof criterion?.note === "string" && /explicit user exclusion.*performance/i.test(criterion.note);
     if (typeof criterion?.id !== "string" || !/^ACC-\d{3}$/.test(criterion.id) || !STATUSES.has(criterion.status)) { errors.push("acceptance criterion has invalid id/status"); continue; }
     if (!Array.isArray(criterion.evidence) || criterion.evidence.length === 0) errors.push(`${criterion.id} has no evidence references`);
     else for (const reference of criterion.evidence) {
       if (typeof reference !== "string") { errors.push(`${criterion.id} evidence reference is invalid`); continue; }
+      if (isExplicitPerformanceExclusion && reference === PERFORMANCE_EXCLUSION_REFERENCE) continue;
       const target = resolve(root, reference);
       if (!isContained(root, target)) { errors.push(`${criterion.id} evidence escapes run directory`); continue; }
       try { if (!(await lstat(target)).isFile()) throw new Error(); } catch { errors.push(`${criterion.id} missing evidence: ${reference}`); }
     }
-    if (profile === "release" && criterion.status !== "PASS") errors.push(`${criterion.id} is ${criterion.status}, release requires PASS`);
+    if (profile === "release" && criterion.status !== "PASS" && !isExplicitPerformanceExclusion) errors.push(`${criterion.id} is ${criterion.status}, release requires PASS except the explicit ACC-015/ADR-012 exclusion`);
   }
   return { valid: errors.length === 0, errors };
 }

@@ -39,8 +39,7 @@ module.exports = {
     "<rootDir>/examples/medusa/node_modules",
     "<rootDir>/packages/medusa-plugin/node_modules",
   ],
-  roots: ["<rootDir>/tests/medusa/integration"],
   modulePathIgnorePatterns: ["[\\/]dist[\\/]", "[\\/]\.medusa[\\/]"],
   setupFiles: ["<rootDir>/examples/medusa/integration-tests/setup.cjs"],
-  testRegex: "[\\/]tests[\\/]medusa[\\/]integration[\\/].*\\.spec\\.ts$",
+  testMatch: ["<rootDir>/tests/medusa/integration/**/*.spec.ts"],
 }

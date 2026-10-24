@@ -17,8 +17,16 @@ export default defineConfig({
         replacement: fileURLToPath(new URL("./packages/contracts/src/index.ts", import.meta.url))
       },
       {
+        find: "@changedesk/react/storefront",
+        replacement: fileURLToPath(new URL("./packages/sdk-react/src/storefront/index.ts", import.meta.url))
+      },
+      {
         find: /^fastify$/,
         replacement: requireFromService.resolve("fastify")
+      },
+      {
+        find: /^ajv\/dist\/2020(?:\.js)?$/,
+        replacement: requireFromService.resolve("ajv/dist/2020.js")
       }
     ]
   },
