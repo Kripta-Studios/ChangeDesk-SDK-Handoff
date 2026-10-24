@@ -1,0 +1,6 @@
+{
+  "recordedAt": "2026-10-24T15:00:25+02:00",
+  "result": "passed",
+  "summary": { "backendTestsPassed": 7, "durationSeconds": 5.64, "contractsTypecheck": "passed" },
+  "covered": "Responses expose inherited global/default values separately from effective personal precedence, including after global approval and personal reset."
+}

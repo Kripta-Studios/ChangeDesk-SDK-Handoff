@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "1.0",
+  "date": "2026-10-24",
+  "deliveryStatus": "IN_PROGRESS",
+  "finalReview": "NOT_RUN",
+  "criteria": [
+    {
+      "id": "ACC-001",
+      "criterion": "Instalar desde checkout limpio y lock reproducible; readiness de API, worker y ambos Medusa",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-002",
+      "criterion": "SDK integrado con chat y acción persistente usando extensión oficial; sin alterar core de Medusa",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-003",
+      "criterion": "Sesión falsificada, tenant cambiado, token expirado/audience errónea y rol viewer no obtienen autoridad",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-004",
+      "criterion": "DSL inválida, capability/URL/código arbitrario, exceso de límites o referencia desconocida no llega al runner",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-005",
+      "criterion": "Petición válida produce preview exacto; antes de aprobación hay cero efectos",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-006",
+      "criterion": "Aprobación vinculada a plan/actor/tenant/versión; cambio de estado o permiso exige nueva validación",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-007",
+      "criterion": "Ejecución principal modifica exactamente los objetos/campos autorizados",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-008",
+      "criterion": "Dos workers, mensajes duplicados y pérdida de respuesta no duplican efectos ni ocultan incertidumbre",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-009",
+      "criterion": "Caída y reinicio real de worker recupera o detiene de forma explícita; cierre del navegador no cancela implícitamente",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-010",
+      "criterion": "No hay cruce Atlas/Boreal en APIs, SQL, logs, caches, catálogo o instalaciones",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-011",
+      "criterion": "Publicación opt-in, oferta explícita y reutilización compatible en Boreal sin datos Atlas",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-012",
+      "criterion": "Similitud incompatible no reutiliza; revocación/versionado afecta según política sin mutación silenciosa",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-013",
+      "criterion": "Corpus adversarial determinista no logra efectos no autorizados; resultado benigno sigue correcto",
+      "status": "BLOCKED",
+      "evidence": [
+        "evidence/evaluation-runtime-blocker.json"
+      ],
+      "note": "Remaining independent adversarial evaluation rejected by runtime filter; no retry or rerouting. Functional LLM verification proceeds independently."
+    },
+    {
+      "id": "ACC-014",
+      "criterion": "Renderer resiste XSS, bridge impone CORS/CSRF, egress bloquea SSRF y destinos desconocidos",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-015",
+      "criterion": "Umbrales de coste, bundle, latencia, fairness y memoria del documento 05 medidos",
+      "status": "NOT_APPLICABLE",
+      "evidence": [
+        "docs/14-IMPLEMENTATION-DECISIONS.md#adr-012"
+      ],
+      "note": "Explicit user exclusion of all performance goals. Historical failures preserved; no performance claim."
+    },
+    {
+      "id": "ACC-016",
+      "criterion": "Proveedor LLM real procesa peticiones y ataques del alcance, dentro de presupuesto",
+      "status": "BLOCKED",
+      "evidence": [
+        "evidence/evaluation-runtime-blocker.json"
+      ],
+      "note": "Remaining independent adversarial evaluation rejected by runtime filter; no retry or rerouting. Functional LLM verification proceeds independently."
+    },
+    {
+      "id": "ACC-017",
+      "criterion": "Trazabilidad de petición a efectos, evidencia Bend declarada honestamente, retención y redacción",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-018",
+      "criterion": "Reinstalar/revertir integración no rompe app; documentación y replay del piloto funcionan para agente limpio",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-019",
+      "criterion": "Un requester no transfiere plan/chat/hash privado: admin instala el artefacto validado y operator crea y revisa plan nuevo bajo su identidad",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    },
+    {
+      "id": "ACC-020",
+      "criterion": "Expiración durante resume reconcilia unknown, detiene el ledger antiguo y exige plan nuevo solo para efectos ausentes",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+    }
+  ]
+}

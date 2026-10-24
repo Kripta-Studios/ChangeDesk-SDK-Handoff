@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://changedesk.invalid/schemas/storefront-proposal-v1",
+  "title": "Create immutable storefront global-change proposal",
+  "type": "object",
+  "properties": {
+    "baseGlobalRevision": { "type": "integer", "minimum": 0 },
+    "proposed": {
+      "type": "object",
+      "properties": {
+        "theme": { "enum": ["light", "dark", "system"] },
+        "density": { "enum": ["comfortable", "compact"] },
+        "productLayout": { "enum": ["grid", "list"] }
+      },
+      "required": ["theme", "density", "productLayout"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["baseGlobalRevision", "proposed"],
+  "additionalProperties": false
+}

@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-10-24T14:38:00+02:00",
+  "scope": "storefront opt-in React UI and finite buyer client",
+  "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx --pool=threads --maxWorkers=1",
+  "result": "failed_as_expected",
+  "expectedBehaviorFailures": [
+    "buyer controls lacked the Tema field and inheritance option",
+    "opt-in root did not consume preview theme",
+    "admin review did not render server preview or precedence notice"
+  ],
+  "setupFailure": false,
+  "note": "The source modules existed as deliberate behavioral stubs before this run; failures were DOM assertions, not imports or environment setup."
+}

@@ -7,7 +7,12 @@
     "bendLicense": "Apache-2.0",
     "archiveSha256": "6cf462fd8f70b094a4950ebb709a9c4ffd8f1d1189d9cedf1fd63cd5d041c7ab",
     "binarySha256": "2ec160fa4486d33aff51e9eedcc294d6b531dc10c279c00b0c00685dae2045cd",
-    "releaseUrl": "https://github.com/bendlang/bend/releases/tag/v2.0.39"
+    "releaseUrl": "https://github.com/bendlang/bend/releases/tag/v2.0.39",
+    "leanVersion": "4.34.0",
+    "leanCommit": "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b",
+    "leanArchiveSha256": "caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b",
+    "bendttSourceSha256": "d7268ff461de974bd4cd875d9766c71c62ee6b2e6411b9bab84839870db68a80",
+    "compiledBendttSha256": "e365eba1741602bb45261aa0eb6bd2c6f5db885d4b9d4cd603a27bc3c5a9ed18"
   },
   "reviewedSources": {
     "modelSha256": "ac9d10d08692f9259301edf9d897ddb782eb403b98f1fbeff13b9e987baa1596",
@@ -36,12 +41,21 @@
     {
       "command": "tsc -p tests/laws/tsconfig.json --pretty false",
       "result": "PASS"
+    },
+    {
+      "command": "bend PROOF.bend --verdict with Lean 4.34.0 and the compiled BendTT kernel",
+      "result": "PASS: ALL PROOFS CHECK"
+    },
+    {
+      "command": "CHANGEDESK_VITEST_LIVE_LANE=bend vitest run tests/laws/bend.live.test.ts --config <root>/vitest.config.ts",
+      "result": "PASS: 2 tests; reviewed laws verified and fixed false-law mutant rejected by the real compiled kernel"
     }
   ],
   "kernelGate": {
-    "status": "blocked",
-    "reason": "Bend --verdict requires the Lean 4.34.0 BendTT kernel; the verified 580367391-byte Lean asset is still downloading. Non-kernel output is not counted as verified.",
-    "exactPendingStep": "After the download completes, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-lean.ps1` and require Lean archive SHA256 caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b. In profile-free WSL, prefix PATH with `.tools/lean-4.34.0-linux/lean-4.34.0-linux/bin`, run Bend 2.0.39 `--verdict` to build or locate BENDTT, set CHANGEDESK_BEND_BINARY_WINDOWS, CHANGEDESK_BEND_BINARY_LINUX and CHANGEDESK_BENDTT_LINUX, then run `scripts/run-live-tests.ps1 -Lane bend`. Production law must return verified and false-law fixture must return failed."
+    "status": "verified",
+    "result": "The reviewed laws returned verified and the fixed false-law mutant returned failed through Bend 2.0.39 --verdict and the compiled Lean 4.34.0 BendTT kernel.",
+    "acceptedRunScope": "Isolated WSL network namespace; workspace-local HOME, TMPDIR and compiled kernel; no database or application process accessed.",
+    "checkoutRequirement": "The three reviewed .bend files must retain LF bytes. A root checkout with stale CRLF bytes correctly failed the immutable source-hash guard before execution; the accepted run used the committed LF bytes and the repository now declares *.bend text eol=lf."
   },
   "boundary": "The four laws prove only the reviewed pure boolean association model. Adapter correspondence and external Medusa effects require separate integration evidence.",
   "challengedHypothesis": "Bend exit code zero and ALL PROOFS CHECK from the ordinary checker are insufficient. Historical unsafe-proof behavior and v2.0.39 requirements make --verdict plus the BendTT kernel mandatory."

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "recordedAt": "2026-10-24T13:41:10Z",
+  "remoteCiExecuted": false,
+  "lanes": {
+    "deterministic": {
+      "status": "PASS",
+      "evidence": "evidence/p8-ci-deterministic.json"
+    },
+    "build": {
+      "status": "FAIL",
+      "passed": ["contracts", "service", "sdk-react JavaScript", "sdk-react declarations"],
+      "failed": "Medusa plugin: installed @medusajs/utils@2.22.1 dist/bundles.js could not load missing dist/user/index.js",
+      "owner": "environment dependency graph repair"
+    },
+    "unit": {
+      "status": "PASS",
+      "command": "node scripts/verify-ci.mjs --lane unit",
+      "testFiles": 11,
+      "tests": 41
+    },
+    "inventory": {
+      "status": "PASS",
+      "command": "node scripts/verify-ci.mjs --lane inventory",
+      "exactInstalledPackageVersions": 1100,
+      "evidence": "evidence/p8-inventory.json"
+    },
+    "postgres": {
+      "status": "NOT_RUN",
+      "reason": "The shared demo worker was active, so its 16-pass/3-fail run is not valid isolated CI evidence. The lane now rejects that database and requires a fresh changedesk_test_<run> database. The fresh workflow has not run remotely."
+    },
+    "medusa": {
+      "status": "NOT_RUN",
+      "reason": "The isolated workflow command is defined, but execution awaits the repaired frozen dependency graph and a fresh CI database."
+    },
+    "browser": {
+      "status": "BLOCKED",
+      "reason": "Atlas/Boreal credentials, seed maps and running hosts are absent. The protected manual lane fails closed when those private fixtures are unavailable."
+    }
+  },
+  "limitations": [
+    "Workflow YAML was not executed by GitHub Actions in this session.",
+    "No failing or blocked lane is counted as release acceptance.",
+    "Performance targets remain preserved in their existing FAIL evidence and were not rerun after the user's scope change."
+  ]
+}

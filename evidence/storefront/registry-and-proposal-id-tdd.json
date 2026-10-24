@@ -1,0 +1,34 @@
+{
+  "recordedAt": "2026-10-24T15:50:00+02:00",
+  "registryRed": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/medusa-session-registry.test.ts --maxWorkers=1",
+    "result": "3 failed, 4 passed",
+    "expectedFailures": [
+      "invalid capacities did not throw",
+      "eight registrations for the same live native session produced eight references",
+      "a different customer evicted the live entry and the host route returned 200 instead of controlled 429"
+    ]
+  },
+  "proposalIdRed": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/backend-routes.test.ts --maxWorkers=1",
+    "result": "1 failed, 8 passed",
+    "expectedFailure": "malformed proposal ID returned 404 only after invoking getBuyerProposal"
+  },
+  "green": {
+    "commands": [
+      "Vitest medusa-session-registry.test.ts + backend-routes.test.ts --maxWorkers=1",
+      "Vitest api-wiring.test.ts --maxWorkers=1",
+      "TypeScript 5.9.3 --noEmit packages/medusa-plugin",
+      "TypeScript 5.9.3 --noEmit apps/service"
+    ],
+    "result": "registry/backend 16/16 passed; API wiring 3/3 passed; both focal typechecks passed"
+  },
+  "invariants": [
+    "positive safe-integer capacity is mandatory",
+    "the same tenant, buyer and raw native session reuses one opaque reference",
+    "expired entries are pruned before admission",
+    "a live unrelated mapping is never evicted; capacity returns retryable 429 with Retry-After 60",
+    "authorized malformed proposal IDs return non-leaking 404 before any repository call"
+  ],
+  "classification": "Lifecycle availability and input-safety verification, not a performance benchmark. The host route test uses an injected capacity-one registry and mocked ticket signing; it is a unit handler test, not a Medusa live gate."
+}

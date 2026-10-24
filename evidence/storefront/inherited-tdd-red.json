@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-10-24T14:59:40+02:00",
+  "scope": "ADR-SF-004 inherited storefront values",
+  "result": "failed_as_expected",
+  "summary": { "testsFailed": 2, "testsPassed": 5 },
+  "expectedFailure": "Fastify preference responses omitted inherited resolved global/default values before implementation.",
+  "setupFailure": false
+}

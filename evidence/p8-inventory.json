@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "measuredAt": "2026-10-24T13:38:14Z",
+  "command": "node scripts/verify-ci.mjs --lane inventory",
+  "installedExactPackageVersions": 1100,
+  "sbom": "evidence/p8-sbom.spdx.json",
+  "format": "SPDX-2.3 JSON",
+  "licenseOverrides": {
+    "@medusajs/admin-bundler@2.22.1": "MIT",
+    "@medusajs/admin-shared@2.22.1": "MIT",
+    "@medusajs/admin-vite-plugin@2.22.1": "MIT",
+    "connect-dynamodb@3.0.5": "MIT"
+  },
+  "officialSources": [
+    "https://github.com/medusajs/medusa/blob/v2.22.1/LICENSE",
+    "https://github.com/medusajs/medusa/blob/v2.22.1/ENTERPRISE-LICENSE.md",
+    "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-bundler/package.json",
+    "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-shared/package.json",
+    "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-vite-plugin/package.json",
+    "https://registry.npmjs.org/connect-dynamodb/-/connect-dynamodb-3.0.5.tgz"
+  ],
+  "limitations": [
+    "This is an installed dependency/version/license inventory, not a vulnerability scan or legal opinion.",
+    "Package checksums cover the installed package.json used for version and license attribution, not complete package tarballs.",
+    "Medusa 2.22.1 is open-core; the reviewed admin toolchain package paths are not among the Enterprise Edition paths listed by the tagged repository license."
+  ]
+}

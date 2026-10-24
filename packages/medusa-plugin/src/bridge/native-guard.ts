@@ -1,6 +1,6 @@
 import type { AuthenticatedMedusaRequest, MedusaNextFunction, MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
-import { mustDenyAdminMutation, mustDenyAuthMutation } from "./native-policy.ts"
+import { mustDenyAdminMutation, mustDenyAuthMutation, mustRevokeStaffHostSession } from "./native-policy.ts"
 import { CHANGEDESK_MODULE } from "../modules/changedesk/index.ts"
 import type ChangeDeskModuleService from "../modules/changedesk/service.ts"
 import { readActorPolicy } from "./actor.ts"
@@ -58,6 +58,7 @@ export const revokeChangeDeskHostSession = async (
   next: MedusaNextFunction
 ) => {
   const authenticated = req as AuthenticatedMedusaRequest
+  if (!mustRevokeStaffHostSession(authenticated.auth_context?.actor_type)) return next()
   const actorId = authenticated.auth_context?.actor_id
   if (!actorId) return next(new MedusaError(MedusaError.Types.UNAUTHORIZED, "A session is required"))
   const service = req.scope.resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService

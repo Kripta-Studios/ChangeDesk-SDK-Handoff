@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-10-24T15:03:05+02:00",
+  "scope": "storefront API registration and cross-origin preflight",
+  "result": "failed_as_expected",
+  "summary": { "testsFailed": 1, "testsPassed": 1 },
+  "expectedFailure": "Exact allowed Origin preflight omitted PUT while buyer/staff route-domain separation already passed.",
+  "setupFailure": false
+}

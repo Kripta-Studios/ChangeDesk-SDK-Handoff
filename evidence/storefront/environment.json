@@ -1,0 +1,41 @@
+{
+  "recordedAt": "2026-10-24T14:28:20+02:00",
+  "node": {
+    "version": "22.23.4",
+    "source": "existing pinned binary in .worktrees/environment/.tools/node-v22.23.4-win-x64"
+  },
+  "postgres": {
+    "version": "17.11",
+    "imageDigest": "sha256:01ea903aa65deb58eb49d6e09d859ecff63a6bb7d61feca55f2abad71d08f72a",
+    "container": "changedesk-sdk-local-postgres-1",
+    "composeProject": "changedesk-sdk-local",
+    "address": "127.0.0.1:5432",
+    "isolation": "per-run changedesk_sf_<runId> database and nonowner role; no existing project database modified"
+  },
+  "medusaCustomerAuth": {
+    "version": "2.22.1",
+    "officialSource": "https://docs.medusajs.com/learn/fundamentals/api-routes/protected-routes",
+    "verifiedFacts": [
+      "/store/customers/me is protected by default",
+      "custom customer routes use authenticate('customer',['session','bearer'])",
+      "customer identity is available as actor_type customer and actor_id in auth_context"
+    ],
+    "pinLimit": "Official documentation displayed v2.22.1; no raw source commit was available, so no commit pin is claimed.",
+    "installedCodeEvidence": [
+      "@medusajs/framework 2.22.1 dist/http/express-loader.js installs express-session and therefore exposes req.sessionID and req.sessionStore",
+      "@medusajs/medusa 2.22.1 dist/api/auth/middlewares.js authenticates DELETE /auth/session with actor type wildcard and session auth",
+      "@medusajs/medusa 2.22.1 dist/api/auth/session/route.js DELETE awaits req.session.destroy, which destroys the same store entry"
+    ]
+  },
+  "expressSession": {
+    "version": "1.19.0",
+    "license": "MIT",
+    "officialSource": "https://expressjs.com/en/resources/middleware/session/",
+    "verifiedFacts": ["request exposes sessionID and sessionStore", "store.get(sessionId, callback) returns the live session or null", "session.destroy removes the store entry"]
+  },
+  "dependenciesAdded": [],
+  "context7": {
+    "status": "unavailable",
+    "detail": "The required skill was read, but this runtime exposed no Context7 MCP tool. Primary Medusa documentation supplied and verified by the coordinator was used instead."
+  }
+}

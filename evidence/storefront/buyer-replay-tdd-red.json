@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-10-24T14:56:10+02:00",
+  "scope": "durable buyer ticket replay ledger separate from staff actors",
+  "result": "failed_as_expected",
+  "summary": { "testsFailed": 1, "testsPassed": 5 },
+  "expectedFailure": "Dedicated replay-store stub returned false for the first valid buyer ticket; test confirmed the real PostgreSQL stack and scoped cleanup ran.",
+  "setupFailure": false
+}

@@ -1,0 +1,35 @@
+{
+  "verifiedAt": "2026-10-24",
+  "packages": {
+    "@medusajs/admin-sdk@2.22.1": {
+      "license": "MIT",
+      "source": "https://github.com/medusajs/medusa/blob/v2.22.1/LICENSE",
+      "sourceCommit": "5e244c3d5fd88b09ba4f0d14f39404a4e86fb800",
+      "scopeEvidence": "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-sdk/package.json"
+    },
+    "@medusajs/admin-bundler@2.22.1": {
+      "license": "MIT",
+      "source": "https://github.com/medusajs/medusa/blob/v2.22.1/LICENSE",
+      "sourceCommit": "5e244c3d5fd88b09ba4f0d14f39404a4e86fb800",
+      "scopeEvidence": "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-bundler/package.json"
+    },
+    "@medusajs/admin-shared@2.22.1": {
+      "license": "MIT",
+      "source": "https://github.com/medusajs/medusa/blob/v2.22.1/LICENSE",
+      "sourceCommit": "5e244c3d5fd88b09ba4f0d14f39404a4e86fb800",
+      "scopeEvidence": "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-shared/package.json"
+    },
+    "@medusajs/admin-vite-plugin@2.22.1": {
+      "license": "MIT",
+      "source": "https://github.com/medusajs/medusa/blob/v2.22.1/LICENSE",
+      "sourceCommit": "5e244c3d5fd88b09ba4f0d14f39404a4e86fb800",
+      "scopeEvidence": "https://github.com/medusajs/medusa/blob/v2.22.1/packages/admin/admin-vite-plugin/package.json"
+    },
+    "connect-dynamodb@3.0.5": {
+      "license": "MIT",
+      "source": "https://registry.npmjs.org/connect-dynamodb/-/connect-dynamodb-3.0.5.tgz",
+      "installedLicenseFileSha256": "7ff09f4f71f0ea2fcd346ea65a8457837a9b414c2d562ea3467cb03d85ca3379",
+      "scopeEvidence": "https://github.com/ca98am79/connect-dynamodb/blob/master/LICENSE.txt"
+    }
+  }
+}

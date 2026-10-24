@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-10-24T14:09:10+02:00",
+  "scope": "storefront Fastify contract vertical",
+  "command": "..\\environment\\.tools\\node-v22.23.4-win-x64\\node.exe node_modules/vitest/vitest.mjs run tests/storefront/backend-routes.test.ts --reporter=dot --pool=threads --maxWorkers=1",
+  "result": "failed_as_expected",
+  "summary": {
+    "testFiles": { "failed": 1 },
+    "tests": { "failed": 6 },
+    "durationSeconds": 6.77
+  },
+  "expectedFailure": "All requests reached explicitly registered Fastify routes and returned the deliberate 501 not_implemented red stub instead of the required 200/201/401/404/409/422 behavior.",
+  "setupFailure": false
+}

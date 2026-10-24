@@ -1,0 +1,44 @@
+.changedesk-storefront-root,
+.changedesk-storefront-panel { box-sizing: border-box; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.changedesk-storefront-root { --changedesk-storefront-card-gap: 1.25rem; --changedesk-storefront-card-padding: 1.25rem; --changedesk-storefront-bg: #f4f1e8; --changedesk-storefront-ink: #17211f; --changedesk-storefront-surface: #fffdf7; color: var(--changedesk-storefront-ink); background: var(--changedesk-storefront-bg); padding: var(--changedesk-storefront-card-padding); color-scheme: light; }
+.changedesk-storefront-root[data-theme="dark"] { --changedesk-storefront-bg: #111715; --changedesk-storefront-ink: #f4f1e8; --changedesk-storefront-surface: #1e2925; color-scheme: dark; }
+@media (prefers-color-scheme: dark) { .changedesk-storefront-root[data-theme="system"] { --changedesk-storefront-bg: #111715; --changedesk-storefront-ink: #f4f1e8; --changedesk-storefront-surface: #1e2925; color-scheme: dark; } }
+.changedesk-storefront-root[data-density="compact"] { --changedesk-storefront-card-gap: 0.625rem; --changedesk-storefront-card-padding: 0.75rem; }
+.changedesk-storefront-root .changedesk-storefront-products { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--changedesk-storefront-card-gap); }
+.changedesk-storefront-root[data-product-layout="list"] .changedesk-storefront-products { grid-template-columns: 1fr; }
+.changedesk-storefront-root .changedesk-storefront-products > * { box-sizing: border-box; background: var(--changedesk-storefront-surface); color: var(--changedesk-storefront-ink); padding: var(--changedesk-storefront-card-padding); border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 0.8rem; }
+.changedesk-storefront-panel { --sf-ink: #15201d; --sf-muted: #5e6965; --sf-paper: #fbf8ef; --sf-line: #c9d0ca; --sf-accent: #c8ff52; container-type: inline-size; width: min(100%, 58rem); color: var(--sf-ink); background: radial-gradient(circle at 92% 8%, rgba(200,255,82,.3), transparent 24%), var(--sf-paper); border: 1px solid #aeb8b1; border-radius: 1.25rem; box-shadow: 0 1.2rem 3rem rgba(20,34,29,.12); padding: clamp(1.1rem, 3vw, 2rem); }
+.changedesk-storefront-panel *, .changedesk-storefront-panel *::before, .changedesk-storefront-panel *::after { box-sizing: border-box; }
+.changedesk-storefront-panel__header, .changedesk-storefront-proposal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--sf-line); padding-bottom: 1rem; }
+.changedesk-storefront-panel h2, .changedesk-storefront-panel h3, .changedesk-storefront-panel p { margin-top: 0; }
+.changedesk-storefront-panel h2 { margin-bottom: 0; font: 750 clamp(1.65rem, 4vw, 2.55rem)/1.05 Georgia, serif; letter-spacing: -.035em; }
+.changedesk-storefront-eyebrow { margin-bottom: .35rem; color: #3c5d50; font: 700 .72rem/1.2 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
+.changedesk-storefront-revision, .changedesk-storefront-count, .changedesk-storefront-status-chip { flex: none; border: 1px solid currentColor; border-radius: 999px; padding: .32rem .58rem; font: 700 .72rem/1 ui-monospace, monospace; text-transform: uppercase; }
+.changedesk-storefront-count { min-width: 2rem; text-align: center; background: var(--sf-accent); }
+.changedesk-storefront-intro { max-width: 55ch; color: var(--sf-muted); margin: 1rem 0 1.4rem; }
+.changedesk-storefront-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
+.changedesk-storefront-field { display: grid; gap: .45rem; font-weight: 700; font-size: .82rem; }
+.changedesk-storefront-field select { width: 100%; min-height: 2.8rem; border: 1px solid var(--sf-line); border-radius: .65rem; background: rgba(255,255,255,.75); color: var(--sf-ink); padding: .65rem 2rem .65rem .75rem; font: inherit; font-weight: 550; }
+.changedesk-storefront-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.2rem; }
+.changedesk-storefront-button { min-height: 2.75rem; border: 1px solid #68746f; border-radius: .65rem; background: transparent; color: var(--sf-ink); padding: .68rem .95rem; font: 700 .82rem/1.2 inherit; cursor: pointer; transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.changedesk-storefront-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 .35rem 0 rgba(21,32,29,.15); }
+.changedesk-storefront-button:focus-visible, .changedesk-storefront-field select:focus-visible { outline: 3px solid #346c58; outline-offset: 2px; }
+.changedesk-storefront-button:disabled { cursor: wait; opacity: .58; }
+.changedesk-storefront-button--primary { background: var(--sf-ink); color: #fff; }
+.changedesk-storefront-button--proposal { background: var(--sf-accent); }
+.changedesk-storefront-status { min-height: 1.5rem; margin-top: .8rem; color: #315a4b; font-weight: 650; }
+.changedesk-storefront-status p { margin-bottom: 0; }
+.changedesk-storefront-alert, .changedesk-storefront-error { color: #8d241d; }
+.changedesk-storefront-alert { display: flex; justify-content: space-between; gap: 1rem; border-left: .3rem solid currentColor; padding: .7rem .9rem; background: #fff0ed; }
+.changedesk-storefront-proposals { display: grid; gap: 1rem; }
+.changedesk-storefront-proposal { border: 1px solid var(--sf-line); border-radius: .9rem; padding: 1rem; background: rgba(255,255,255,.55); }
+.changedesk-storefront-proposal h3 { margin: .5rem 0 0; font-size: 1rem; }
+.changedesk-storefront-diff { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin: 1rem 0; }
+.changedesk-storefront-diff > div { border-left: 2px solid #8ba093; padding-left: .65rem; }
+.changedesk-storefront-diff dt { color: var(--sf-muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; }
+.changedesk-storefront-diff dd { display: flex; align-items: center; gap: .45rem; margin: .3rem 0 0; }
+.changedesk-storefront-diff dd span { text-decoration: line-through; color: var(--sf-muted); }
+.changedesk-storefront-notice { border: 1px dashed #809187; padding: .7rem; font-size: .85rem; }
+@media (max-width: 42rem) { .changedesk-storefront-fields, .changedesk-storefront-diff { grid-template-columns: 1fr; } .changedesk-storefront-actions { display: grid; } .changedesk-storefront-button { width: 100%; } }
+@container (max-width: 34rem) { .changedesk-storefront-fields, .changedesk-storefront-diff { grid-template-columns: 1fr; } .changedesk-storefront-actions { display: grid; } .changedesk-storefront-button { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .changedesk-storefront-button { transition: none; } }

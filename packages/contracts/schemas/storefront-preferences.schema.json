@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://changedesk.invalid/schemas/storefront-preferences-v1",
+  "title": "Replace buyer storefront preference overrides",
+  "type": "object",
+  "properties": {
+    "expectedRevision": { "type": "integer", "minimum": 0 },
+    "overrides": {
+      "type": "object",
+      "properties": {
+        "theme": { "enum": ["light", "dark", "system"] },
+        "density": { "enum": ["comfortable", "compact"] },
+        "productLayout": { "enum": ["grid", "list"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["expectedRevision", "overrides"],
+  "additionalProperties": false
+}

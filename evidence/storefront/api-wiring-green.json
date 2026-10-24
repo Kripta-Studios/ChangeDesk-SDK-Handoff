@@ -1,0 +1,12 @@
+{
+  "recordedAt": "2026-10-24T15:03:35+02:00",
+  "result": "passed",
+  "summary": { "testFilesPassed": 6, "testsPassed": 18, "durationSeconds": 10.28 },
+  "covered": [
+    "storefront routes are registered explicitly in the real Fastify API",
+    "buyer and staff session managers reject each other's tokens even for identical subject IDs",
+    "exact allowlisted Origin receives PUT/POST preflight with Authorization, Content-Type and Idempotency-Key",
+    "non-allowlisted Origin is rejected",
+    "existing API contract tests remain green"
+  ]
+}

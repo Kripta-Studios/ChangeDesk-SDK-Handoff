@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import Ajv2020 from "ajv/dist/2020.js";
-import { BudgetedApiPlannerProvider, VERIFIED_API_CONFIGS } from "../../apps/service/src/planner/api-provider.ts";
+import { BudgetedApiPlannerProvider, createApiCallAuthorization, VERIFIED_API_CONFIGS } from "../../apps/service/src/planner/api-provider.ts";
 import { CodexCliPlannerProvider, InstalledCodex0164IsolationProbe, codexExecArgv } from "../../apps/service/src/planner/codex-cli-provider.ts";
 import type { PlannerInput } from "../../apps/service/src/planner/types.ts";
 import type { ProcessRunner } from "../../apps/service/src/planner/process-runner.ts";
@@ -40,8 +40,14 @@ test("verified Codex execution rejects every tool event instead of consuming it"
 });
 
 test("API provider refuses network use without an explicit positive spend budget",async()=>{
-  let fetched=false; const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:2000,maxOutputTokens:1000,maxResponseBytes:64000,timeoutMs:1000,authorizedBudgetUsd:0},{async get(){return "secret";}},{async reserve(){return true;}},async()=>{fetched=true;throw new Error("no");});
+  const authorization=createApiCallAuthorization();let fetched=false; const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:2000,maxOutputTokens:1000,maxResponseBytes:64000,timeoutMs:1000,authorizedBudgetUsd:0},{async get(){return "secret";}},authorization.gate,async()=>{fetched=true;throw new Error("no");});
   await assert.rejects(provider.generate(input),(error:any)=>error.code==="API_BUDGET_NOT_AUTHORIZED"); assert.equal(fetched,false);
+});
+
+test("API provider cannot call the network outside the processor's durable reservation context",async()=>{
+  const authorization=createApiCallAuthorization();let fetched=false;
+  const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:20_000,maxOutputTokens:1_000,maxResponseBytes:64_000,timeoutMs:1_000,authorizedBudgetUsd:1,maxPricePerCallUsd:0.01},{async get(){return "synthetic-test-key";}},authorization.gate,async()=>{fetched=true;throw new Error("no");});
+  await assert.rejects(provider.generate(input),(error:any)=>error.code==="API_CALL_NOT_RESERVED");assert.equal(fetched,false);
 });
 
 test("verified future providers preserve their explicit requested model IDs",()=>{
@@ -52,9 +58,9 @@ test("verified future providers preserve their explicit requested model IDs",()=
 
 test("API provider reserves a known budget per request, forbids redirects, and reports measured usage",async()=>{
   let calls=0;const fetchMock:typeof fetch=async(url,init)=>{calls++;assert.equal(url,VERIFIED_API_CONFIGS.openaiLuna.endpoint);assert.equal(init?.redirect,"error");return new Response(JSON.stringify({model:"gpt-6-luna",output_text:JSON.stringify({kind:"needs_clarification",recipe:null,safeMessage:"Choose a category."}),usage:{input_tokens:100,output_tokens:20}}),{status:200,headers:{"content-type":"application/json"}});};
-  let reservations=0;const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:20000,maxOutputTokens:1000,maxResponseBytes:64000,timeoutMs:1000,authorizedBudgetUsd:0.01,tariff:{inputPerMillionUsd:0.1,outputPerMillionUsd:0.5,date:"2026-10-24"}},{async get(){return "synthetic-test-key";}},{async reserve(){return ++reservations===1;}},fetchMock);
-  const result=await provider.generate(input);assert.equal(result.proposal.kind,"needs_clarification");assert.equal(result.usage.price?.value,0.00002);assert.equal(calls,1);
-  await assert.rejects(provider.generate(input),(error:any)=>error.code==="PROVIDER_CALL_BUDGET_EXHAUSTED");assert.equal(calls,1);
+  const authorization=createApiCallAuthorization();const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:20000,maxOutputTokens:1000,maxResponseBytes:64000,timeoutMs:1000,authorizedBudgetUsd:0.01,tariff:{inputPerMillionUsd:0.1,outputPerMillionUsd:0.5,date:"2026-10-24"}},{async get(){return "synthetic-test-key";}},authorization.gate,fetchMock);
+  const result=await authorization.controller.run({tenantId:"atlas",requestId:"req",provider:"openai",model:"gpt-6-luna",tokenBudget:21_000n,costBudgetMicros:10_000n,generationToken:{reservationId:"r1",fence:1n,attempt:1}},()=>provider.generate(input));assert.equal(result.proposal.kind,"needs_clarification");assert.equal(result.usage.price?.value,0.00002);assert.equal(calls,1);
+  await assert.rejects(authorization.controller.run({tenantId:"atlas",requestId:"req",provider:"openai",model:"gpt-6-luna",tokenBudget:21_000n,costBudgetMicros:10_000n,generationToken:{reservationId:"r1",fence:1n,attempt:1}},async()=>{await provider.generate(input);return provider.generate(input);}),(error:any)=>error.code==="API_CALL_NOT_RESERVED");assert.equal(calls,2);
 });
 
 test("API provider rejects extra proposal fields and retains failed-call usage", async () => {
@@ -62,7 +68,7 @@ test("API provider rejects extra proposal fields and retains failed-call usage",
     output_text:JSON.stringify({kind:"needs_clarification",recipe:null,safeMessage:"Choose.",unexpected:true}),
     usage:{input_tokens:11,output_tokens:7},
   }),{status:200});
-  const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:20_000,maxOutputTokens:1_000,maxResponseBytes:64_000,timeoutMs:1_000,authorizedBudgetUsd:1,maxPricePerCallUsd:0.01},{async get(){return "synthetic-test-key";}},{async reserve(){return true;}},fetchMock);
-  await assert.rejects(provider.generate(input),(error:any)=>error.code==="PROVIDER_OUTPUT_INVALID"&&error.usage.length===1&&error.usage[0].inputTokens===11&&error.usage[0].outputTokens===7);
+  const authorization=createApiCallAuthorization();const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:20_000,maxOutputTokens:1_000,maxResponseBytes:64_000,timeoutMs:1_000,authorizedBudgetUsd:1,maxPricePerCallUsd:0.01},{async get(){return "synthetic-test-key";}},authorization.gate,fetchMock);
+  await assert.rejects(authorization.controller.run({tenantId:"atlas",requestId:"req",provider:"openai",model:"gpt-6-luna",tokenBudget:21_000n,costBudgetMicros:1_000_000n,generationToken:{reservationId:"r1",fence:1n,attempt:1}},()=>provider.generate(input)),(error:any)=>error.code==="PROVIDER_OUTPUT_INVALID"&&error.usage.length===1&&error.usage[0].inputTokens===11&&error.usage[0].outputTokens===7);
 });
 
