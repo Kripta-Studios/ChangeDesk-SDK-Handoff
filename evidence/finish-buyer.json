@@ -1,0 +1,48 @@
+{
+  "recordedAt": "2026-10-24T16:33:00+02:00",
+  "scope": "real buyer storefront host, Medusa customer provisioning, SDK cookie bootstrap adapter and executable browser gate",
+  "status": "IMPLEMENTED_LIVE_NOT_RUN",
+  "assumptionQuestioned": "A buyer cookie cannot be shared safely across both tenants merely because their hosts use different ports; the host uses an explicit tenant, clears the native session on logout and the browser gate uses isolated contexts where required.",
+  "tdd": {
+    "red": {
+      "command": "node vitest.mjs run tests/storefront/sdk-medusa-live.test.ts",
+      "result": "FAIL: packages/sdk-react/src/storefront/medusa.js did not exist"
+    },
+    "green": [
+      {
+        "command": "node vitest.mjs run tests/storefront/sdk-medusa-live.test.ts",
+        "result": "PASS 3/3"
+      },
+      {
+        "command": "node vitest.mjs run storefront tests excluding sdk-admin-host plus storefront logout middleware",
+        "result": "PASS 47/47; sdk-admin-host is separately blocked by the shared install missing @medusajs/admin-sdk"
+      },
+      {
+        "command": "tsc -p packages/sdk-react/tsconfig.json --noEmit && tsc -p examples/medusa/tsconfig.json --noEmit",
+        "result": "PASS"
+      },
+      {
+        "command": "vite build examples/storefront --outDir .dist-check --emptyOutDir",
+        "result": "PASS; temporary output removed"
+      },
+      {
+        "command": "playwright test tests/e2e/storefront.spec.ts --list",
+        "result": "PASS; 1 executable serial live test discovered"
+      }
+    ]
+  },
+  "liveGate": {
+    "status": "NOT_RUN",
+    "reason": "The lab owner must integrate this commit, provision buyer-only fixtures and start the tracked port-8000 lifecycle before the destructive/external-state browser lane can run.",
+    "command": "node node_modules/@playwright/test/cli.js test tests/e2e/storefront.spec.ts --workers=1",
+    "covers": [
+      "two buyers and two tenants",
+      "personal preference persistence after reload",
+      "proposal has no persisted global effect before approval",
+      "real Medusa admin approval preserves personal override",
+      "native logout makes prior buyer token return 401",
+      "session switch and tenant isolation"
+    ]
+  },
+  "secrets": "Passwords remain only in ignored examples/medusa/.local/buyer-credentials.<tenant>.json and are never emitted by tests or evidence."
+}

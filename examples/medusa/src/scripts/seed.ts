@@ -5,6 +5,9 @@ import {
   createProductsWorkflow,
   createProductTagsWorkflow,
   createSalesChannelsWorkflow,
+  createCustomerAccountWorkflow,
+  createApiKeysWorkflow,
+  linkSalesChannelsToApiKeyWorkflow,
   createUserAccountWorkflow,
 } from "@medusajs/core-flows"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
@@ -33,6 +36,67 @@ type Fixture = {
 
 const password = () => randomBytes(24).toString("base64url")
 
+async function provisionBuyers(container: ExecArgs["container"], tenantKey: "atlas" | "boreal", createdBy: string, channelIds: string[]) {
+  const query = container.resolve(ContainerRegistrationKeys.QUERY)
+  const buyers = [1, 2].map((number) => ({
+    key: `${tenantKey}.buyer${number}`,
+    email: `changedesk-buyer-${number}-${tenantKey}@local.invalid`,
+    firstName: `Buyer ${number}`,
+  }))
+  const localDir = path.resolve(process.cwd(), ".local")
+  const evidenceDir = path.resolve(process.cwd(), "../../evidence/local")
+  await mkdir(localDir, { recursive: true })
+  await mkdir(evidenceDir, { recursive: true })
+  const credentialsPath = path.join(localDir, `buyer-credentials.${tenantKey}.json`)
+  const mapPath = path.join(evidenceDir, `buyer-map.${tenantKey}.json`)
+  let credentials: Record<string, { email: string; password: string }> = {}
+  try { credentials = JSON.parse(await readFile(credentialsPath, "utf8")) as typeof credentials }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+    await writeFile(credentialsPath, "{}", { mode: 0o600, flag: "wx" })
+  }
+  const existing = await query.graph({ entity: "customer", fields: ["id", "email"], filters: { email: buyers.map(({ email }) => email) } })
+  const ids: Record<string, string> = {}
+  const auth = container.resolve(Modules.AUTH) as IAuthModuleService
+  for (const buyer of buyers) {
+    const customer = existing.data.find((item: { email?: string }) => item.email === buyer.email) as { id?: string } | undefined
+    if (customer?.id) {
+      if (!credentials[buyer.key]) throw new Error(`Buyer ${buyer.key} exists but its private fixture credential is unavailable; refusing to overwrite`)
+      ids[buyer.key] = customer.id
+      continue
+    }
+    const generatedPassword = password()
+    const registered = await auth.register("emailpass", {
+      url: "http://127.0.0.1/auth/customer/emailpass/register",
+      headers: {}, query: {}, protocol: "http",
+      body: { email: buyer.email, password: generatedPassword },
+    })
+    if (!registered.success || !registered.authIdentity?.id) throw new Error(`Could not register ${buyer.key}`)
+    const { result: created } = await createCustomerAccountWorkflow(container).run({
+      input: {
+        authIdentityId: registered.authIdentity.id,
+        customerData: { email: buyer.email, first_name: buyer.firstName, last_name: tenantKey, metadata: { changedesk_fixture: true, changedesk_key: buyer.key } },
+      },
+    })
+    ids[buyer.key] = created.id
+    credentials[buyer.key] = { email: buyer.email, password: generatedPassword }
+    await writeFile(credentialsPath, JSON.stringify(credentials, null, 2), { mode: 0o600 })
+  }
+  const keyTitle = `changedesk-lab-${tenantKey}-storefront`
+  const keys = await query.graph({ entity: "api_key", fields: ["id", "token", "sales_channels.id"], filters: { title: keyTitle, type: "publishable" } })
+  let apiKey = keys.data[0] as { id: string; token: string; sales_channels?: Array<{ id: string }> } | undefined
+  if (!apiKey) {
+    const { result } = await createApiKeysWorkflow(container).run({ input: { api_keys: [{ title: keyTitle, type: "publishable", created_by: createdBy }] } })
+    apiKey = result[0]
+  }
+  if (!apiKey?.id || !apiKey.token) throw new Error("Could not provision the storefront publishable API key")
+  const linked = new Set(apiKey.sales_channels?.map(({ id }) => id) ?? [])
+  const add = channelIds.filter((id) => !linked.has(id))
+  if (add.length) await linkSalesChannelsToApiKeyWorkflow(container).run({ input: { id: apiKey.id, add, remove: [] } })
+  await writeFile(mapPath, JSON.stringify({ tenant: tenantKey, buyers: ids, publishableApiKey: apiKey.token }, null, 2), { mode: 0o600 })
+  return { buyers: ids, publishableApiKey: apiKey.token }
+}
+
 export default async function seed({ container }: ExecArgs) {
   const tenantKey = process.env.CHANGEDESK_TENANT_ID
   if (tenantKey !== "atlas" && tenantKey !== "boreal") throw new Error("CHANGEDESK_TENANT_ID must be atlas or boreal")
@@ -40,6 +104,18 @@ export default async function seed({ container }: ExecArgs) {
   const fixture = JSON.parse(await readFile(fixturePath, "utf8")) as Fixture
   const tenant = fixture.tenants.find((item) => item.key === tenantKey)
   if (!tenant) throw new Error("Tenant fixture not found")
+  if (process.env.CHANGEDESK_SEED_BUYERS_ONLY === "1") {
+    const query = container.resolve(ContainerRegistrationKeys.QUERY)
+    const [{ data: users }, { data: channels }] = await Promise.all([
+      query.graph({ entity: "user", fields: ["id"], filters: { email: tenant.actors.filter(({ role }) => role === "admin").map(({ email }) => email) } }),
+      query.graph({ entity: "sales_channel", fields: ["id"], filters: { name: [`${fixture.namespace}_${tenantKey}_baseline`, tenant.channelName] } }),
+    ])
+    const createdBy = (users[0] as { id?: string } | undefined)?.id
+    const channelIds = (channels as Array<{ id?: string }>).flatMap(({ id }) => id ? [id] : [])
+    if (!createdBy || channelIds.length !== 2) throw new Error("Existing Change Desk admin and sales channels are required for buyer-only provisioning")
+    await provisionBuyers(container, tenantKey, createdBy, channelIds)
+    return
+  }
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const collisions = await Promise.all([
     query.graph({ entity: "product", fields: ["id"], filters: { handle: fixture.products.map((item) => `changedesk-lab-${tenantKey}-${item.key}`) } }),
@@ -163,6 +239,7 @@ export default async function seed({ container }: ExecArgs) {
       progress.created.userIds.push(user.id)
       await checkpoint()
     }
+    const buyerFixtures = await provisionBuyers(container, tenantKey, users[`${tenantKey}.admin`]!, channels.map(({ id }) => id))
 
     const localDir = path.resolve(process.cwd(), ".local")
     await mkdir(localDir, { recursive: true })
@@ -171,6 +248,8 @@ export default async function seed({ container }: ExecArgs) {
       runId,
       tenant: tenantKey,
       users,
+      buyers: buyerFixtures.buyers,
+      publishableApiKey: buyerFixtures.publishableApiKey,
       products: Object.fromEntries(products.map((item, index) => [fixture.products[index].key, item.id])),
       categories: { baseline: baseCategory.id, campaign: campaignCategory.id },
       channels: { baseline: baseChannel.id, campaign: campaignChannel.id },
