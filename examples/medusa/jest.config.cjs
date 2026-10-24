@@ -28,10 +28,12 @@ module.exports = {
   transform: {
     "^.+\\.[jt]s$": ["@swc/jest", {
       jsc: { parser: { syntax: "typescript", decorators: true }, target: "es2022" },
-      module: { type: "es6" },
+      // Medusa 2.22's test-utils loads configured plugin modules with require().
+      // Keep this conversion inside Jest so the ESM production package is not
+      // repackaged or given a second runtime format merely for the test harness.
+      module: { type: "commonjs" },
     }],
   },
-  extensionsToTreatAsEsm: [".ts"],
   testEnvironment: "node",
   moduleFileExtensions: ["js", "ts", "json"],
   moduleDirectories: [
