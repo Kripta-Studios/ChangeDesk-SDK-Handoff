@@ -1,0 +1,25 @@
+{
+  "name": "@changedesk/react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": ["**/*.css"],
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.json --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=18.3.1 <19",
+    "react-dom": ">=18.3.1 <19"
+  },
+  "dependencies": {
+    "@changedesk/contracts": "workspace:*"
+  }
+}
