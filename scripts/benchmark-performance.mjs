@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { requireBenchmarkEnvironment, summarize } from "./benchmark-support.mjs";
+import { benchmarkStatus, persistenceMetrics, requireBenchmarkEnvironment, summarize } from "./benchmark-support.mjs";
 
 const CATALOG_ENTRIES = 1_000;
 const CATALOG_WARMUP = 20;
@@ -88,6 +88,17 @@ async function measureAdmission(app, store, actor, origin) {
   return summarize(samples, errors);
 }
 
+async function logicalPersistedBytes(pool, ownerTenantId, consumerTenantId) {
+  const result = await pool.query(`SELECT
+    (SELECT COALESCE(sum(pg_column_size(a)),0) FROM storage.recipe_artifacts a WHERE a.owner_tenant_id=$1)
+      + (SELECT COALESCE(sum(pg_column_size(g)),0) FROM storage.artifact_grants g JOIN storage.recipe_artifacts a ON a.id=g.artifact_id WHERE a.owner_tenant_id=$1)
+      + (SELECT COALESCE(sum(pg_column_size(i)),0) FROM storage.idempotency_records i WHERE i.tenant_id=$1) AS catalog_bytes,
+    (SELECT COALESCE(sum(pg_column_size(r)),0) FROM storage.requests r WHERE r.tenant_id=$2)
+      + (SELECT COALESCE(sum(pg_column_size(j)),0) FROM storage.jobs j WHERE j.tenant_id=$2)
+      + (SELECT COALESCE(sum(pg_column_size(i)),0) FROM storage.idempotency_records i WHERE i.tenant_id=$2) AS admission_bytes`, [ownerTenantId, consumerTenantId]);
+  return { catalog: Number(result.rows[0].catalog_bytes), admission: Number(result.rows[0].admission_bytes) };
+}
+
 async function main() {
   const root = REPOSITORY_ROOT;
   const { migratorDatabaseUrl, runtimeDatabaseUrl } = requireBenchmarkEnvironment();
@@ -110,6 +121,7 @@ async function main() {
     await runMigrations(migrator, path.join(root, "apps/service/migrations"));
     await seedIdentity(migrator, ownerTenantId, actorId);
     await seedIdentity(migrator, consumerTenantId, actorId);
+    const databaseBytesBefore = Number((await migrator.query("SELECT pg_database_size(current_database()) AS bytes")).rows[0].bytes);
     const setupStarted = performance.now();
     await store.withTenant({ tenantId: ownerTenantId, actorId }, async (tx) => {
       for (let index = 0; index < CATALOG_ENTRIES; index += 1) {
@@ -125,6 +137,7 @@ async function main() {
         });
       }
     });
+    const setupMilliseconds = performance.now() - setupStarted;
     const catalog = await measureCatalog(store, consumerTenantId, actorId);
 
     const actor = { tenantId: consumerTenantId, actorId, hostSessionId: "benchmark-session", roles: ["operator"], policyVersion: "1", expiresAt: "2099-01-01T00:00:00.000Z" };
@@ -140,14 +153,16 @@ async function main() {
     app = buildApi({ config, sessions, operations });
     await app.ready();
     const admission = await measureAdmission(app, store, { tenantId: consumerTenantId, actorId }, origin);
+    const databaseBytesAfter = Number((await migrator.query("SELECT pg_database_size(current_database()) AS bytes")).rows[0].bytes);
+    const logicalBytes = await logicalPersistedBytes(migrator, ownerTenantId, consumerTenantId);
     const serverVersion = (await migrator.query("SHOW server_version")).rows[0]?.server_version;
     const revision = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", shell: false }).stdout.trim();
     const dirty = spawnSync("git", ["diff", "--quiet", "HEAD"], { cwd: root, shell: false }).status !== 0;
     const evidence = {
-      schemaVersion: "1.0.0", status: catalog.errors === 0 && admission.errors === 0 ? "PASS" : "FAIL",
+      schemaVersion: "1.0.0", status: benchmarkStatus(catalog, admission),
       measuredAt: new Date().toISOString(), revision, dirty,
       environment: { node: process.version, os: `${platform()} ${release()}`, cpu: cpus()[0]?.model ?? "unknown", logicalCpuCount: cpus().length, totalMemoryBytes: totalmem(), postgresql: serverVersion },
-      dataset: { runId, synthetic: true, authorizedCatalogEntries: CATALOG_ENTRIES, catalogPageLimit: 20, setupMilliseconds: performance.now() - setupStarted },
+      dataset: { runId, synthetic: true, authorizedCatalogEntries: CATALOG_ENTRIES, catalogPageLimit: 20, setupMilliseconds, persisted: persistenceMetrics(databaseBytesBefore, databaseBytesAfter, logicalBytes.catalog, logicalBytes.admission) },
       catalog: { ...catalog, warmupSamples: CATALOG_WARMUP, targetP95Milliseconds: 250, targetMet: catalog.errors === 0 && catalog.p95 <= 250, authorization: "explicit cross-tenant read/install grants" },
       admission: { ...admission, warmupSamples: ADMISSION_WARMUP, targetP95Milliseconds: 300, targetMet: admission.errors === 0 && admission.p95 <= 300, boundary: "Fastify inject through validation, canonical request hash and committed PostgreSQL request+job", authentication: "preauthenticated benchmark adapter; session cryptography excluded" },
       limitations: ["In-process Fastify injection excludes network latency", "Catalog measures a page of 20 over 1,000 authorized entries", "Synthetic laboratory data only; this is not an unlimited-scale claim"]

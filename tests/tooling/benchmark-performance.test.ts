@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error The executable module has no declaration file.
-import { percentile, summarize, requireBenchmarkEnvironment } from "../../scripts/benchmark-support.mjs";
+import { benchmarkStatus, persistenceMetrics, percentile, summarize, requireBenchmarkEnvironment } from "../../scripts/benchmark-support.mjs";
 
 describe("performance evidence helpers", () => {
   it("uses nearest-rank percentiles without averaging away tail latency", () => {
@@ -14,5 +14,13 @@ describe("performance evidence helpers", () => {
 
   it("marks missing real PostgreSQL configuration BLOCKED", () => {
     expect(() => requireBenchmarkEnvironment({})).toThrow(/BLOCKED.*CHANGEDESK_MIGRATOR_DATABASE_URL.*CHANGEDESK_RUNTIME_DATABASE_URL/);
+  });
+
+  it("fails evidence when a latency target is missed without request errors", () => {
+    expect(benchmarkStatus({ errors: 0, p95: 404 }, { errors: 0, p95: 40 })).toBe("FAIL");
+  });
+
+  it("reports logical row bytes separately from database-size delta", () => {
+    expect(persistenceMetrics(1_000, 1_750, 500, 125)).toEqual({ unit: "bytes", databaseSizeDelta: 750, catalogLogicalRows: 500, admissionLogicalRows: 125 });
   });
 });
