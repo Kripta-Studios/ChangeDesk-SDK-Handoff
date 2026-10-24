@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "recordedAt": "2026-10-24T14:13:30+02:00",
+  "scope": "P1-T03 PostgreSQL storage and P3 durable jobs substrate",
+  "environment": {
+    "postgres": "17.11",
+    "binding": "127.0.0.1:5432",
+    "roles": [
+      "changedesk_migrator",
+      "changedesk_runtime",
+      "changedesk_worker"
+    ],
+    "roleProof": "Integration setup asserted runtime and worker are neither superuser, BYPASSRLS, nor owners of storage tables.",
+    "secrets": "Loaded from ignored repository .env into process environment; no values or URLs captured."
+  },
+  "tdd": [
+    {
+      "phase": "RED",
+      "command": "vitest run tests/storage/schema.test.ts",
+      "result": "FAIL 4/4",
+      "reason": "Expected RLS/FORCE RLS, business uniqueness, composite FKs, ticket replay, and scheduler fencing statements were absent from the placeholder migration."
+    },
+    {
+      "phase": "RED_REAL_DB",
+      "command": "vitest run tests/storage/store.integration.test.ts",
+      "result": "FAIL 2, PASS 6",
+      "reason": "Real worker claims returned no rows: SECURITY DEFINER owner remained subject to FORCE RLS."
+    },
+    {
+      "phase": "RED_UPGRADE",
+      "command": "vitest run tests/storage/store.integration.test.ts",
+      "result": "FAIL before tests",
+      "reason": "Actor backfill FK validation could not see referenced actors under FORCE RLS."
+    },
+    {
+      "phase": "GREEN",
+      "command": "vitest run tests/storage --config vitest.config.ts",
+      "result": "PASS 12/12 in 2 files",
+      "verified": [
+        "migration checksum rerun",
+        "runtime and worker role privilege posture",
+        "single-connection tenant context cleanup",
+        "cross-tenant composite FK SQLSTATE 23503 with same-tenant control",
+        "approval and execution convergence under concurrent distinct HTTP keys",
+        "same-key changed-body conflict",
+        "transaction rollback",
+        "issuer+jti ticket replay rejection",
+        "fair claims with distinct tenant turns",
+        "stale and expired fence rejection",
+        "expired lease recovery",
+        "worker tenant-scoped bundle access"
+      ]
+    },
+    {
+      "phase": "TYPECHECK",
+      "command": "tsc -p temporary storage-only config using pinned workspace dependencies",
+      "result": "PASS",
+      "note": "The temporary config was removed; the root workspace typecheck remains authoritative after integration."
+    }
+  ],
+  "design": {
+    "migrations": "Numbered SQL, SHA-256 checksums, session advisory lock, one transaction per migration.",
+    "tenantContext": "One pg client per transaction; transaction-local tenant and actor settings only.",
+    "catalog": "No global public visibility. provider_catalog and shared_allowlist both require positive per-tenant grants.",
+    "jobs": "One jobs table; separate generation/execution capacity classes; tenant/global/backend leases; fencing on heartbeat, finish, and ledger mutations.",
+    "workerBoundary": "Worker gets opaque scheduling identity from narrow SECURITY DEFINER claim and uses its distinct role under tenant/actor RLS for business rows."
+  },
+  "challengedAssumption": {
+    "assumption": "A SECURITY DEFINER function owned by the table owner would automatically read FORCE RLS tables.",
+    "finding": "False. The real DB test returned no claims.",
+    "resolution": "Explicit policy for the fixed migration-role owner on jobs; no worker table-wide cross-tenant SELECT grant."
+  },
+  "limitations": [
+    "This evidence proves the local PostgreSQL substrate, not Medusa remote exactly-once effects.",
+    "Scheduler fairness is verified on the local fixture size; it is not a scale benchmark.",
+    "The final root workspace typecheck and integration merge remain coordinator-owned."
+  ]
+}
