@@ -32,10 +32,8 @@ export type CapabilityArgs = {
   "medusa.sales_channels.products.add": ChannelAddArgs
 }
 
-export type BridgeCommand<C extends CapabilityId = CapabilityId> = {
-  capability: C
-  args: CapabilityArgs[C]
-}
+export type BridgeCommand<C extends CapabilityId = CapabilityId> =
+  C extends CapabilityId ? { capability: C; args: CapabilityArgs[C] } : never
 
 export type BootstrapClaims = {
   v: 1
