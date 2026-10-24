@@ -67,11 +67,16 @@ describe("ChangeDeskPanel", () => {
       createPlan: vi.fn().mockResolvedValue({ planId: "plan_1", status: "ready" }),
       getPlan: vi.fn().mockResolvedValue({ title: "Asignar categoría", canApprove: true, permissions: ["approve", "execute"], plan: { id: "plan_1", schemaVersion: "1", tenantId: "hidden", actorId: "hidden", requestId: "installed", artifactHash: "b".repeat(64), adapterVersion: "1", policyVersion: "1", capabilityManifestHash: "c".repeat(64), parameters: {}, selectionSnapshot: [], state: "ready", planHash: "a".repeat(64), planVersion: 1, createdAt: "2026-01-01T00:00:00Z", expiresAt: "2026-01-01T00:10:00Z", perRecordEffects: [], exclusions: [], evidenceRefs: [], limits: { maxRecords: 100, maxSteps: 12 } } }),
     });
-    render(<ChangeDeskProvider config={{ endpoint: "https://desk.example.test", getSession: vi.fn(), locale: "es", getContext: () => ({ selectedProductIds: ["prod_1"], surface: "installed.action" }) }} client={api}><InternalPanel initialInstallationId="ins_1" /></ChangeDeskProvider>);
+    const installedConfig = (ids: string[]) => ({ endpoint: "https://desk.example.test", getSession: vi.fn(), locale: "es" as const, getContext: () => ({ selectedProductIds: ids, surface: "installed.action" }) });
+    const view = render(<ChangeDeskProvider config={installedConfig(["prod_1"])} client={api}><InternalPanel initialInstallationId="ins_1" /></ChangeDeskProvider>);
     await userEvent.selectOptions(await screen.findByLabelText("Categoría"), "cat_1");
     await userEvent.click(screen.getByRole("button", { name: "Preparar preview" }));
     expect(api.createRequest).not.toHaveBeenCalled();
     expect(api.createPlan).toHaveBeenCalledWith(expect.objectContaining({ installationId: "ins_1", selectedProductIds: ["prod_1"], parameters: { categoryId: "cat_1" } }));
+    expect(await screen.findByRole("button", { name: "Aprobar y ejecutar" })).toBeTruthy();
+    view.rerender(<ChangeDeskProvider config={installedConfig(["prod_2"])} client={api}><InternalPanel initialInstallationId="ins_1" /></ChangeDeskProvider>);
+    expect(await screen.findByText(/preview anterior se invalidó/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Aprobar y ejecutar" })).toBeNull();
   });
 
   it("sends clarification as a conversation message instead of creating another request", async () => {
