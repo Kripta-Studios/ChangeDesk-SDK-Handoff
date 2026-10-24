@@ -16,11 +16,20 @@
       "behavior": "execution business state is fenced before and after effects",
       "commit": "9d37e65",
       "observed": "prepareExecution was not called for a queued execution"
+    },
+    {
+      "behavior": "real PostgreSQL API-to-worker vertical",
+      "commit": "1c1dbb0",
+      "observed": "migration checksum mismatch at version 1 because identical SQL was hashed with worktree-specific CRLF bytes"
+    },
+    {
+      "behavior": "real scheduler integration",
+      "observed": "the first global claim belonged to a prior orphan fixture and returned generation_bundle_unavailable; the harness now processes durable queue entries without deleting unrelated data"
     }
   ],
   "green": {
     "command": "node.exe node_modules/vitest/vitest.mjs run apps/service/tests/runtime --reporter=dot --pool=forks --maxWorkers=1",
-    "result": "7 files, 19 tests passed",
+    "result": "8 files, 20 tests passed",
     "materialCoverage": [
       "strict REST authorization and schemas",
       "one-time durable bootstrap sessions",
@@ -30,13 +39,18 @@
       "contract DTO mapping and installed-action plan materialization"
     ]
   },
+  "realPostgres": {
+    "command": "vitest run tests/runtime/real-pg-vertical.integration.test.ts --reporter=dot --pool=forks --maxWorkers=1",
+    "result": "1 file, 1 test passed",
+    "path": "ticket exchange -> request -> generation job -> candidate -> install -> plan -> approval -> execution job -> succeeded row",
+    "fixtures": "deterministic fake-test planner and controlled host connector only; API, session, stores, PostgreSQL roles, scheduler and worker are production implementations"
+  },
   "typecheck": {
     "ownedPaths": "PASS",
-    "fullService": "BLOCKED",
-    "blocker": "apps/service/src/evals/fastify-harness.ts TS2742 (unowned evaluation lane)"
+    "fullService": "PASS"
   },
   "notRun": [
-    "live Codex provider invocation (requires external authenticated Codex CLI configuration)",
-    "real Medusa two-store effect flow in this worktree"
+    "live Codex provider invocation in this runtime vertical (planner lane verified it separately)",
+    "real Medusa two-store effect flow; host fixture is explicitly controlled"
   ]
 }

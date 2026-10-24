@@ -59,7 +59,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     const generation = createProductionGenerationProcessor({ store: workerStore, catalog: workerCatalog, planner: { kind: "fake-test", allowExplicitTestFake: true }, workerLeaseSeconds: 30, maxAttempts: 3, totalTokenBudget: 10_000n, costBudgetMicros: 0n });
     const adapter = new StorageRuntimeAdapter(workerStore as any, jobs as any, { workerActorId: "lease-actor", leaseSeconds: 30, globalCap: 2 });
     const worker = new DurableWorker({ store: adapter, connector: connector as any, authority: new StrictEffectAuthority(), generation });
-    expect(await worker.runOnce("fixture-generation")).toEqual({ kind: "completed" });
+    await runWorkerUntil(worker, async () => (await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.listRequestCandidates(requestId))).length > 0, "generation");
 
     const candidates = await app.inject({ method: "GET", url: `/v1/requests/${requestId}/candidates`, headers: readHeaders(authorization) });
     expect(candidates.statusCode).toBe(200);
@@ -83,7 +83,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     const executionKey = randomUUID();
     const execution = await post(app, "/v1/executions", authorization, { approvalId: approval.json().approvalId, idempotencyKey: executionKey }, executionKey);
     expect(execution.statusCode).toBe(200);
-    expect(await worker.runOnce("fixture-execution")).toEqual({ kind: "completed" });
+    await runWorkerUntil(worker, async () => (await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.getExecution(execution.json().executionId)))?.state === "succeeded", "execution");
 
     const detail = await app.inject({ method: "GET", url: `/v1/executions/${execution.json().executionId}`, headers: readHeaders(authorization) });
     expect(detail.statusCode).toBe(200);
@@ -105,3 +105,4 @@ function testConfig(): ServiceConfig { return { apiDatabaseUrl: runtimeUrl!, wor
 function mutationHeaders(authorization?: string, key = randomUUID()) { return { origin: "http://runtime.test", "idempotency-key": key, ...(authorization ? { authorization } : {}) }; }
 function readHeaders(authorization: string) { return { origin: "http://runtime.test", authorization }; }
 function post(app: ReturnType<typeof buildApi>, url: string, authorization: string, payload: unknown, key = randomUUID()) { return app.inject({ method: "POST", url, headers: mutationHeaders(authorization, key), payload }); }
+async function runWorkerUntil(worker: DurableWorker, done: () => Promise<boolean>, lane: string) { for (let attempt = 0; attempt < 50; attempt++) { await worker.runOnce(`fixture-${lane}`); if (await done()) return; } throw new Error(`Fixture worker did not complete ${lane} within 50 claims`); }
