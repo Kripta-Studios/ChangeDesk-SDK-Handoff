@@ -22,7 +22,9 @@ export const readActorPolicy = async (scope: Scope, actorId: string): Promise<Ac
     policy.active !== true ||
     !["viewer", "requester", "operator", "admin"].includes(String(policy.role)) ||
     typeof policy.policyVersion !== "string" ||
-    typeof policy.hostSessionId !== "string"
+    typeof policy.hostSessionId !== "string" ||
+    !Array.isArray(policy.readableProductIds) ||
+    policy.readableProductIds.some((id) => typeof id !== "string")
   ) {
     throw new BridgeError(403, "actor_policy_missing", "Actor does not have an active Change Desk policy")
   }

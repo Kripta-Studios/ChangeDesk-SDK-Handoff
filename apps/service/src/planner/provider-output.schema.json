@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "kind": { "enum": ["candidate", "needs_clarification", "unsupported"] },
+    "recipe": { "type": ["object", "null"] },
+    "safeMessage": { "type": ["string", "null"], "maxLength": 500 }
+  },
+  "required": ["kind", "recipe", "safeMessage"],
+  "additionalProperties": false
+}

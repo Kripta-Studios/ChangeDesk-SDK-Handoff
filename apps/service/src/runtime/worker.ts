@@ -1,0 +1,114 @@
+import { hashCanonical, semanticInputHash } from "../core/hashing.js";
+import type { EffectAuthority, ExecutionBundle, HostConnector, JobLease, PlanEffect, WorkerOutcome } from "./types.js";
+import type { RuntimeStorePort } from "./store-port.js";
+
+export class ConnectorError extends Error {
+  constructor(public readonly code: string, public readonly certainty: "not_sent" | "unknown", message: string) { super(message); }
+}
+
+export interface WorkerDependencies {
+  store: RuntimeStorePort;
+  connector: HostConnector;
+  authority: EffectAuthority;
+  clock?: () => Date;
+}
+
+export class DurableWorker {
+  readonly #clock: () => Date;
+  constructor(private readonly dependencies: WorkerDependencies) { this.#clock = dependencies.clock ?? (() => new Date()); }
+
+  async runOnce(workerId: string): Promise<"idle" | WorkerOutcome> {
+    const lease = await this.dependencies.store.claimNextJob(workerId, this.#clock());
+    if (!lease) return "idle";
+    if (lease.kind !== "execution" && lease.kind !== "reconcile") {
+      const outcome = { kind: "failed", reason: "unsupported_job_kind" } as const;
+      await this.dependencies.store.requeueOrFinish(lease, outcome);
+      return outcome;
+    }
+    const outcome = await this.#runExecution(lease);
+    await this.dependencies.store.requeueOrFinish(lease, outcome);
+    return outcome;
+  }
+
+  async #runExecution(lease: JobLease): Promise<WorkerOutcome> {
+    const bundle = await this.dependencies.store.loadExecutionBundle(lease);
+    const reconciliation = await this.#reconcileUnknown(lease, bundle);
+    if (reconciliation.unknown > 0) return { kind: "waiting_reconciliation", reason: "effect_still_unknown" };
+    if (bundle.execution.cancelRequestedAt) return { kind: "cancelled" };
+
+    const currentAuthority = await this.#authorityForNext(lease, bundle);
+    if (!currentAuthority.allowed) return { kind: "authority_expired", observedEffects: reconciliation.confirmed };
+    if (lease.kind === "reconcile") return { kind: "completed" };
+
+    for (const effect of bundle.pendingEffects) {
+      const authority = await this.dependencies.authority.authorizeEffectJustInTime(lease, bundle, effect, this.#clock());
+      if (!authority.allowed) return { kind: "authority_expired", observedEffects: reconciliation.confirmed };
+      const outcome = await this.#executeEffect(lease, bundle, effect);
+      if (outcome) return outcome;
+    }
+    return { kind: "completed" };
+  }
+
+  async #authorityForNext(lease: JobLease, bundle: ExecutionBundle) {
+    const effect = bundle.pendingEffects[0] ?? bundle.unknownEffects[0];
+    return effect ? this.dependencies.authority.authorizeEffectJustInTime(lease, bundle, effect, this.#clock()) : { allowed: true as const };
+  }
+
+  async #reconcileUnknown(lease: JobLease, bundle: ExecutionBundle): Promise<{ confirmed: number; unknown: number }> {
+    let confirmed = 0;
+    let unknown = 0;
+    for (const effect of bundle.unknownEffects) {
+      const hashes = effectHashes(bundle, effect);
+      const attempt = await this.dependencies.store.recordAttemptIntent(lease, { rowId: effect.recordId, stepId: effect.stepId, capability: effect.capability, ...hashes });
+      const result = await this.dependencies.connector.reconcileOperation({ tenantId: lease.tenantId, executionId: bundle.execution.id, rowId: effect.rowId, stepId: effect.stepId, capability: effect.capability, ...hashes });
+      if (result.state === "confirmed") {
+        if (!await this.dependencies.store.confirmAttempt(lease, attempt.attemptId, result.receipt)) return { confirmed, unknown: unknown + 1 };
+        confirmed++;
+      } else if (result.state === "no_effect") {
+        if (!await this.dependencies.store.rejectAttempt(lease, attempt.attemptId, "reconciled_no_effect")) return { confirmed, unknown: unknown + 1 };
+      } else {
+        unknown++;
+      }
+    }
+    return { confirmed, unknown };
+  }
+
+  async #executeEffect(lease: JobLease, bundle: ExecutionBundle, effect: PlanEffect): Promise<WorkerOutcome | undefined> {
+    const hashes = effectHashes(bundle, effect);
+    const attempt = await this.dependencies.store.recordAttemptIntent(lease, { rowId: effect.recordId, stepId: effect.stepId, capability: effect.capability, ...hashes });
+    if (attempt.state === "confirmed" || attempt.state === "no_effect") return;
+    if (attempt.state === "sent" || attempt.state === "unknown") return { kind: "waiting_reconciliation", reason: "existing_uncertain_attempt" };
+    if (!await this.dependencies.store.markAttemptSent(lease, attempt.attemptId)) return { kind: "waiting_reconciliation", reason: "lease_lost_before_send" };
+    try {
+      const result = await this.dependencies.connector.executeAuthorized({
+        tenantId: lease.tenantId, actorId: bundle.plan.actorId, executionId: bundle.execution.id,
+        rowId: effect.recordId, stepId: effect.stepId, planId: bundle.execution.planId, planHash: bundle.plan.planHash,
+        planVersion: bundle.plan.planVersion, approvalId: bundle.approval.id, approvalExpiresAt: bundle.approval.expiresAt,
+        fence: lease.fence, policyVersion: bundle.plan.policyVersion, adapterVersion: bundle.plan.adapterVersion,
+        capabilityManifestHash: bundle.plan.capabilityManifestHash, capability: effect.capability, args: effect.arguments,
+        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: effect.preconditionFingerprint }, ...hashes,
+      });
+      if (!result.observed) {
+        await this.dependencies.store.markAttemptUnknown(lease, attempt.attemptId, "readback_not_observed");
+        return { kind: "waiting_reconciliation", reason: "readback_not_observed" };
+      }
+      if (!await this.dependencies.store.confirmAttempt(lease, attempt.attemptId, result.receipt)) return { kind: "waiting_reconciliation", reason: "lease_lost_after_send" };
+    } catch (error) {
+      if (error instanceof ConnectorError && error.certainty === "not_sent") {
+        await this.dependencies.store.rejectAttempt(lease, attempt.attemptId, error.code);
+        return { kind: "failed", reason: error.code };
+      }
+      await this.dependencies.store.markAttemptUnknown(lease, attempt.attemptId, error instanceof ConnectorError ? error.code : "connector_unknown");
+      return { kind: "waiting_reconciliation", reason: "effect_unknown" };
+    }
+  }
+}
+
+function effectHashes(bundle: ExecutionBundle, effect: PlanEffect) {
+  const inputHash = semanticInputHash({ executionId: bundle.execution.id, rowId: effect.recordId, stepId: effect.stepId, capability: effect.capability, arguments: effect.arguments, expected: effect.expected, preconditionFingerprint: effect.preconditionFingerprint });
+  return {
+    operationKey: `${bundle.execution.id}:${effect.recordId}:${effect.stepId}:${inputHash}`,
+    semanticInputHash: inputHash,
+    argsHash: hashCanonical("bridge-arguments", "1", effect.arguments),
+  };
+}

@@ -39,9 +39,13 @@
       "dependsOn": [
         "T00"
       ],
-      "status": "in_progress",
+      "status": "review",
       "assignedAgent": "/root/core",
-      "evidence": [],
+      "evidence": [
+        "evidence/core-tdd.json",
+        "evidence/parent-core-verification.json",
+        "evidence/parent-substrate-tests.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -56,8 +60,11 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/storage",
-      "evidence": [],
-      "blocker": null,
+      "evidence": [
+        "evidence/storage-tdd.json",
+        "evidence/parent-substrate-tests.json"
+      ],
+      "blocker": "Root migration1 CRLF differs from applied LF; normalize checkout only. Generation bundle integration underway.",
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
     },
@@ -101,7 +108,7 @@
       "dependsOn": [
         "T04"
       ],
-      "status": "not_started",
+      "status": "in_progress",
       "assignedAgent": "/root/runtime",
       "evidence": [],
       "blocker": null,
@@ -117,7 +124,7 @@
         "T03",
         "T06"
       ],
-      "status": "not_started",
+      "status": "in_progress",
       "assignedAgent": "/root/planner",
       "evidence": [],
       "blocker": null,
@@ -133,7 +140,7 @@
         "T02",
         "T07"
       ],
-      "status": "not_started",
+      "status": "in_progress",
       "assignedAgent": "/root/planner",
       "evidence": [],
       "blocker": null,
@@ -150,7 +157,7 @@
         "T07",
         "T08"
       ],
-      "status": "not_started",
+      "status": "in_progress",
       "assignedAgent": "/root/frontend",
       "evidence": [],
       "blocker": null,
@@ -166,8 +173,8 @@
         "T06",
         "T08"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/security",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -181,8 +188,8 @@
       "dependsOn": [
         "T02"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/core",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
