@@ -1,18 +1,17 @@
-# Estado para la próxima sesión
+# Estado de implementación
 
-Fecha: 2026-10-24.
+Fecha: 2026-10-24. Objetivo completo EN CURSO, todavía no verificado.
 
-- Objetivo actual completado: preparar especificación detallada para futura implementación; consultar revisión final y handoff-validation.json.
-- SDK: **NOT_STARTED**. No dependencias de producto instaladas, ni Medusa arrancado, ni pruebas del SDK ejecutadas.
-- Servicios de este proyecto: ninguno.
-- Git/ramas: no inicializados por esta sesión; revisar si el usuario hizo cambios después.
-- Ruta: raíz de esta carpeta. No tocar directorios vecinos.
-- Entorno observado: Windows/PowerShell, Git/Node/cliente Docker disponibles, ~31 GiB RAM. Docker Engine no respondió; volver a comprobar.
-- Comando documental ejecutable: `python scripts/validate_handoff.py` (requiere jsonschema).
-- Siguiente trabajo: P0 y T00/T01; contratos/core pueden avanzar en paralelo tras fijar interfaces.
-- Estado documental final: `SPEC_READY`, council Astra High `ship`; 84 comprobaciones de integridad/schema/fixtures/modelos/tecnologías/gates correctas, 32 archivos de especificación. Implementación y pruebas de producto siguen `NOT_STARTED`/`NOT_RUN`.
-- Arquitectura mínima final: cuatro workspaces fuente, una imagen de servicio con API/worker, PostgreSQL para datos+jobs, SDK React lazy y polling. Ver `contracts/technology-profile.json` y `docs/13-INTEGRATION-AND-DEPLOYMENT.md`.
-- Modelos solicitados por el usuario: implementación/testing GPT-6.1 Sol High; ideas/coordinación/revisión final GPT-6 Astra High. Ver agent-policy.json.
-- Sin secretos guardados ni solicitados. La integración live requerirá proveedor configurado por referencia externa y presupuesto.
+- Baseline documental preservada en Git local: 8cfc8c0. Sin remoto ni publicaciones.
+- Rama coordinadora master; worktrees dentro de .worktrees/: environment, core, medusa, storage, frontend. Cada uno tiene rama impl/<rol> y ownership exclusivo.
+- Overrides solicitados: implementación/testing gpt-6.1-sol/high; asesoría de arquitectura gpt-6-astra/high. Ver ADR-003 para límites de metadatos observables.
+- Entorno: Windows; Node del sistema 25.8.1 no se usará como pin. Environment verifica Node22.23.4 LTS local; Docker Engine29.4.2 responde tras arranque. PostgreSQL pendiente. Ningún gate real aceptado aún.
+- Puertos disponibles previstos: API4100, Atlas9001, Boreal9002, PostgreSQL5432. Readiness pendiente; no PIDs de proyecto confirmados aún.
+- Propietarios: environment (tooling raíz/lockfile/infra); core (packages/contracts, service core/policy); medusa (plugin backend, host compartido, seed); storage (SQL/migraciones/storage); frontend (SDK y plugin src/admin).
+- Coordinador conserva docs/contratos raíz, TASKBOARD y handoff. docs/14-IMPLEMENTATION-DECISIONS.md fija vocabulario, igualdad de schemas y claves de idempotencia; autoriza JCS contrastado con canonicalize5.1.0 verificado por environment.
+- Los agentes deben conservar RED por comportamiento y GREEN. No existen todavía resultados de producto aceptados por root.
+- Próximo trabajo: incorporar checkpoints tooling/types, probar P0 real, integrar persistencia y contratos bridge/runtime; continuar P2-P8 sin saltar gates.
+- Proveedor real: solicitada referencia externa y presupuesto, sin leer ni solicitar valores secretos. No se autoriza gasto implícito.
+- Bend, browser E2E, seguridad real, recovery, benchmark, tarball y council final pendientes. No convertir pendientes en PASS.
 
-Conservar las especificaciones como baseline. Actualizar este documento con progreso real, servicios, commits y pruebas al finalizar cada sesión de implementación.
+Leer TASKBOARD y este archivo antes de reanudar. No repetir instalaciones/seed ni tocar servicios ajenos. Conservar especificación original como baseline.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "packageStatus": "SPEC_READY",
-  "implementationStatus": "NOT_STARTED",
+  "implementationStatus": "IN_PROGRESS",
   "tasks": [
     {
       "id": "T00",
@@ -9,8 +9,8 @@
       "ownerRole": "environment",
       "title": "Inspect and pin local environment",
       "dependsOn": [],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/environment",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -24,8 +24,8 @@
       "dependsOn": [
         "T00"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/medusa",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -39,8 +39,8 @@
       "dependsOn": [
         "T00"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/core",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -54,8 +54,8 @@
       "dependsOn": [
         "T02"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/storage",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -86,8 +86,8 @@
         "T02",
         "T04"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/frontend",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
