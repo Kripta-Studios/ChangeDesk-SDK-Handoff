@@ -11,7 +11,8 @@ import { StorageRuntimeAdapter } from "./runtime/storage-adapter.js";
 import { ConfiguredHostRegistry } from "./adapter/registry.js";
 import { SignedBridgeConnector } from "./adapter/bridge-connector.js";
 import { StrictEffectAuthority } from "./runtime/authority.js";
-import { createProductionCatalog, createProductionGenerationProcessor, publicationPrivateKeyFromPem } from "./planner/index.js";
+import { createProductionCatalog, createProductionGenerationProcessor, publicationPrivateKeyFromPem, type BootstrapPlannerConfig } from "./planner/index.js";
+import type { PlannerConfig } from "./config.js";
 
 export async function startWorker(worker: DurableWorker, options: { workerId: string; signal: AbortSignal; idleDelayMs?: number; concurrency?: number; recoveryIntervalMs?: number }): Promise<void> {
   const idleDelayMs = options.idleDelayMs ?? 500;
@@ -27,13 +28,26 @@ export async function main(): Promise<void> {
   const storage = new StorageRuntimeAdapter(store as any, new JobStore(pool) as any, { workerActorId: "unused-lease-actor-is-authoritative", leaseSeconds: config.workerLeaseSeconds, globalCap: config.workerGlobalCap });
   await storage.recoverOrphanedLeases(100);
   const catalog = createProductionCatalog(store, { publicationKeyId: config.publicationKeyId, publicationPrivateKey: publicationPrivateKeyFromPem(config.publicationPrivateKeyPem) });
-  const generation = createProductionGenerationProcessor({ store, catalog, planner: { executable: config.planner.executable, executableSha256: config.planner.executableSha256, model: config.planner.model, allowedModels: config.planner.allowedModels,
-    isolatedCwd: config.planner.isolatedCwd, outputSchemaPath: config.planner.outputSchemaPath, timeoutMs: config.planner.timeoutMs, maxOutputBytes: config.planner.maxOutputBytes,
-    maxInputTokens: config.planner.maxInputTokens, environment: plannerEnvironment() }, workerLeaseSeconds: Math.min(config.workerLeaseSeconds, 300), maxAttempts: 3, totalTokenBudget: 409_152n, costBudgetMicros: 0n });
+  const planner = plannerBootstrapConfig(config.planner);
+  const generation = createProductionGenerationProcessor({ store, catalog, planner, workerLeaseSeconds: Math.min(config.workerLeaseSeconds, 300), maxAttempts: 3,
+    totalTokenBudget: plannerTokenBudget(config.planner), costBudgetMicros: config.planner.kind === "api" ? usdToMicros(config.planner.config.authorizedBudgetUsd) : 0n });
   const worker = new WorkerImplementation({ store: storage, connector: new SignedBridgeConnector(new ConfiguredHostRegistry(config.hosts)), authority: new StrictEffectAuthority(), generation });
   const controller = new AbortController(); const stop = () => controller.abort(); process.once("SIGINT", stop); process.once("SIGTERM", stop);
   try { await startWorker(worker, { workerId: config.workerId, signal: controller.signal, concurrency: config.workerGlobalCap }); } finally { await pool.end(); }
 }
+
+export function plannerBootstrapConfig(config: PlannerConfig): BootstrapPlannerConfig {
+  if (config.kind === "api") return { kind: "api", config: config.config, secrets: { get: async (name) => name === config.config.apiKeyEnvironmentName ? process.env[name] ?? null : null } };
+  if (config.kind === "fake-test") return config;
+  return { ...config, kind: "codex-cli", environment: plannerEnvironment() };
+}
+
+function plannerTokenBudget(config: PlannerConfig): bigint {
+  if (config.kind === "api") return BigInt(3 * (config.config.maxInputTokens + config.config.maxOutputTokens));
+  return config.kind === "fake-test" ? 409_152n : BigInt(3 * (config.maxInputTokens + 16_384));
+}
+
+function usdToMicros(value: number): bigint { return BigInt(Math.floor(value * 1_000_000)); }
 
 function plannerEnvironment(): Record<string, string> {
   const result: Record<string, string> = {};
