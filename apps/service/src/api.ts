@@ -35,7 +35,7 @@ export async function main(): Promise<void> {
     signer: new NodeEd25519Signer(new Map([[config.publicationKeyId, createPrivateKey(config.publicationPrivateKeyPem)]])),
     permissionsFor: (actor) => permissionsForRole(actor.role), newId: () => randomUUID(),
   });
-  const app = buildApi({ config, sessions, operations: new StorageApiOperations(store, connector, resourceIds, catalog, config.publicationKeyId, undefined, config.proofRequired, "live") });
+  const app = buildApi({ config, sessions, operations: new StorageApiOperations(store, connector, resourceIds, catalog, config.publicationKeyId, undefined, config.proofRequired, config.planner.kind === "fake-test" ? "fake" : "live") });
   app.get("/readyz", async (_request, reply) => { try { await pool.query("SELECT 1"); return { status: "ready" }; } catch { return reply.status(503).send({ status: "not_ready" }); } });
   const shutdown = async () => { await app.close(); await pool.end(); };
   process.once("SIGINT", () => void shutdown()); process.once("SIGTERM", () => void shutdown());
