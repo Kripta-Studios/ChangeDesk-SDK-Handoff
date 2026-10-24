@@ -29,7 +29,7 @@ export class PostgresCatalogRepository implements CatalogRepository {
   constructor(private readonly store: TenantCatalogStore, private readonly newId: (kind:"grant")=>string) {}
 
   listVisible(actor: ActorContext, query: { recipeKey?: Recipe["recipeKey"]; adapter: AdapterDescriptor; limit: number }): Promise<readonly CatalogArtifactRecord[]> {
-    return this.store.withTenant(actor, async (tx) => (await tx.listDiscoverableCatalog({ recipeKey:query.recipeKey, adapter:query.adapter.id, capabilityContract:query.adapter.capabilityContract, limit:query.limit })).map((row)=>mapArtifact(row)));
+    return this.store.withTenant(actor, async (tx) => (await tx.listDiscoverableCatalog({ ...(query.recipeKey?{recipeKey:query.recipeKey}:{}), adapter:query.adapter.id, capabilityContract:query.adapter.capabilityContract, limit:query.limit })).map((row)=>mapArtifact(row)));
   }
   getVisible(actor: ActorContext, publicationId: string): Promise<CatalogArtifactRecord|null> {
     return this.store.withTenant(actor, async (tx) => {

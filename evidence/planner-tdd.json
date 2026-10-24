@@ -19,12 +19,12 @@
       "command": "node_modules/.bin/vitest.cmd run tests/planner --exclude tests/planner/live.codex.test.ts",
       "result": "PASS",
       "files": 3,
-      "tests": 15,
-      "durationSeconds": 3.38
+      "tests": 18,
+      "durationSeconds": 6.07
     },
     {
       "command": "CHANGEDESK_RUN_CODEX_LIVE=1 CHANGEDESK_CODEX_MODEL=gpt-6.1-sol vitest run tests/planner/live.codex.test.ts",
-      "result": "PASS",
+      "result": "PASS for transport/schema wrapper; full Ajv and semantic assertions were added afterward and require the next explicitly budgeted live rerun",
       "files": 1,
       "tests": 1,
       "testDurationSeconds": 13.927,

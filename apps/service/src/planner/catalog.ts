@@ -19,7 +19,7 @@ export class AuthorizedCatalog implements CatalogPort {
   async searchAuthorized(query: CatalogSearchQuery): Promise<readonly Candidate[]> {
     assertEnabled(query.actor);
     const rows = await this.options.repository.listVisible(query.actor, {
-      recipeKey: query.recipeKey, adapter: query.adapter, limit: Math.min(Math.max(query.limit ?? 20, 1), 20),
+      ...(query.recipeKey ? {recipeKey:query.recipeKey} : {}), adapter: query.adapter, limit: Math.min(Math.max(query.limit ?? 20, 1), 20),
     });
     return rows.filter((row) => compatible(row.recipe, query)).slice(0, 3).map(toCandidate);
   }
