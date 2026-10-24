@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "recordedAt": "2026-10-24T14:25:45+02:00",
+  "recordedAt": "2026-10-24T14:33:10+02:00",
   "scope": "P1-T03 PostgreSQL storage and P3 durable jobs substrate",
   "environment": {
     "postgres": "17.11",
@@ -41,7 +41,7 @@
     {
       "phase": "GREEN",
       "command": "vitest run tests/storage --config vitest.config.ts",
-      "result": "PASS 13/13 in 2 files",
+      "result": "PASS 14/14 in 2 files",
       "verified": [
         "migration checksum rerun",
         "runtime and worker role privilege posture",
@@ -56,7 +56,10 @@
         "expired lease recovery",
         "worker tenant-scoped bundle access",
         "restart-safe generation bundle with redacted intent, context, budget, current policy, backend, and registered capability manifest",
-        "stale generation lease cannot load private input"
+        "stale generation lease cannot load private input",
+        "approval bound to live host session and surfaced in execution authority",
+        "existing attempt state survives recovery and is explicitly re-fenced only for reconciliation",
+        "row and execution state transition under the recovered lease before job completion"
       ]
     },
     {

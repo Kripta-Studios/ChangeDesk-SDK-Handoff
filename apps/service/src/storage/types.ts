@@ -42,6 +42,7 @@ export interface ApprovalRecord {
   readonly planVersion: number;
   readonly planHash: string;
   readonly actorId: string;
+  readonly hostSessionId:string|null;
   readonly expiresAt: Date;
   readonly consumedExecutionId: string | null;
 }
@@ -93,6 +94,7 @@ export interface NewApproval {
   readonly planVersion: number;
   readonly planHash: string;
   readonly actorId: string;
+  readonly hostSessionId:string;
   readonly scope: readonly string[];
   readonly expiresAt: Date;
   readonly idempotencyKey: string;
@@ -120,6 +122,17 @@ export interface AttemptIntent {
   readonly operationKey: string;
 }
 
+export type AttemptState="intent_recorded"|"sent"|"confirmed"|"no_effect"|"rejected"|"unknown";
+export interface AttemptRecord {
+  readonly operationKey:string;
+  readonly attemptNo:number;
+  readonly state:AttemptState;
+  readonly receiptRef:string|null;
+  readonly observationRef:string|null;
+  readonly errorCode:string|null;
+  readonly inserted:boolean;
+}
+
 export interface NewExecutionRow { readonly rowId:string;readonly resourceRef:string;readonly preconditionFingerprint:string }
 
 export interface ExecutionBundle {
@@ -131,6 +144,7 @@ export interface ExecutionBundle {
   readonly actor: Record<string, unknown>;
   readonly rows: readonly Record<string, unknown>[];
   readonly attempts: readonly Record<string, unknown>[];
+  readonly authority: { readonly hostSessionId:string|null };
 }
 
 export interface GenerationBundle {

@@ -99,6 +99,7 @@ describe("PostgreSQL storage integration", () => {
     const actorId = "operator";
     await seedTenant(tenantId, actorId);
     const ids = await seedReadyPlan(tenantId, actorId);
+    const hostSessionId=await seedHostSession(tenantId,actorId);
 
     const approvalInputs = [randomUUID(), randomUUID()].map((key) => ({
       id: randomUUID(),
@@ -106,6 +107,7 @@ describe("PostgreSQL storage integration", () => {
       planVersion: 1,
       planHash: ids.planHash,
       actorId,
+      hostSessionId,
       scope: ["execute"],
       expiresAt: new Date(Date.now() + 60_000),
       idempotencyKey: key,
@@ -117,13 +119,14 @@ describe("PostgreSQL storage integration", () => {
       ),
     );
     expect(new Set(approvals.map((item) => item.id)).size).toBe(1);
+    const approval=approvals[0]!;
 
     const starts = await Promise.all(
       [randomUUID(), randomUUID()].map((key) =>
         store.withTenant({ tenantId, actorId }, (tx) =>
           tx.admitExecution({
             id: randomUUID(),
-            approvalId: approvals[0].id,
+            approvalId: approval.id,
             actorId,
             jobId: randomUUID(),
             idempotencyKey: key,
@@ -189,9 +192,9 @@ describe("PostgreSQL storage integration", () => {
     const leases=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:2,limit:2});
     expect(leases).toHaveLength(2);
     expect(new Set(leases.map((lease)=>lease.tenantId)).size).toBe(2);
-    expect(await jobs.heartbeat({...leases[0],fence:leases[0].fence-1},30)).toBe(false);
-    expect(await jobs.heartbeat(leases[0],30)).toBe(true);
-    const claimed=leases[0];
+    const claimed=leases[0]!;
+    expect(await jobs.heartbeat({...claimed,fence:claimed.fence-1},30)).toBe(false);
+    expect(await jobs.heartbeat(claimed,30)).toBe(true);
     const claimedResource=claimed.requestId
       ? await workerStore.withTenant({tenantId:claimed.tenantId,actorId:claimed.actorId},(tx)=>tx.getRequest(claimed.requestId!))
       : await workerStore.withTenant({tenantId:claimed.tenantId,actorId:claimed.actorId},(tx)=>tx.getExecution(claimed.executionId!));
@@ -203,7 +206,7 @@ describe("PostgreSQL storage integration", () => {
     const tenantId=`tenant-${randomUUID()}`;
     await seedTenant(tenantId,"operator");
     await store.withTenant({tenantId,actorId:"operator"},(tx)=>tx.createRequestAndJob({id:randomUUID(),actorId:"operator",redactedText:"recover",contextRef:{},budget:{},jobId:randomUUID(),idempotencyKey:randomUUID(),requestHash:"d".repeat(64)}));
-    const [lease]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:1});
+    const lease=(await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:1}))[0]!;
     expect(lease).toBeDefined();
     await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",[lease.jobId]);
     await migrator.query("UPDATE storage.capacity_leases SET lease_until=clock_timestamp()-interval '1 second' WHERE job_id=$1",[lease.jobId]);
@@ -236,6 +239,52 @@ describe("PostgreSQL storage integration", () => {
     expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle({...targetLease!,fence:targetLease!.fence-1}))).toBeNull();
   });
 
+  it("ACC-008 preserves attempt state across recovery and requires fenced business transitions",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;
+    const actorId="operator";
+    await seedTenant(tenantId,actorId);
+    const ids=await seedReadyPlan(tenantId,actorId);
+    const hostSessionId=await seedHostSession(tenantId,actorId);
+    const approval=await store.withTenant({tenantId,actorId},(tx)=>tx.createApproval({id:randomUUID(),planId:ids.planId,planVersion:1,planHash:ids.planHash,actorId,hostSessionId,scope:["execute"],expiresAt:new Date(Date.now()+60_000),idempotencyKey:randomUUID(),requestHash:"1".repeat(64)}));
+    const executionJobId=randomUUID();
+    const execution=await store.withTenant({tenantId,actorId},(tx)=>tx.admitExecution({id:randomUUID(),approvalId:approval.id,actorId,jobId:executionJobId,idempotencyKey:randomUUID(),requestHash:"2".repeat(64)}));
+    let lease;
+    for(let count=0;count<30 && !lease;count++) {
+      const [candidate]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:4});
+      if(!candidate) break;
+      if(candidate.jobId===executionJobId) lease=candidate;
+      else await jobs.finish(candidate,{status:"completed"});
+    }
+    expect(lease).toBeDefined();
+    const attempt={executionId:execution.id,rowId:"product-1",stepId:"category",attemptNo:1,semanticInputHash:"3".repeat(64),operationKey:randomUUID()};
+    await workerStore.withTenant({tenantId,actorId},async(tx)=>{
+      expect(await tx.insertExecutionRows(lease!,execution.id,[{rowId:"product-1",resourceRef:"product-1",preconditionFingerprint:"precondition"}])).toBe(true);
+      expect(await tx.recordAttemptIntent(lease!,attempt)).toMatchObject({inserted:true,state:"intent_recorded",operationKey:attempt.operationKey});
+      expect(await tx.recordAttemptIntent(lease!,attempt)).toMatchObject({inserted:false,state:"intent_recorded"});
+      expect(await tx.transitionAttempt(lease!,attempt,"sent","receipt-1")).toBe(true);
+    });
+    await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",[lease!.jobId]);
+    await migrator.query("UPDATE storage.capacity_leases SET lease_until=clock_timestamp()-interval '1 second' WHERE job_id=$1",[lease!.jobId]);
+    await jobs.recoverExpired();
+    let reconcileLease;
+    for(let count=0;count<30 && !reconcileLease;count++) {
+      const [candidate]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:4});
+      if(!candidate) break;
+      if(candidate.jobId===executionJobId) reconcileLease=candidate;
+      else await jobs.finish(candidate,{status:"completed"});
+    }
+    expect(reconcileLease).toBeDefined();
+    await workerStore.withTenant({tenantId,actorId},async(tx)=>{
+      expect(await tx.adoptAttemptForReconciliation(reconcileLease!,attempt)).toMatchObject({state:"sent",receiptRef:"receipt-1",inserted:false});
+      expect(await tx.transitionAttempt(reconcileLease!,attempt,"confirmed","receipt-1","observation-1")).toBe(true);
+      expect(await tx.updateRowWithLease(reconcileLease!,{executionId:execution.id,rowId:"product-1",state:"succeeded",finalObservationRef:"observation-1"})).toBe(true);
+      expect(await tx.updateExecutionWithLease(reconcileLease!,execution.id,"succeeded",0)).toMatchObject({state:"succeeded",revision:1});
+      expect(await tx.loadExecutionBundle(execution.id)).toMatchObject({authority:{hostSessionId}});
+    });
+    expect(await jobs.finish(reconcileLease!,{status:"completed"})).toBe(true);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.getExecution(execution.id))).toMatchObject({state:"succeeded",revision:1});
+  });
+
   async function seedTenant(tenantId: string, actorId: string) {
     const client = await migrator.connect();
     try {
@@ -256,6 +305,12 @@ describe("PostgreSQL storage integration", () => {
       await tx.createPlan(testPlan({ requestId, actorId, tenantId, id: planId, planHash, idempotencyKey: randomUUID(), requestHash: "4".repeat(64) }));
     });
     return { requestId, planId, planHash };
+  }
+
+  async function seedHostSession(tenantId:string,actorId:string) {
+    const sessionId=randomUUID();
+    await store.withTenant({tenantId,actorId},(tx)=>tx.exchangeSessionTicket({ticketId:randomUUID(),issuer:"medusa-test",jtiHash:randomUUID().replaceAll("-","").padEnd(64,"0"),nonceHash:randomUUID().replaceAll("-", ""),audience:"changedesk",sessionId,policyVersion:"1",ticketExpiresAt:new Date(Date.now()+60_000),sessionExpiresAt:new Date(Date.now()+300_000)}));
+    return sessionId;
   }
 });
 
