@@ -5,4 +5,8 @@ packages:
   - packages/medusa-plugin
 
 allowBuilds:
+  '@medusajs/telemetry': false
+  '@swc/core': true
   esbuild: true
+  msgpackr-extract: false
+  protobufjs: false
