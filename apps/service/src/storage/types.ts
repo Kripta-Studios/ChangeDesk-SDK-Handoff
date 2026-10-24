@@ -7,6 +7,7 @@ export type JobFinishStatus = "pending" | "completed" | "failed" | "cancelled";
 export interface JobLease {
   readonly jobId: string;
   readonly tenantId: string;
+  readonly actorId: string;
   readonly backendKey: string;
   readonly kind: JobKind;
   readonly requestId: string | null;
@@ -118,6 +119,8 @@ export interface AttemptIntent {
   readonly semanticInputHash: string;
   readonly operationKey: string;
 }
+
+export interface NewExecutionRow { readonly rowId:string;readonly resourceRef:string;readonly preconditionFingerprint:string }
 
 export interface ExecutionBundle {
   readonly execution: Record<string, unknown>;

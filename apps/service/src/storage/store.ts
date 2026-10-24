@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import type {
   ApprovalRecord, AttemptIntent, CatalogArtifact, CatalogQuery, ExecutionAdmission, ExecutionBundle, ExecutionRecord, InstallationRecord, JobLease,
-  NewApproval, NewPlan, NewRequest, PlanRecord, PublicationKey, PublicationRecord, RequestMessageRecord, RequestRecord, SessionRecord, TenantContext,
+  NewApproval, NewExecutionRow, NewPlan, NewRequest, PlanRecord, PublicationKey, PublicationRecord, RequestMessageRecord, RequestRecord, SessionRecord, TenantContext,
 } from "./types.js";
 
 export class StorageConflictError extends Error {
@@ -55,9 +55,9 @@ export class TenantTx {
       [this.context.tenantId, input.id, input.actorId, input.redactedText, input.contextRef, input.budget],
     ));
     await this.client.query(
-      `INSERT INTO storage.jobs (id,tenant_id,backend_key,request_id,kind,status)
-       VALUES ($1,$2,COALESCE($3,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$4,'generation','pending')`,
-      [input.jobId, this.context.tenantId, input.backendKey ?? null, input.id],
+      `INSERT INTO storage.jobs (id,tenant_id,actor_id,backend_key,request_id,kind,status)
+       VALUES ($1,$2,$3,COALESCE($4,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$5,'generation','pending')`,
+      [input.jobId, this.context.tenantId,input.actorId,input.backendKey ?? null,input.id],
     );
     await this.client.query("SELECT storage.ensure_scheduler_tenant($1,COALESCE($2,(SELECT backend_key FROM storage.tenants WHERE id=$1)))", [this.context.tenantId,input.backendKey ?? null]);
     await this.bindIdempotency("requests.create", input.idempotencyKey, input.id);
@@ -85,6 +85,14 @@ export class TenantTx {
 
   async updateRequestState(id:string,state:"received"|"searching"|"candidate_offered"|"generating"|"needs_configuration"|"needs_clarification"|"plan_ready"|"rejected"|"error"):Promise<boolean> {
     const result=await this.client.query("UPDATE storage.requests SET state=$3,updated_at=clock_timestamp() WHERE tenant_id=$1 AND id=$2",[this.context.tenantId,id,state]);
+    return result.rowCount===1;
+  }
+
+  async updateRequestWithLease(lease:JobLease,requestId:string,state:RequestRecord["state"]):Promise<boolean> {
+    const result=await this.client.query(`UPDATE storage.requests r SET state=$6,updated_at=clock_timestamp()
+      FROM storage.jobs j WHERE r.tenant_id=$1 AND r.id=$2 AND j.id=$3 AND j.tenant_id=$1 AND j.request_id=r.id
+        AND j.lease_owner=$4 AND j.fence=$5 AND j.status='leased'`,
+      [this.context.tenantId,requestId,lease.jobId,lease.leaseOwner,lease.fence,state]);
     return result.rowCount===1;
   }
 
@@ -158,10 +166,10 @@ export class TenantTx {
       [this.context.tenantId,row.approval_id,row.id],
     );
     await this.client.query(
-      `INSERT INTO storage.jobs (id,tenant_id,backend_key,execution_id,kind,status)
-       VALUES ($1,$2,COALESCE($3,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$4,'execution','pending')
+      `INSERT INTO storage.jobs (id,tenant_id,actor_id,backend_key,execution_id,kind,status)
+       VALUES ($1,$2,$3,COALESCE($4,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$5,'execution','pending')
        ON CONFLICT (tenant_id,execution_id,kind) WHERE execution_id IS NOT NULL DO NOTHING`,
-      [input.jobId,this.context.tenantId,input.backendKey ?? null,row.id],
+      [input.jobId,this.context.tenantId,input.actorId,input.backendKey ?? null,row.id],
     );
     await this.client.query("SELECT storage.ensure_scheduler_tenant($1,COALESCE($2,(SELECT backend_key FROM storage.tenants WHERE id=$1)))", [this.context.tenantId,input.backendKey ?? null]);
     await this.bindIdempotency("executions.create", input.idempotencyKey, row.id);
@@ -210,12 +218,43 @@ export class TenantTx {
     if(replay) return this.getExecution(replay);
     const execution=await this.getExecution(input.executionId);
     if(!execution) return null;
-    await this.client.query(`INSERT INTO storage.jobs(id,tenant_id,backend_key,execution_id,kind,status)
-      VALUES($1,$2,COALESCE($3,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$4,'reconcile','pending')
-      ON CONFLICT (tenant_id,execution_id,kind) WHERE execution_id IS NOT NULL DO NOTHING`,[input.jobId,this.context.tenantId,input.backendKey ?? null,input.executionId]);
+    await this.client.query(`INSERT INTO storage.jobs(id,tenant_id,actor_id,backend_key,execution_id,kind,status)
+      VALUES($1,$2,$3,COALESCE($4,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$5,'reconcile','pending')
+      ON CONFLICT (tenant_id,execution_id,kind) WHERE execution_id IS NOT NULL DO NOTHING`,[input.jobId,this.context.tenantId,this.context.actorId,input.backendKey ?? null,input.executionId]);
     await this.client.query("SELECT storage.ensure_scheduler_tenant($1,COALESCE($2,(SELECT backend_key FROM storage.tenants WHERE id=$1)))",[this.context.tenantId,input.backendKey ?? null]);
     await this.bindIdempotency("executions.resume",input.idempotencyKey,input.executionId);
     return execution;
+  }
+
+  async insertExecutionRows(lease:JobLease,executionId:string,rows:readonly NewExecutionRow[]):Promise<boolean> {
+    const result=await this.client.query<{valid:boolean}>(`WITH valid AS (
+      SELECT 1 FROM storage.jobs j WHERE j.id=$1 AND j.tenant_id=$2 AND j.execution_id=$3 AND j.status='leased' AND j.lease_owner=$4 AND j.fence=$5
+    ), input AS (
+      SELECT * FROM jsonb_to_recordset($6::jsonb) AS r(row_id text,resource_ref text,precondition_fingerprint text)
+    ), inserted AS (
+      INSERT INTO storage.execution_rows(tenant_id,execution_id,row_id,resource_ref,state,precondition_fingerprint)
+      SELECT $2,$3,i.row_id,i.resource_ref,'pending',i.precondition_fingerprint FROM input i,valid
+      ON CONFLICT (tenant_id,execution_id,row_id) DO NOTHING RETURNING 1
+    ) SELECT EXISTS(SELECT 1 FROM valid) valid`,
+      [lease.jobId,this.context.tenantId,executionId,lease.leaseOwner,lease.fence,JSON.stringify(rows.map((row)=>({row_id:row.rowId,resource_ref:row.resourceRef,precondition_fingerprint:row.preconditionFingerprint})))]);
+    return result.rows[0]?.valid===true;
+  }
+
+  async updateExecutionWithLease(lease:JobLease,executionId:string,state:ExecutionRecord["state"],expectedRevision:number):Promise<ExecutionRecord|null> {
+    const result=await this.client.query<ExecutionRow>(`UPDATE storage.executions e SET state=$6,revision=e.revision+1,updated_at=clock_timestamp()
+      FROM storage.jobs j WHERE e.tenant_id=$1 AND e.id=$2 AND e.revision=$7 AND j.id=$3 AND j.tenant_id=$1 AND j.execution_id=e.id
+        AND j.lease_owner=$4 AND j.fence=$5 AND j.status='leased'
+      RETURNING e.id,e.plan_id,e.plan_version,e.approval_id,e.actor_id,e.prior_execution_id,e.state,e.revision`,
+      [this.context.tenantId,executionId,lease.jobId,lease.leaseOwner,lease.fence,state,expectedRevision]);
+    return result.rowCount===1?executionRecord(result.rows[0]):null;
+  }
+
+  async updateRowWithLease(lease:JobLease,input:{executionId:string;rowId:string;state:"pending"|"running"|"succeeded"|"skipped"|"unknown"|"failed"|"needs_review";finalObservationRef?:string}):Promise<boolean> {
+    const result=await this.client.query(`UPDATE storage.execution_rows r SET state=$6,final_observation_ref=COALESCE($7,final_observation_ref)
+      FROM storage.jobs j WHERE r.tenant_id=$1 AND r.execution_id=$2 AND r.row_id=$3 AND j.id=$4 AND j.tenant_id=$1
+        AND j.execution_id=r.execution_id AND j.lease_owner=$5 AND j.fence=$8 AND j.status='leased'`,
+      [this.context.tenantId,input.executionId,input.rowId,lease.jobId,lease.leaseOwner,input.state,input.finalObservationRef ?? null,lease.fence]);
+    return result.rowCount===1;
   }
 
   async listDiscoverableCatalog(query:CatalogQuery):Promise<CatalogArtifact[]> {
