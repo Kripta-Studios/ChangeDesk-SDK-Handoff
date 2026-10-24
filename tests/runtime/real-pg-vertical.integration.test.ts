@@ -40,7 +40,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     const sessions = new SessionManager(new StorageSessionPersistence(apiStore), hostIdentity, { audience: "changedesk-test", issuers: ["fixture-host"], origins: ["http://runtime.test"], ticketMaxTtlSeconds: 60, sessionTtlSeconds: 300 });
     const connector = controlledHostFixture();
     const catalog = createProductionCatalog(apiStore, { publicationKeyId: "fixture-publication-key", publicationPrivateKey: publication.privateKey });
-    const operations = new StorageApiOperations(apiStore, connector as any, { [tenantId]: { category: ["category-1"], channel: [] } }, catalog, "fixture-publication-key");
+    const operations = new StorageApiOperations(apiStore, connector as any, { [tenantId]: { category: ["category-1"], channel: [] } }, catalog, "fixture-publication-key", undefined, false, "fake");
     const app = buildApi({ config: testConfig(), sessions, operations });
 
     const now = Math.floor(Date.now() / 1000);
@@ -63,6 +63,8 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
 
     const candidates = await app.inject({ method: "GET", url: `/v1/requests/${requestId}/candidates`, headers: readHeaders(authorization) });
     expect(candidates.statusCode).toBe(200);
+    const requestView = await app.inject({ method: "GET", url: `/v1/requests/${requestId}`, headers: readHeaders(authorization) });
+    expect(requestView.json().providerMode).toBe("fake");
     const candidate = candidates.json().candidates[0];
     expect(candidate).toMatchObject({ compatibility: "compatible", version: "1" });
     const selected = await post(app, `/v1/requests/${requestId}/candidate`, authorization, { candidateId: candidate.id, version: candidate.version, choice: "reuse" });
