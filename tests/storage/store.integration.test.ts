@@ -1,18 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Store, StorageConflictError } from "../../apps/service/src/storage/index.js";
+import { JobStore, Store, StorageConflictError, TicketReplayStore } from "../../apps/service/src/storage/index.js";
 import { runMigrations } from "../../apps/service/src/storage/migrations.js";
 
 const migratorUrl = process.env.CHANGEDESK_MIGRATOR_DATABASE_URL;
 const runtimeUrl = process.env.CHANGEDESK_RUNTIME_DATABASE_URL;
-if (!migratorUrl || !runtimeUrl) {
-  throw new Error("BLOCKED: CHANGEDESK_MIGRATOR_DATABASE_URL and CHANGEDESK_RUNTIME_DATABASE_URL are required for real PostgreSQL storage tests");
+const workerUrl = process.env.CHANGEDESK_WORKER_DATABASE_URL;
+if (!migratorUrl || !runtimeUrl || !workerUrl) {
+  throw new Error("BLOCKED: CHANGEDESK_MIGRATOR_DATABASE_URL, CHANGEDESK_RUNTIME_DATABASE_URL, and CHANGEDESK_WORKER_DATABASE_URL are required for real PostgreSQL storage tests");
 }
 
 const migrator = new Pool({ connectionString: migratorUrl });
-const runtime = new Pool({ connectionString: runtimeUrl, application_name: "changedesk-storage-test-runtime", max: 1 });
+const runtime = new Pool({ connectionString: runtimeUrl, application_name: "changedesk-storage-test-runtime", max: 4 });
+const reuseRuntime = new Pool({ connectionString: runtimeUrl, application_name: "changedesk-storage-test-reuse", max: 1 });
+const worker = new Pool({ connectionString: workerUrl, application_name: "changedesk-storage-test-worker", max: 2 });
 const store = new Store(runtime);
+const reuseStore = new Store(reuseRuntime);
+const jobs = new JobStore(worker);
+const tickets = new TicketReplayStore(store);
+const workerStore = new Store(worker);
 const migrationsDirectory = new URL("../../apps/service/migrations/", import.meta.url);
 
 describe("PostgreSQL storage integration", () => {
@@ -25,10 +32,14 @@ describe("PostgreSQL storage integration", () => {
        FROM pg_roles r WHERE r.rolname=current_user`,
     );
     expect(identity.rows).toEqual([{ rolsuper: false, rolbypassrls: false, owns_storage: false }]);
+    const workerIdentity=await worker.query<{rolsuper:boolean;rolbypassrls:boolean;owns_storage:boolean}>(`SELECT r.rolsuper,r.rolbypassrls,
+      EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='storage' AND c.relowner=r.oid) owns_storage
+      FROM pg_roles r WHERE r.rolname=current_user`);
+    expect(workerIdentity.rows).toEqual([{rolsuper:false,rolbypassrls:false,owns_storage:false}]);
   });
 
   afterAll(async () => {
-    await Promise.all([runtime.end(), migrator.end()]);
+    await Promise.all([runtime.end(), reuseRuntime.end(), worker.end(), migrator.end()]);
   });
 
   it("ACC-010 reuses one pool connection without leaking the previous tenant", async () => {
@@ -37,7 +48,7 @@ describe("PostgreSQL storage integration", () => {
     await seedTenant(atlas, "actor-a");
     await seedTenant(boreal, "actor-b");
 
-    await store.withTenant({ tenantId: atlas, actorId: "actor-a" }, (tx) =>
+    await reuseStore.withTenant({ tenantId: atlas, actorId: "actor-a" }, (tx) =>
       tx.createRequestAndJob({
         id: randomUUID(),
         actorId: "actor-a",
@@ -50,7 +61,7 @@ describe("PostgreSQL storage integration", () => {
       }),
     );
 
-    const borealRows = await store.withTenant({ tenantId: boreal, actorId: "actor-b" }, (tx) =>
+    const borealRows = await reuseStore.withTenant({ tenantId: boreal, actorId: "actor-b" }, (tx) =>
       tx.listRequests(),
     );
     expect(borealRows).toEqual([]);
@@ -155,6 +166,50 @@ describe("PostgreSQL storage integration", () => {
     })).rejects.toThrow("expected rollback");
     const requests=await store.withTenant({tenantId,actorId},(tx)=>tx.listRequests());
     expect(requests.find((request)=>request.id===requestId)).toBeUndefined();
+  });
+
+  it("ACC-003 consumes a bridge ticket once by issuer and jti",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;
+    const actorId="operator";
+    await seedTenant(tenantId,actorId);
+    const jti=randomUUID();
+    const input={tenantId,actorId,ticketId:randomUUID(),issuer:"medusa-test",jti,audience:"changedesk",expiresAt:new Date(Date.now()+60_000)};
+    expect(await tickets.consumeTicket(input)).toBe(true);
+    expect(await tickets.consumeTicket({...input,ticketId:randomUUID()})).toBe(false);
+  });
+
+  it("ACC-008 claims fairly and rejects a stale fencing token",async()=>{
+    const firstTenant=`tenant-${randomUUID()}`;
+    const secondTenant=`tenant-${randomUUID()}`;
+    await seedTenant(firstTenant,"operator");
+    await seedTenant(secondTenant,"operator");
+    for(const [tenantId,hash] of [[firstTenant,"9"],[firstTenant,"a"],[secondTenant,"b"]] as const) {
+      await store.withTenant({tenantId,actorId:"operator"},(tx)=>tx.createRequestAndJob({id:randomUUID(),actorId:"operator",redactedText:"job",contextRef:{},budget:{},jobId:randomUUID(),idempotencyKey:randomUUID(),requestHash:hash.repeat(64)}));
+    }
+    const leases=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:2,limit:2});
+    expect(leases).toHaveLength(2);
+    expect(new Set(leases.map((lease)=>lease.tenantId)).size).toBe(2);
+    expect(await jobs.heartbeat({...leases[0],fence:leases[0].fence-1},30)).toBe(false);
+    expect(await jobs.heartbeat(leases[0],30)).toBe(true);
+    const claimed=leases[0];
+    const claimedResource=claimed.requestId
+      ? await workerStore.withTenant({tenantId:claimed.tenantId,actorId:claimed.actorId},(tx)=>tx.getRequest(claimed.requestId!))
+      : await workerStore.withTenant({tenantId:claimed.tenantId,actorId:claimed.actorId},(tx)=>tx.getExecution(claimed.executionId!));
+    expect(claimedResource).not.toBeNull();
+    await Promise.all(leases.map((lease)=>jobs.finish(lease,{status:"completed"})));
+  });
+
+  it("ACC-009 recovers an expired lease without allowing the old worker to finish it",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;
+    await seedTenant(tenantId,"operator");
+    await store.withTenant({tenantId,actorId:"operator"},(tx)=>tx.createRequestAndJob({id:randomUUID(),actorId:"operator",redactedText:"recover",contextRef:{},budget:{},jobId:randomUUID(),idempotencyKey:randomUUID(),requestHash:"d".repeat(64)}));
+    const [lease]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:1});
+    expect(lease).toBeDefined();
+    await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",[lease.jobId]);
+    await migrator.query("UPDATE storage.capacity_leases SET lease_until=clock_timestamp()-interval '1 second' WHERE job_id=$1",[lease.jobId]);
+    expect(await jobs.finish(lease,{status:"completed"})).toBe(false);
+    expect(await jobs.recoverExpired()).toBeGreaterThanOrEqual(1);
+    expect(await jobs.finish(lease,{status:"completed"})).toBe(false);
   });
 
   async function seedTenant(tenantId: string, actorId: string) {
