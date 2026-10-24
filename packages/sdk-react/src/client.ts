@@ -32,6 +32,7 @@ export class ChangeDeskApiError extends Error {
 export interface ChangeDeskClient {
   createRequest(input: RequestInput, signal?: AbortSignal): Promise<RequestCreated>;
   getRequest(id: string, signal?: AbortSignal): Promise<RequestView>;
+  sendMessage(requestId: string, input: { message: string; clientRequestId: string }, signal?: AbortSignal): Promise<RequestCreated>;
   selectCandidate(requestId: string, input: { candidateId: string; version: string; choice: "reuse" | "adapt" }, signal?: AbortSignal): Promise<RequestCreated>;
   createPlan(input: { requestId?: string; installationId?: string; selectedProductIds: readonly string[]; parameters: Readonly<Record<string, string>>; priorExecutionId?: string }, signal?: AbortSignal): Promise<PlanCreated>;
   getPlan(id: string, signal?: AbortSignal): Promise<PlanView>;
@@ -43,7 +44,7 @@ export interface ChangeDeskClient {
   getInstallations(signal?: AbortSignal): Promise<InstallationList>;
   getResources(kind: "category" | "channel", signal?: AbortSignal): Promise<ResourceList>;
   installAction(input: { artifactHash: string; configuration: Readonly<Record<string, string>> }, signal?: AbortSignal): Promise<{ installationId: string }>;
-  publishAction(input: { artifactHash: string; visibility: "private" | "authorized_catalog"; consent: true }, signal?: AbortSignal): Promise<{ publicationId: string }>;
+  publishAction(input: { artifactHash: string; visibility: "provider_catalog" | "shared_allowlist"; consent: true; allowedTenantIds?: readonly string[] }, signal?: AbortSignal): Promise<{ publicationId: string }>;
   revokePublication(id: string, reason: string, signal?: AbortSignal): Promise<{ publicationId: string; status: string }>;
   getEvidence(id: string, signal?: AbortSignal): Promise<EvidenceView>;
   clearSession(): void;
@@ -63,14 +64,17 @@ export function createChangeDeskClient(options: ClientOptions): ChangeDeskClient
   const now = options.now ?? Date.now;
   let session: Session | undefined;
   let pendingSession: Promise<Session> | undefined;
+  let sessionGeneration = 0;
 
   async function getAccessToken(): Promise<string> {
     if (session && Date.parse(session.expiresAt) - now() > 15_000) return session.accessToken;
+    const generation = sessionGeneration;
     pendingSession ??= options.getSession().then((value) => {
       if (!value.accessToken || !Number.isFinite(Date.parse(value.expiresAt))) throw new TypeError("Sesión host inválida");
+      if (generation !== sessionGeneration) throw new DOMException("Sesión descartada", "AbortError");
       session = value;
       return value;
-    }).finally(() => { pendingSession = undefined; });
+    }).finally(() => { if (generation === sessionGeneration) pendingSession = undefined; });
     return (await pendingSession).accessToken;
   }
 
@@ -100,6 +104,7 @@ export function createChangeDeskClient(options: ClientOptions): ChangeDeskClient
   return {
     createRequest: (input, signal) => mutate("/v1/requests", input, signal, input.clientRequestId),
     getRequest: (id, signal) => request(`/v1/requests/${encodeURIComponent(id)}`, signal ? { signal } : {}),
+    sendMessage: (id, input, signal) => mutate(`/v1/requests/${encodeURIComponent(id)}/messages`, input, signal, input.clientRequestId),
     selectCandidate: (id, input, signal) => mutate(`/v1/requests/${encodeURIComponent(id)}/candidate`, input, signal),
     createPlan: (input, signal) => mutate("/v1/plans", input, signal),
     getPlan: (id, signal) => request(`/v1/plans/${encodeURIComponent(id)}`, signal ? { signal } : {}),
@@ -114,6 +119,6 @@ export function createChangeDeskClient(options: ClientOptions): ChangeDeskClient
     publishAction: (input, signal) => mutate("/v1/publications", input, signal),
     revokePublication: (id, reason, signal) => mutate(`/v1/publications/${encodeURIComponent(id)}/revoke`, { reason }, signal),
     getEvidence: (id, signal) => request(`/v1/evidence/${encodeURIComponent(id)}`, signal ? { signal } : {}),
-    clearSession: () => { session = undefined; pendingSession = undefined; },
+    clearSession: () => { sessionGeneration += 1; session = undefined; pendingSession = undefined; },
   };
 }
