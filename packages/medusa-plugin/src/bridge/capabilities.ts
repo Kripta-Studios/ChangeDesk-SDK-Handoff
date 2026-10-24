@@ -1,6 +1,7 @@
 import { batchLinkProductsToCategoryWorkflow, linkProductsToSalesChannelWorkflow } from "@medusajs/core-flows"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { BridgeError } from "./errors.ts"
+import { protectedProductFingerprint, type ProtectedProduct } from "./protected-state.ts"
 import type { BridgeCommand, EffectDelegationClaims } from "./types.ts"
 import type { ActorPolicy } from "./types.ts"
 import { readActorPolicy } from "./actor.ts"
@@ -12,7 +13,7 @@ type Query = { graph(input: unknown, options?: unknown): Promise<{ data: unknown
 type Scope = { resolve(name: string): unknown }
 
 const productFields = [
-  "id", "title", "handle", "status", "metadata", "categories.id", "sales_channels.id",
+  "id", "title", "handle", "description", "status", "metadata", "categories.id", "sales_channels.id",
   "tags.id", "variants.id", "variants.sku", "variants.manage_inventory",
   "variants.prices.id", "variants.prices.amount", "variants.prices.currency_code",
 ]
@@ -25,13 +26,14 @@ const graph = async (scope: Scope, entity: string, fields: string[], filters: ob
 export const getProduct = async (scope: Scope, productId: string) => {
   const { data } = await graph(scope, "product", productFields, { id: productId })
   if (!data[0]) throw new BridgeError(404, "resource_not_found", "Resource not found")
-  return data[0] as {
+  const product = data[0] as ProtectedProduct & {
     id: string
     status: string
     metadata?: { changedesk_locked?: boolean }
     categories?: { id: string }[]
     sales_channels?: { id: string }[]
   }
+  return { ...product, protectedDigest: protectedProductFingerprint(product) }
 }
 
 export const relationPresent = (product: Awaited<ReturnType<typeof getProduct>>, command: BridgeCommand) => {
@@ -57,7 +59,13 @@ export const executeRead = async (scope: Scope, command: BridgeCommand, actor: A
         filters: { id: command.args.ids ?? actor.readableProductIds },
         pagination: { take: command.args.limit, skip: 0 },
       })
-      return { products: data, metadata }
+      return {
+        products: data.map((item) => ({
+          ...(item as ProtectedProduct),
+          protectedDigest: protectedProductFingerprint(item as ProtectedProduct),
+        })),
+        metadata,
+      }
     }
     case "medusa.products.retrieve":
       if (!actor.readableProductIds.includes(command.args.productId)) throw new BridgeError(404, "resource_not_found", "Resource not found")
@@ -133,6 +141,9 @@ export const executeEffect = async (scope: Scope, command: BridgeCommand, claims
     }
 
     const before = await getProduct(scope, productId)
+    if (before.protectedDigest !== claims.preconditions.preconditionFingerprint) {
+      throw new BridgeError(409, "precondition_failed", "Protected product state changed after approval")
+    }
     if (before.status !== "published" || before.metadata?.changedesk_locked === true) {
       throw new BridgeError(409, "precondition_failed", "Product is no longer eligible")
     }

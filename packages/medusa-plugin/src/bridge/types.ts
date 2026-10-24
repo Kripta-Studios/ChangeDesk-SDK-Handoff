@@ -76,6 +76,8 @@ export type ReadDelegationClaims = DelegationBase & {
 export type EffectDelegationClaims = DelegationBase & {
   typ: "changedesk.effect"
   executionId: string
+  jobId: string
+  leaseOwner: string
   rowId: string
   stepId: string
   planId: string
