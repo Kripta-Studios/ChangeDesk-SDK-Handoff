@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "packageStatus": "SPEC_READY",
-  "implementationStatus": "IN_PROGRESS",
+  "implementationStatus": "INCOMPLETE",
   "tasks": [
     {
       "id": "T00",
@@ -280,10 +280,13 @@
         "T12",
         "T13"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
-      "evidence": [],
-      "blocker": null,
+      "status": "review",
+      "assignedAgent": "/root/final_review",
+      "evidence": [
+        "evidence/FINAL-REVIEW.json",
+        "evidence/FINAL-REPORT.md"
+      ],
+      "blocker": "FIX-FIRST: corrected P0 code needs integrated PostgreSQL/browser verification; user requests immediate publication with limitations.",
       "model": "gpt-6-astra",
       "reasoningEffort": "high"
     }

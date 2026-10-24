@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0",
   "date": "2026-10-24",
-  "deliveryStatus": "IN_PROGRESS",
-  "finalReview": "NOT_RUN",
+  "deliveryStatus": "INCOMPLETE",
+  "finalReview": "FIX-FIRST",
   "criteria": [
     {
       "id": "ACC-001",
@@ -14,9 +14,12 @@
     {
       "id": "ACC-002",
       "criterion": "SDK integrado con chat y acción persistente usando extensión oficial; sin alterar core de Medusa",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+      "status": "FAIL",
+      "evidence": [
+        "evidence/frontend-browser.md",
+        "evidence/runtime-tdd.json"
+      ],
+      "note": "Integrated browser journey did not reach a candidate/effects; latest code fixes need rerun."
     },
     {
       "id": "ACC-003",
@@ -35,9 +38,12 @@
     {
       "id": "ACC-005",
       "criterion": "Petición válida produce preview exacto; antes de aprobación hay cero efectos",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+      "status": "FAIL",
+      "evidence": [
+        "evidence/frontend-browser.md",
+        "evidence/runtime-tdd.json"
+      ],
+      "note": "Integrated browser journey did not reach a candidate/effects; latest code fixes need rerun."
     },
     {
       "id": "ACC-006",
@@ -49,9 +55,12 @@
     {
       "id": "ACC-007",
       "criterion": "Ejecución principal modifica exactamente los objetos/campos autorizados",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+      "status": "FAIL",
+      "evidence": [
+        "evidence/frontend-browser.md",
+        "evidence/runtime-tdd.json"
+      ],
+      "note": "Integrated browser journey did not reach a candidate/effects; latest code fixes need rerun."
     },
     {
       "id": "ACC-008",
@@ -77,9 +86,12 @@
     {
       "id": "ACC-011",
       "criterion": "Publicación opt-in, oferta explícita y reutilización compatible en Boreal sin datos Atlas",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+      "status": "FAIL",
+      "evidence": [
+        "evidence/frontend-browser.md",
+        "evidence/runtime-tdd.json"
+      ],
+      "note": "Integrated browser journey did not reach a candidate/effects; latest code fixes need rerun."
     },
     {
       "id": "ACC-012",

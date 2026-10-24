@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-24",
+  "reviewer": "/root/final_review",
+  "requestedModel": "gpt-6-astra",
+  "reasoningEffort": "high",
+  "readOnly": true,
+  "verdict": "FIX-FIRST",
+  "deliveryStatus": "INCOMPLETE",
+  "codeFixReviewed": "27b57bda004e718595be695629d1f0883cafc66c",
+  "p0": "CODE_CORRECTED_RUNTIME_NOT_VERIFIED",
+  "localVerified": false,
+  "liveVerified": false,
+  "remaining": [
+    "Real PostgreSQL direct request-plan execution regression",
+    "Browser generation/approval/effect/reuse verification",
+    "Formal plan evidence wiring",
+    "Independent evaluation runtime blocker"
+  ],
+  "scope": "Fresh review and read-only follow-up; no product mutations by reviewer."
+}

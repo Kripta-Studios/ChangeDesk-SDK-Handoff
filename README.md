@@ -1,6 +1,12 @@
 # Change Desk — SDK implementation handoff
 
-Especificación para construir y verificar un SDK de personalización agéntica integrado en Medusa. Fecha de preparación: 2026-10-24. **Este repositorio contiene diseño, contratos y fixtures; no contiene todavía un SDK operativo ni evidencia de seguridad o rendimiento del producto.**
+Implementación experimental de un SDK React, servicio API/worker y plugin Medusa, con Atlas y Boreal locales. **El código está implementado y hay pruebas unitarias y PostgreSQL; el recorrido completo de chat a efectos todavía no está verificado.** No es una entrega certificada como `LOCAL_VERIFIED` o `LIVE_VERIFIED`.
+
+- [Arranque y configuración](docs/16-LOCAL-RUNBOOK.md)
+- [Resultados y limitaciones](evidence/FINAL-REPORT.md)
+- [Estado para continuar](evidence/SESSION-HANDOFF.md)
+
+La personalización del storefront de compradores está integrada desde `bd7f3df`; su validación real de autenticación/logout y navegador permanece pendiente. Los objetivos de rendimiento quedaron fuera del cierre por instrucción del usuario.
 
 ## Empezar en otra sesión de Codex
 
@@ -11,7 +17,7 @@ Especificación para construir y verificar un SDK de personalización agéntica 
 
 Modelos solicitados: **GPT-6.1 Sol / High** para código, implementación y testing; **GPT-6 Astra / High** para ideas, orquestación y revisiones finales. La asignación ejecutable está en [agent-policy.json](contracts/agent-policy.json). No cambiar modelos silenciosamente si el entorno no los ofrece.
 
-## Qué se entregará
+## Qué contiene
 
 Un SDK React ligero, un único artefacto de servicio con entrypoints API/worker y PostgreSQL; un plugin Medusa y dos instancias locales con datos ficticios y usuarios distintos. El usuario pide una función por chat, recibe candidatos reutilizables o un plan nuevo, revisa y aprueba los efectos, ejecuta y conserva un botón parametrizable. Una plantilla compartida expresamente puede ofrecerse a otro cliente sin compartir sus datos.
 
@@ -39,10 +45,10 @@ La demo principal prepara campañas: añadir productos publicados seleccionados 
 | [Trazabilidad de requisitos](docs/12-REQUIREMENTS-TRACEABILITY.md) | Requisito del usuario → fases → criterio de aceptación |
 | [Contratos de máquina](contracts/README.md) | JSON Schema y ejemplos normativos |
 
-Los presupuestos de coste y rendimiento son **objetivos iniciales**, no mediciones. La seguridad se evalúa mediante invariantes y pruebas; no se promete ausencia universal de prompt injection. Bend es una integración experimental del núcleo puro, no una prueba del backend externo.
+Los objetivos de rendimiento están excluidos por la instrucción del usuario registrada en ADR-012; se conservan las evidencias históricas sin reinterpretarlas. La seguridad se evalúa mediante invariantes y pruebas; no se promete ausencia universal de prompt injection. Bend es una integración experimental del núcleo puro, no una prueba del backend externo.
 
 ## Verificación del paquete
 
 `python scripts/validate_handoff.py` comprueba integridad documental, JSON, schemas y coherencia básica de fixtures. Requiere Python y `jsonschema` (disponible en el entorno de preparación). No ejecuta el SDK ni sustituye las futuras pruebas de integración. El resultado se escribe en `evidence/handoff-validation.json`.
 
-No se ha instalado Medusa ni iniciado servicios durante la preparación de este paquete. El equipo observado tiene Git, Node, el cliente Docker y aproximadamente 31 GiB de RAM; el motor Docker no respondió. La siguiente sesión debe volver a verificar el entorno.
+Medusa 2.22.1 está instalada en dos instancias locales y PostgreSQL está operativo. Las versiones y los resultados observados están en `evidence/environment.json`; el estado actual y los límites están en el informe final.

@@ -47,3 +47,13 @@ Coree665f15 cherry-picked a05ab2f amplíaCIlanes e inventario1100deps/SPDX; remo
 Actualización funcional: primerE2Ebaseline1PASS, fullbrowserfalló antesrequests/efectos (hostbridge200, sessionexchange500). Envconfirma faltabaaprovisionar storage tenants/8actors/manifests/publicationkey; runtimeimplementa CLIidempotente trustedseed, envloinvocará. ADR014 aclara manifestadapterVersionlong+body.adapterid; runtimecorrige generationyfixtures. NOdesactivarRLS. WidgetendpointVITEyacorregido yrebuilt, todoshealth200. Rootintegrab16e150devstop4procesos (validar arranque real despuésE2E), runtime3b943cd providerconfigCodex/API/fake, planner66ad05b uniqueAPIbudgetcontext.
 
 BendkernelYA PASS independiente: Lean4.34/BendTT compilado, realverdict leyesverified/mutantefailed,2tests. Coree6b302b integrado2ecef1b; root*.bend LFnormalizado sinsemánticacambiada. Evidenciaplanrealwiring pendiente revisióncore, no equiparar proofmodelconMedusaeffects.
+
+## Cierre solicitado y publicación
+
+Usuario solicita terminar/commitear/pushmain inmediatamente y autoriza `gh` repoPÚBLICO. Origin creado https://github.com/Kripta-Studios/ChangeDesk-SDK-Handoff. Se hizo fetch+mergeorigin/main preservando bd7f3df storefront y cambios localesdeotras sesiones; noforcepush. Rootpermanecebranchmasterdeintegración ypublicaHEAD:main para nointerferirworktrees.
+
+Código final incluye27b57bd (directartifactJOINtenant+hash, concreteprivate/publishedmapping, jobfaultcontainment) aceptadoporAstraread-only comoP0CODECORRECTED; runtimeNOTVERIFIED. Root60tests15filesPASSantesmergeStorefront. TrasmergeStorefrontserviceTS PASS/SDKVitePASS, combined93PASS1FAIL+suite setupFAIL porresoluciónFastifyySDKentrynoemitido; SDKrebuildyahecho,envcorrigealias. NOafirmarfullgreenhastaúltimaevidencia.
+
+Visualquejausuario: d045249 corrigeCSShostperdido con?inline+style,layoutespaciado,tabla54pxCTA. Env/frontendaplicanbuildyscreenshotfinal. Últimoflujobrowser1baselinePASS/1requesterFAIL/3NOTRUN; bootstrap/exchange/create200 yjobgenerationpendingattempt0. ProvisionSÍpersistido: conteoglobal0 eraFORCERLS; scopedAtlas/Borealmanifest1cada, pubkeyAtlas1. Envworkerreiniciofinalpendienteverificación.
+
+FINAL-REPORT yacceptanceINCOMPLETE, reviewerFIXFIRST, LOCAL/LIVE/PILOTNO. No nuevasbenchmarks (userexcluyeperf). `proofRequired=true`sinwiring; kernelmodel2PASSseparado. EvaluaciónruntimefilterBLOCKED no reroute. Runbookdocs16. Preservarevidence/BUYER-STOREFRONT-COORDINATION.md no trackporroot. Userpidecierre: no continuartrabajolargo despuéspush; entregarpendientes honestos.
