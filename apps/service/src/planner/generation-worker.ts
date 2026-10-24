@@ -14,7 +14,7 @@ export type GenerationOutcome =
   | { readonly kind: "completed" }
   | { readonly kind: "waiting_reconciliation"; readonly reason: string }
   | { readonly kind: "failed"; readonly reason: string };
-export interface GenerationProcessor { process(lease: GenerationLease): Promise<GenerationOutcome>; }
+export interface GenerationProcessor { process(lease: GenerationLease, signal?:AbortSignal): Promise<GenerationOutcome>; }
 
 interface GenerationBundle {
   readonly request: { readonly id:string;readonly actorId:string;readonly redactedText:string;readonly contextRef:JsonValue };
@@ -43,7 +43,7 @@ export interface GenerationProcessorOptions {
 export class PlannerGenerationProcessor implements GenerationProcessor {
   constructor(private readonly options:GenerationProcessorOptions) {}
 
-  async process(lease:GenerationLease):Promise<GenerationOutcome> {
+  async process(lease:GenerationLease,signal?:AbortSignal):Promise<GenerationOutcome> {
     if(lease.kind!=="generation"||!lease.requestId)return{kind:"failed",reason:"invalid_generation_lease"};
     const bundle=await this.scoped(lease,(tx)=>tx.loadGenerationBundle(lease));
     if(!bundle||bundle.request.id!==lease.requestId||bundle.request.actorId!==lease.actorId)return{kind:"failed",reason:"generation_bundle_unavailable"};
@@ -60,7 +60,7 @@ export class PlannerGenerationProcessor implements GenerationProcessor {
       }
     }
 
-    const result=await this.options.planner.plan(input);
+    const result=await this.options.planner.plan(input,signal);
     if(result.kind==="provider_unavailable")return result.retryable?{kind:"waiting_reconciliation",reason:result.code}:this.finishState(lease,bundle.request.id,"error",result.code);
     if(result.kind==="needs_clarification")return this.finishState(lease,bundle.request.id,"needs_clarification","needs_clarification");
     if(result.kind==="unsupported")return this.finishState(lease,bundle.request.id,"rejected","unsupported_request");
@@ -94,8 +94,8 @@ function parseStructuredIntent(value:unknown):PlannerInput["structuredIntent"]|u
   if(recipeKey!==undefined&&!(["catalog.campaign.prepare.v1","catalog.category.assign.v1","catalog.channel.assign.v1"] as const).includes(recipeKey as never))return undefined;
   if(operation!==undefined&&!(["campaign","assign_category","assign_channel"] as const).includes(operation as never))return undefined;
   if(recipeKey===undefined&&operation===undefined)return undefined;
-  const parsed: {recipeKey?:NonNullable<PlannerInput["structuredIntent"]>["recipeKey"];operation?:NonNullable<PlannerInput["structuredIntent"]>["operation"]}={};
-  if(recipeKey!==undefined)parsed.recipeKey=recipeKey as NonNullable<PlannerInput["structuredIntent"]>["recipeKey"];
-  if(operation!==undefined)parsed.operation=operation as NonNullable<PlannerInput["structuredIntent"]>["operation"];
-  return parsed;
+  type Intent=NonNullable<PlannerInput["structuredIntent"]>;type Key=Exclude<Intent["recipeKey"],undefined>;type Operation=Exclude<Intent["operation"],undefined>;
+  if(recipeKey!==undefined&&operation!==undefined)return{recipeKey:recipeKey as Key,operation:operation as Operation};
+  if(recipeKey!==undefined)return{recipeKey:recipeKey as Key};
+  return{operation:operation as Operation};
 }

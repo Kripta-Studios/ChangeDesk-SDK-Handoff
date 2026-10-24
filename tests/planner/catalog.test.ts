@@ -5,6 +5,7 @@ import type { ActorContext, Permission, Recipe } from "../../packages/contracts/
 import { AuthorizedCatalog } from "../../apps/service/src/planner/catalog.ts";
 import type { CanonicalEncoder, CatalogArtifactRecord, CatalogRepository, NewPublicationRecord, PublicationKeyRecord, PublicationRecord } from "../../apps/service/src/planner/catalog-repository.ts";
 import { sanitizeRecipeForPublication } from "../../apps/service/src/planner/publication.ts";
+import { PostgresCatalogRepository } from "../../apps/service/src/planner/postgres-catalog.ts";
 
 const privateCanary="ATLAS_SECRET_PRODUCT_123";
 const recipe:Recipe={schemaVersion:"1.0",recipeKey:"catalog.category.assign.v1",displayName:privateCanary,description:`tenant ${privateCanary}`,compatibility:{adapter:"medusa-v2",capabilityContract:"1",verifiedMedusaVersion:"2.22.1"},parameters:{categoryId:{kind:"resource",resource:"medusa.product_category"}},selection:{resource:"medusa.product",maxRecords:100,requireStatus:"published"},requiredCapabilities:["medusa.products.list","medusa.products.retrieve","medusa.product_categories.retrieve","medusa.product_categories.products.add"],steps:[{id:"addCategory",capability:"medusa.product_categories.products.add",forEach:"selectedProducts",dependsOn:[],arguments:{productId:{$record:"id"},categoryId:{$param:"categoryId"}}}],ui:{kind:"action",label:privateCanary,fields:[{name:"categoryId",control:"resource-picker",label:privateCanary}]}};
@@ -73,4 +74,10 @@ test("withdrawal and security revocation remain distinct",async()=>{
   const {service}=fixture();const published=await service.publishAuthorized({actor:atlas,sourceArtifactHash:"private-hash",visibility:"provider_catalog",allowedTenantIds:["boreal"],consent:true,keyId:"key-1",idempotencyKey:"p"});
   assert.equal((await service.withdrawAuthorized({actor:atlas,publicationId:published.publicationId,idempotencyKey:"w"})).state,"withdrawn");
   assert.equal((await service.securityRevokeAuthorized({actor:atlas,publicationId:published.publicationId,reason:"compromised",idempotencyKey:"r"})).state,"security_revoked");
+});
+
+test("PostgreSQL adapter reads a granted publication through the authorized path",async()=>{
+  let authorized=0,ownerOnly=0;const publication={id:"pub",publisherTenantId:"atlas",publisherActorId:"atlas.admin",artifactId:"artifact",artifactHash:"hash",signingKeyId:"key",signature:new Uint8Array(),visibility:"shared_allowlist" as const,state:"published",reviewedMetadata:{}};
+  const store:any={async withTenant(_scope:any,work:any){return work({async getAuthorizedPublication(){authorized++;return publication;},async getPublicationForUpdate(){ownerOnly++;return null;}});}};
+  const repository=new PostgresCatalogRepository(store,()=>"grant");assert.equal((await repository.getVisiblePublicationForInstall(boreal,"pub"))?.id,"pub");assert.equal(authorized,1);assert.equal(ownerOnly,0);
 });

@@ -8,6 +8,8 @@ import { CodexCliPlannerProvider, InstalledCodex0164IsolationProbe, codexExecArg
 import type { PlannerInput } from "../../apps/service/src/planner/types.ts";
 import type { ProcessRunner } from "../../apps/service/src/planner/process-runner.ts";
 import { canonicalGenericRecipe } from "../../apps/service/src/planner/publication.ts";
+import { DurablyBudgetedPlannerProvider } from "../../apps/service/src/planner/generation-budget.ts";
+import { PlannerProviderError } from "../../apps/service/src/planner/types.ts";
 
 const input:PlannerInput={requestId:"req",tenantId:"atlas",actorId:"actor",locale:"en",message:"assign category",selectedProductIds:["p01"],approvedCapabilities:["medusa.products.list"],adapter:{id:"medusa-v2",capabilityContract:"1",version:"2.22.1"}};
 const executableSha256=createHash("sha256").update(readFileSync(process.execPath)).digest("hex");
@@ -65,4 +67,14 @@ test("API provider rejects extra proposal fields and retains failed-call usage",
   }),{status:200});
   const provider=new BudgetedApiPlannerProvider({...VERIFIED_API_CONFIGS.openaiLuna,maxCallsPerRequest:1,maxInputTokens:20_000,maxOutputTokens:1_000,maxResponseBytes:64_000,timeoutMs:1_000,authorizedBudgetUsd:1,maxPricePerCallUsd:0.01},{async get(){return "synthetic-test-key";}},{async reserve(){return true;}},fetchMock);
   await assert.rejects(provider.generate(input),(error:any)=>error.code==="PROVIDER_OUTPUT_INVALID"&&error.usage.length===1&&error.usage[0].inputTokens===11&&error.usage[0].outputTokens===7);
+});
+
+test("durable wrapper enforces one request-wide provider cap and records failed usage",async()=>{
+  let attempts=0;const recorded:any[]=[];
+  const inner:any={id:"codex-cli",async generate(){attempts++;throw new PlannerProviderError("PROVIDER_TIMEOUT","timeout",true,[{provider:"codex-cli",configuredModel:"gpt-6.1-sol",observedModel:null,calls:1,inputTokens:13,cachedInputTokens:0,outputTokens:2,reasoningOutputTokens:0,latencyMs:5,price:null,live:true}]);}};
+  const ledger={async reserveCall(){return attempts<1?{reservationId:"reservation-1",fence:1n,attempt:1}:null;},async recordCall(value:any){recorded.push(value);return true;}};
+  const provider=new DurablyBudgetedPlannerProvider(inner,ledger,{model:"gpt-6.1-sol",maxAttempts:3,totalTokenBudget:360_000n,perCallTokenBudget:120_000n,costBudgetMicros:0n,async intentHash(){return"a".repeat(64);}});
+  await assert.rejects(provider.generate(input),(error:any)=>error.code==="PROVIDER_TIMEOUT");
+  await assert.rejects(provider.generate(input),(error:any)=>error.code==="PROVIDER_CALL_BUDGET_EXHAUSTED");
+  assert.equal(attempts,1);assert.equal(recorded.length,1);assert.equal(recorded[0].usage[0].inputTokens,13);assert.equal(recorded[0].retryable,true);
 });
