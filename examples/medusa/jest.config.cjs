@@ -34,6 +34,10 @@ module.exports = {
       module: { type: "commonjs" },
     }],
   },
+  // canonicalize@5.1.0 ships an ESM `export default` entry. The Medusa
+  // CommonJS harness reaches it through bridge/crypto.ts, so transform this
+  // reviewed leaf package only; every other dependency remains ignored.
+  transformIgnorePatterns: ["node_modules/(?!.*(?:canonicalize)/)"],
   testEnvironment: "node",
   moduleFileExtensions: ["js", "ts", "json"],
   moduleDirectories: [
