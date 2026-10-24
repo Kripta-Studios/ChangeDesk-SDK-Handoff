@@ -62,7 +62,13 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
       const resume = bindScope(value.identity?.scopeId);
       if (initialInstallationId) await configureInstallation(initialInstallationId, value.installations);
       else if (resume.executionId) { setScreen("execution"); watchExecution(resume.executionId); }
-      else if (resume.planId) { const saved = await client.getPlan(resume.planId); setPlan(saved); setScreen("plan"); }
+      else if (resume.planId) {
+        const saved = await client.getPlan(resume.planId);
+        const currentSelection = [...selection].sort().join("\u0000");
+        const plannedSelection = [...saved.plan.selectionSnapshot].sort().join("\u0000");
+        if (currentSelection !== plannedSelection) { remember({ planId: undefined }); setError("La selección cambió. El preview anterior se invalidó; prepara uno nuevo."); }
+        else { setPlan(saved); setScreen("plan"); }
+      }
       else if (resume.requestId) watchRequest(resume.requestId);
     }).catch((reason) => { forget(); showError(reason); });
     queueMicrotask(() => inputRef.current?.focus());
