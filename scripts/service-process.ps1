@@ -86,7 +86,7 @@ switch ($provider) {
 
 $env:CHANGEDESK_API_DATABASE_URL = Required-Environment "CHANGEDESK_RUNTIME_DATABASE_URL"
 $env:CHANGEDESK_WORKER_DATABASE_URL = Required-Environment "CHANGEDESK_WORKER_DATABASE_URL"
-$env:CHANGEDESK_ORIGINS = "http://127.0.0.1:8000,http://127.0.0.1:9001,http://127.0.0.1:9002"
+$env:CHANGEDESK_ORIGINS = "http://127.0.0.1:8001,http://127.0.0.1:9001,http://127.0.0.1:9002"
 $env:CHANGEDESK_SESSION_AUDIENCE = "changedesk-api"
 $env:CHANGEDESK_SESSION_ISSUERS = "atlas-plugin,boreal-plugin"
 $env:CHANGEDESK_HOSTS_JSON = @(

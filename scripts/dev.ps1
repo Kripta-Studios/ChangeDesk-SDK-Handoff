@@ -37,7 +37,7 @@ $checks = @(
   @{ name = "api readiness"; url = "http://127.0.0.1:4100/readyz" },
   @{ name = "Atlas"; url = "http://127.0.0.1:9001/health" },
   @{ name = "Boreal"; url = "http://127.0.0.1:9002/health" },
-  @{ name = "buyer storefront"; url = "http://127.0.0.1:8000/" }
+  @{ name = "buyer storefront"; url = "http://127.0.0.1:8001/" }
 )
 $deadline = (Get-Date).AddSeconds(60)
 foreach ($check in $checks) {
@@ -51,4 +51,4 @@ foreach ($check in $checks) {
 foreach ($item in $started) {
   if (-not (Get-Process -Id $item.pid -ErrorAction SilentlyContinue)) { throw "$($item.name) exited during startup; inspect its .local/run log." }
 }
-Write-Output "Change Desk local lab is ready on API 4100, storefront 8000, Atlas 9001, and Boreal 9002."
+Write-Output "Change Desk local lab is ready on API 4100, storefront 8001, Atlas 9001, and Boreal 9002."

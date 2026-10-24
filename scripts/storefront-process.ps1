@@ -13,5 +13,5 @@ $env:VITE_MEDUSA_PUBLISHABLE_API_KEY_BOREAL = $boreal.publishableApiKey
 $node = Join-Path $root ".tools/node-v22.23.4-win-x64/node.exe"
 $vite = Join-Path $root "node_modules/vite/bin/vite.js"
 if (-not (Test-Path -LiteralPath $node) -or -not (Test-Path -LiteralPath $vite)) { throw "Build/install the pinned project toolchain first." }
-& $node $vite examples/storefront --host 127.0.0.1 --port 8000 --strictPort
+& $node $vite examples/storefront --host 127.0.0.1 --port 8001 --strictPort
 if ($LASTEXITCODE -ne 0) { throw "Storefront exited with code $LASTEXITCODE." }
