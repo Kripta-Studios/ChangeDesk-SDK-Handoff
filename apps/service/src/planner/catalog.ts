@@ -53,21 +53,25 @@ export class AuthorizedCatalog implements CatalogPort {
 
   async installAuthorized(input: InstallInput): Promise<InstallationResult> {
     requirePermissions(input.actor, this.options.permissionsFor(input.actor), ["install"]);
-    const publication = await this.options.repository.getVisiblePublicationForInstall(input.actor, input.publicationId);
-    if (!publication || publication.state !== "published" || publication.artifactHash !== input.expectedArtifactHash) throw new CatalogAuthorizationError();
-    const key = await this.options.repository.getPublicationKey(input.actor, publication.signingKeyId);
-    const envelope = extractEnvelope(publication.reviewedMetadata);
-    if (!key || key.algorithm !== "Ed25519" || key.status !== "active" || !envelope ||
-        envelope.artifactHash !== publication.artifactHash ||
-        !verifyPublicationSignature(key.publicKey, envelope, publication.signature, this.options.encoder)) {
-      throw new CatalogValidationError("PUBLICATION_SIGNATURE_INVALID", "Publication signature or key is invalid");
+    const artifact = await this.options.repository.getOwnedPrivateArtifact(input.actor,input.artifactHash) ??
+      (await this.options.repository.listVisible(input.actor,{adapter:input.adapter,limit:20})).find((row)=>row.artifactHash===input.artifactHash);
+    if (!artifact || !compatible(artifact.recipe,{actor:input.actor,adapter:input.adapter,approvedCapabilities:input.approvedCapabilities})) throw new CatalogAuthorizationError();
+    sanitizeRecipeForPublication(artifact.recipe);
+    if (artifact.ownerTenantId!==input.actor.tenantId) {
+      if(!artifact.publicationId) throw new CatalogAuthorizationError();
+      const publication=await this.options.repository.getVisiblePublicationForInstall(input.actor,artifact.publicationId);
+      if (!publication || publication.state !== "published" || publication.artifactHash !== input.artifactHash) throw new CatalogAuthorizationError();
+      const key = await this.options.repository.getPublicationKey(input.actor, publication.signingKeyId);
+      const envelope = extractEnvelope(publication.reviewedMetadata);
+      if (!key || key.algorithm !== "Ed25519" || key.status !== "active" || !envelope || envelope.artifactHash !== publication.artifactHash ||
+          !verifyPublicationSignature(key.publicKey, envelope, publication.signature, this.options.encoder)) throw new CatalogValidationError("PUBLICATION_SIGNATURE_INVALID", "Publication signature or key is invalid");
     }
-    validateBindings(input.bindings);
+    validateBindings(artifact.recipe,input.bindings,input.allowedResourceIds);
     const installed = await this.options.repository.install(input.actor, {
-      installationId: this.options.newId("installation"), artifactId: publication.artifactId,
-      artifactHash: publication.artifactHash, bindings: { ...input.bindings }, policyVersion: input.policyVersion,
+      installationId: this.options.newId("installation"), artifactId: artifact.id,
+      artifactHash: artifact.artifactHash, bindings: { ...input.bindings }, policyVersion: input.policyVersion,
       idempotencyKey: input.idempotencyKey,
-      requestHash: await this.options.identity.requestHash({ publicationId: input.publicationId, artifactHash: publication.artifactHash, bindings: input.bindings, policyVersion: input.policyVersion }),
+      requestHash: await this.options.identity.requestHash({ artifactHash: artifact.artifactHash, bindings: input.bindings, policyVersion: input.policyVersion }),
     });
     return { installationId: installed.id, artifactHash: installed.artifactHash, version: "1", state: "active" };
   }
@@ -89,7 +93,7 @@ export class AuthorizedCatalog implements CatalogPort {
 
 function compatible(recipe: Recipe, query: CatalogSearchQuery): boolean {
   const allowed = new Set<CapabilityId>(query.approvedCapabilities);
-  return recipe.compatibility.adapter === query.adapter.id &&
+  return recipe.compatibility.adapter === query.adapter.id && recipe.compatibility.verifiedMedusaVersion === query.adapter.version &&
     recipe.compatibility.capabilityContract === query.adapter.capabilityContract &&
     recipe.requiredCapabilities.every((capability) => allowed.has(capability));
 }
@@ -109,9 +113,11 @@ function uniqueSafeTenantIds(values: readonly string[], publisherTenantId: strin
   if (result.some((value) => value === publisherTenantId || !/^[a-z][a-z0-9_-]{0,63}$/.test(value))) throw new CatalogValidationError("PUBLICATION_AUDIENCE_INVALID", "Publication audience is invalid");
   return result.sort();
 }
-function validateBindings(bindings: Readonly<Record<string, string>>) {
+function validateBindings(recipe:Recipe,bindings: Readonly<Record<string, string>>, allowed:InstallInput["allowedResourceIds"]) {
   const keys = Object.keys(bindings);
-  if (keys.length < 1 || keys.length > 2 || keys.some((key) => !["categoryId", "channelId"].includes(key)) || Object.values(bindings).some((value) => value.length < 1 || value.length > 120)) {
+  const expected=Object.keys(recipe.parameters).sort();
+  if (JSON.stringify([...keys].sort())!==JSON.stringify(expected) || Object.values(bindings).some((value) => value.length < 1 || value.length > 120) ||
+      (bindings.categoryId!==undefined&&!allowed.categoryId.includes(bindings.categoryId)) || (bindings.channelId!==undefined&&!allowed.channelId.includes(bindings.channelId))) {
     throw new CatalogValidationError("INSTALLATION_BINDINGS_INVALID", "Installation bindings are invalid");
   }
 }
