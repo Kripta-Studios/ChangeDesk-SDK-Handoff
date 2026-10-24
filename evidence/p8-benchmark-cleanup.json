@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "recordedAt": "2026-10-24T13:28:34.9025865Z",
+  "scope": "synthetic benchmark generation jobs only",
+  "runIds": [
+    "f565bd06-3daa-4aee-a0a9-e826d458f86a",
+    "eb9a43d4-24f7-4722-9580-d8bbca8e0dc3",
+    "4049b5c3-8dd5-4620-8c79-55aa130569d6"
+  ],
+  "guard": {
+    "tenantPrefix": "bench-consumer-<exact-run-id>",
+    "jobKind": "generation",
+    "requestTextExact": "benchmark synthetic request"
+  },
+  "firstCancellation": {
+    "cancelledJobs": 259
+  },
+  "verification": {
+    "additionalCancelledJobs": 0,
+    "activePendingOrLeasedJobs": 0,
+    "jobsByStatus": {
+      "cancelled": 259,
+      "completed": 10,
+      "failed": 1
+    }
+  },
+  "destructiveScope": "No requests, artifacts, grants, completed jobs, failed jobs or other tenant jobs were deleted or updated."
+}

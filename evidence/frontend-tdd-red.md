@@ -14,4 +14,6 @@ GREEN command:
 
 `pnpm exec vitest run --config tests/sdk/vitest.config.ts --reporter=verbose`
 
-Final canonical result after adding installed-action/no-model, stale-session-race, clarification, authorized reopen and English locale coverage: `3 passed` test files, `15 passed` tests, exit 0, using the single root `vitest.config.ts`. Browser/real-host coverage remains a separate NOT_RUN gate in `evidence/frontend-browser.md`.
+Final canonical result after adding installed-action/no-model, stale-session-race, clarification, actor-scoped authorized reopen, reload selection invalidation, install continuity and English locale coverage: `3 passed` test files, `18 passed` tests, exit 0, using the single root `vitest.config.ts`. Browser/real-host coverage remains a separate blocked gate in `evidence/frontend-browser.md`.
+
+Additional install-flow RED: the focused test `installs a prepared action without abandoning its approvable preview` failed with `Unable to find role="heading" and name "Preview del plan"`; the DOM showed the implementation had navigated to `Acciones instaladas`, making the already-reviewed plan impossible to approve. Removing that forced navigation and refreshing the library in place made the focused test pass. The actor-scope regression also proves that an old scope's private plan ID is deleted before the new actor can invoke `getPlan`.
