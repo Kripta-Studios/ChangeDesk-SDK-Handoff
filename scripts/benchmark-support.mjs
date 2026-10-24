@@ -26,3 +26,7 @@ export function requireBenchmarkEnvironment(environment = process.env) {
   }
   return { migratorDatabaseUrl, runtimeDatabaseUrl };
 }
+
+export function benchmarkStatus(catalog, admission) {
+  return catalog.errors === 0 && catalog.p95 <= 250 && admission.errors === 0 && admission.p95 <= 300 ? "PASS" : "FAIL";
+}

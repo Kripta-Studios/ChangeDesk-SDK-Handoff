@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { requireBenchmarkEnvironment, summarize } from "./benchmark-support.mjs";
+import { benchmarkStatus, requireBenchmarkEnvironment, summarize } from "./benchmark-support.mjs";
 
 const CATALOG_ENTRIES = 1_000;
 const CATALOG_WARMUP = 20;
@@ -144,7 +144,7 @@ async function main() {
     const revision = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", shell: false }).stdout.trim();
     const dirty = spawnSync("git", ["diff", "--quiet", "HEAD"], { cwd: root, shell: false }).status !== 0;
     const evidence = {
-      schemaVersion: "1.0.0", status: catalog.errors === 0 && admission.errors === 0 ? "PASS" : "FAIL",
+      schemaVersion: "1.0.0", status: benchmarkStatus(catalog, admission),
       measuredAt: new Date().toISOString(), revision, dirty,
       environment: { node: process.version, os: `${platform()} ${release()}`, cpu: cpus()[0]?.model ?? "unknown", logicalCpuCount: cpus().length, totalMemoryBytes: totalmem(), postgresql: serverVersion },
       dataset: { runId, synthetic: true, authorizedCatalogEntries: CATALOG_ENTRIES, catalogPageLimit: 20, setupMilliseconds: performance.now() - setupStarted },
