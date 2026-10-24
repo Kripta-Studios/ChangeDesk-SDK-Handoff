@@ -1,19 +1,19 @@
 {
   "schemaVersion": "1.0",
-  "recordedAt": "2026-10-24T16:35:00+02:00",
-  "runId": "finish-tarball-20261024-1635",
+  "recordedAt": "2026-10-24T16:45:00+02:00",
+  "runId": "finish-tarball-final-20261024-1645",
   "status": "PASS",
   "source": {
-    "verificationHead": "b3126580f6a24740e0c0219a0f6d39d4526bc79a",
-    "latestContractsOrSdkCommit": "ab4b247900df42219f25f9d78237118dfdee877d",
-    "note": "Fresh evidence supersedes the earlier e63f497-era consumer for package-consumption claims. Generated dist, tarballs and consumer files remained gitignored."
+    "verificationHead": "1b32e2d",
+    "latestContractsOrSdkCommit": "b8f7d7b",
+    "note": "This final run includes the Medusa buyer-session adapter added after the first finish attempt. It supersedes both the e63f497-era evidence and finish-tarball-20261024-1635. Generated dist, tarballs and consumer files remained gitignored."
   },
   "environment": {
     "node": "22.23.4",
     "pnpm": "11.22.0",
     "typescript": "5.9.3",
     "networkPolicy": "pnpm install used --offline; lifecycle scripts were disabled",
-    "consumer": ".tools/finish-tarball-20261024-1635/consumer",
+    "consumer": ".tools/finish-tarball-final-20261024-1645/consumer",
     "sourceLinking": false
   },
   "artifacts": [
@@ -26,8 +26,8 @@
     {
       "package": "@changedesk/react@0.0.0",
       "file": "changedesk-react-0.0.0.tgz",
-      "bytes": 61103,
-      "sha256": "C7E541FE0C0F7C35B12907D5D64A87C2A6AE5D9EF830CDBB62BCFEE08F596131"
+      "bytes": 63326,
+      "sha256": "F21B1F92DC9AFADA689E3EDF8B07F68BE1C797C76EC5E399ABB16E42EBAE2AC0"
     }
   ],
   "commands": [
@@ -38,10 +38,10 @@
     {
       "command": "vite build && node node_modules/typescript/bin/tsc -b . --force --pretty false (cwd packages/sdk-react)",
       "exitCode": 0,
-      "result": "storefront.css 6.11 kB; index.js 0.32 kB; storefront.js 19.32 kB; lazy InternalPanel 36.73 kB"
+      "result": "storefront.css 6.11 kB; index.js 0.32 kB; storefront.js 22.10 kB; lazy InternalPanel 36.73 kB"
     },
     {
-      "command": "npm pack packages/contracts and packages/sdk-react --pack-destination .tools/finish-tarball-20261024-1635",
+      "command": "npm pack packages/contracts and packages/sdk-react --pack-destination .tools/finish-tarball-final-20261024-1645",
       "exitCode": 0
     },
     {
@@ -52,12 +52,12 @@
     {
       "command": "pnpm exec tsc -p tsconfig.json",
       "exitCode": 0,
-      "result": "Installed declarations consumed for @changedesk/react, @changedesk/react/storefront and @changedesk/contracts"
+      "result": "Installed declarations consumed for @changedesk/react, @changedesk/react/storefront (including createMedusaBuyerSession) and @changedesk/contracts"
     },
     {
       "command": "node smoke.mjs",
       "exitCode": 0,
-      "result": "Installed runtime exports, storefront CSS, declarations and consumer-local resolution passed"
+      "result": "Installed runtime exports, Medusa buyer-session adapter export, storefront CSS, declarations and consumer-local resolution passed"
     },
     {
       "command": "pnpm install --offline --ignore-scripts --frozen-lockfile",
