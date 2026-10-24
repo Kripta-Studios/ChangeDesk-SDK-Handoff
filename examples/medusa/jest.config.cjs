@@ -26,10 +26,19 @@ process.env.DATABASE_URL ||= "postgres://postgres@127.0.0.1/medusa"
 module.exports = {
   rootDir: "../..",
   transform: {
-    "^.+\\.[jt]s$": ["@swc/jest", { jsc: { parser: { syntax: "typescript", decorators: true }, target: "es2022" } }],
+    "^.+\\.[jt]s$": ["@swc/jest", {
+      jsc: { parser: { syntax: "typescript", decorators: true }, target: "es2022" },
+      module: { type: "es6" },
+    }],
   },
+  extensionsToTreatAsEsm: [".ts"],
   testEnvironment: "node",
   moduleFileExtensions: ["js", "ts", "json"],
+  moduleDirectories: [
+    "node_modules",
+    "<rootDir>/examples/medusa/node_modules",
+    "<rootDir>/packages/medusa-plugin/node_modules",
+  ],
   roots: ["<rootDir>/tests/medusa/integration"],
   modulePathIgnorePatterns: ["[\\/]dist[\\/]", "[\\/]\.medusa[\\/]"],
   setupFiles: ["<rootDir>/examples/medusa/integration-tests/setup.cjs"],
