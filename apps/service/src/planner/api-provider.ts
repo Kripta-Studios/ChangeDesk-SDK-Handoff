@@ -1,4 +1,6 @@
 import { recipeSchema } from "@changedesk/contracts/schemas";
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { GenerationCallToken } from "./generation-budget.js";
 import type { PlannerInput, PlannerProvider, ProviderProposal, ProviderUsage } from "./types.js";
 import { PlannerProviderError } from "./types.js";
 
@@ -10,7 +12,27 @@ export interface ApiProviderConfig {
   readonly protocol:"responses"|"chat-completions";
 }
 export interface SecretResolver { get(name:string):Promise<string|null>; }
-export interface ApiBudgetReservationPort { reserve(input:{tenantId:string;requestId:string;provider:ApiProviderConfig["provider"];model:string;maxCalls:number;maxBudgetUsd:number;reserveUsd:number}):Promise<boolean>; }
+export interface ReservedApiCallContext {
+  readonly tenantId:string;readonly requestId:string;readonly provider:ApiProviderConfig["provider"];readonly model:string;
+  readonly tokenBudget:bigint;readonly costBudgetMicros:bigint;readonly generationToken:GenerationCallToken;
+}
+export interface ApiCallAuthorizationController {run<T>(context:ReservedApiCallContext,work:()=>Promise<T>):Promise<T>;}
+export interface ApiCallAuthorizationGate {consume(input:PlannerInput,config:ApiProviderConfig,reserveUsd:number):void;}
+
+/** A process-internal, single-use capability. Only the generation processor receives the controller. */
+export function createApiCallAuthorization():{controller:ApiCallAuthorizationController;gate:ApiCallAuthorizationGate}{
+  const storage=new AsyncLocalStorage<{context:ReservedApiCallContext;consumed:boolean}>();
+  return{
+    controller:{run:(context,work)=>storage.run({context,consumed:false},work)},
+    gate:{consume(input,config,reserveUsd){
+      const active=storage.getStore();
+      if(!active||active.consumed)throw new PlannerProviderError("API_CALL_NOT_RESERVED","API call has no unused durable generation reservation",false);
+      const expectedCostMicros=BigInt(Math.ceil(reserveUsd*1_000_000)),expectedTokens=BigInt(config.maxInputTokens+config.maxOutputTokens),context=active.context;
+      if(context.tenantId!==input.tenantId||context.requestId!==input.requestId||context.provider!==config.provider||context.model!==config.model||context.generationToken.attempt<1||context.tokenBudget<expectedTokens||context.costBudgetMicros<expectedCostMicros)throw new PlannerProviderError("API_CALL_NOT_RESERVED","Durable generation reservation does not cover this API call",false);
+      active.consumed=true;
+    }}
+  };
+}
 export const VERIFIED_API_CONFIGS={
   openaiLuna:{provider:"openai",endpoint:"https://api.openai.com/v1/responses",model:"gpt-6-luna",apiKeyEnvironmentName:"OPENAI_API_KEY",protocol:"responses"},
   deepseekFlash:{provider:"deepseek",endpoint:"https://api.deepseek.com/responses",model:"deepseek-flash",apiKeyEnvironmentName:"DEEPSEEK_API_KEY",protocol:"responses"},
@@ -19,7 +41,7 @@ export const VERIFIED_API_CONFIGS={
 
 export class BudgetedApiPlannerProvider implements PlannerProvider {
   readonly id;
-  constructor(private readonly config:ApiProviderConfig,private readonly secrets:SecretResolver,private readonly budgetStore:ApiBudgetReservationPort,private readonly fetchImpl:typeof fetch=fetch,private readonly clock=()=>performance.now()){
+  constructor(private readonly config:ApiProviderConfig,private readonly secrets:SecretResolver,private readonly authorization:ApiCallAuthorizationGate,private readonly fetchImpl:typeof fetch=fetch,private readonly clock=()=>performance.now()){
     this.id=config.provider;const expected=Object.values(VERIFIED_API_CONFIGS).find((entry)=>entry.provider===config.provider);
     if(!expected||config.endpoint!==expected.endpoint||config.model!==expected.model||config.protocol!==expected.protocol||new URL(config.endpoint).protocol!=="https:")throw new PlannerProviderError("API_PROVIDER_CONFIG_INVALID","Endpoint/model must match reviewed configuration",false);
     if(!Number.isInteger(config.maxCallsPerRequest)||config.maxCallsPerRequest<1||config.maxCallsPerRequest>3)throw new PlannerProviderError("API_PROVIDER_CONFIG_INVALID","maxCallsPerRequest must be 1..3",false);
@@ -29,13 +51,16 @@ export class BudgetedApiPlannerProvider implements PlannerProvider {
   }
   async generate(input:PlannerInput,signal?:AbortSignal):Promise<{proposal:ProviderProposal;usage:ProviderUsage}>{
     if(this.config.authorizedBudgetUsd<=0)throw new PlannerProviderError("API_BUDGET_NOT_AUTHORIZED","API spending requires an explicit positive budget",false);
-    const key=await this.secrets.get(this.config.apiKeyEnvironmentName);if(!key)throw new PlannerProviderError("PROVIDER_CREDENTIAL_UNAVAILABLE","Provider credential is not configured",false);
     const body=this.config.protocol==="responses"?responsesBody(this.config,input):chatBody(this.config,input);
     const inputBytes=new TextEncoder().encode(JSON.stringify(body)).byteLength;
     if(inputBytes>this.config.maxInputTokens)throw new PlannerProviderError("API_INPUT_LIMIT","Conservative UTF-8 input bound exceeds maxInputTokens",false);
     const reservation=this.config.tariff?(this.config.maxInputTokens*this.config.tariff.inputPerMillionUsd+this.config.maxOutputTokens*this.config.tariff.outputPerMillionUsd)/1_000_000:this.config.maxPricePerCallUsd;
     if(!reservation||reservation<=0)throw new PlannerProviderError("API_TARIFF_REQUIRED","Unknown price requires an explicit positive per-call ceiling",false);
-    if(!await this.budgetStore.reserve({tenantId:input.tenantId,requestId:input.requestId,provider:this.config.provider,model:this.config.model,maxCalls:this.config.maxCallsPerRequest,maxBudgetUsd:this.config.authorizedBudgetUsd,reserveUsd:reservation}))throw new PlannerProviderError("PROVIDER_CALL_BUDGET_EXHAUSTED","Provider request budget exhausted",false);
+    if(reservation>this.config.authorizedBudgetUsd)throw new PlannerProviderError("PROVIDER_CALL_BUDGET_EXHAUSTED","Provider request budget exhausted",false);
+    this.authorization.consume(input,this.config,reservation);
+    let key:string|null;
+    try{key=await this.secrets.get(this.config.apiKeyEnvironmentName);}catch{throw new PlannerProviderError("PROVIDER_CREDENTIAL_UNAVAILABLE","Provider credential could not be resolved",false);}
+    if(!key)throw new PlannerProviderError("PROVIDER_CREDENTIAL_UNAVAILABLE","Provider credential is not configured",false);
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),this.config.timeoutMs),onAbort=()=>controller.abort();signal?.addEventListener("abort",onAbort,{once:true});const started=this.clock();
     try{const response=await this.fetchImpl(this.config.endpoint,{method:"POST",redirect:"error",headers:{authorization:`Bearer ${key}`,"content-type":"application/json"},body:JSON.stringify(body),signal:controller.signal});
       if(!response.ok)throw new PlannerProviderError("PROVIDER_HTTP_ERROR",`Provider returned HTTP ${response.status}`,response.status>=500||response.status===429,[emptyUsage(this.config,Math.max(0,this.clock()-started))]);
