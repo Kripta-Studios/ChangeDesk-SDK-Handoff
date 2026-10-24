@@ -26,8 +26,8 @@
   ],
   "green": [
     {
-      "command": "vitest run tests/laws/model.test.ts tests/laws/verdict.test.ts",
-      "result": "PASS: 9 tests"
+      "command": "vitest run tests/laws/model.test.ts tests/laws/verdict.test.ts tests/laws/bend-verifier.test.ts --config vitest.config.ts",
+      "result": "PASS: 10 tests; explicit live kernel file excluded from this unit lane"
     },
     {
       "command": "bend PROOF.bend",
