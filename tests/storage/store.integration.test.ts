@@ -276,6 +276,7 @@ describe("PostgreSQL storage integration", () => {
       expect(await tx.authorizeEffectClaim(claim)).toMatchObject({authorized:true,executionId:execution.id,hostSessionId});
       expect(await tx.authorizeEffectClaim({...claim,fence:claim.fence-1})).toEqual({authorized:false,reasonCode:"claim_invalid"});
       expect(await tx.transitionAttempt(lease!,attempt,"sent","receipt-1")).toBe(true);
+      expect(await tx.authorizeEffectClaim(claim)).toMatchObject({authorized:true,executionId:execution.id});
     });
     await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",[lease!.jobId]);
     await migrator.query("UPDATE storage.capacity_leases SET lease_until=clock_timestamp()-interval '1 second' WHERE job_id=$1",[lease!.jobId]);
