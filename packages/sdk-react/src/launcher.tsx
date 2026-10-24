@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useChangeDesk } from "./provider.js";
 import { ChangeDeskPanel } from "./panel/ChangeDeskPanel.js";
-import "./launcher.css";
+import launcherStyles from "./launcher.css?inline";
 
 export function ChangeDeskLauncher({ label = "Personalizar acciones" }: { label?: string }) {
   const [open, setOpen] = useState(false);
@@ -9,6 +9,7 @@ export function ChangeDeskLauncher({ label = "Personalizar acciones" }: { label?
   const { config } = useChangeDesk();
   return (
     <div className="cd-launcher">
+      <style>{launcherStyles}</style>
       <button ref={buttonRef} className="cd-launcher__button" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => { setOpen(true); config.onEvent?.({ type: "panel_opened" }); }}>
         <span aria-hidden="true">✦</span> {label}
       </button>
