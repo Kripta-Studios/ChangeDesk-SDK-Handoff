@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "recordedAt": "2026-10-24T16:46:00+02:00",
+  "scope": "local lab, CI lanes, PostgreSQL and official Medusa runner",
+  "status": "BLOCKED",
+  "results": [
+    {
+      "gate": "functional",
+      "status": "PASS",
+      "command": ".tools/node-v22.23.4-win-x64/node.exe scripts/verify-ci.mjs --lane functional",
+      "result": "100 tests passed in 22 files"
+    },
+    {
+      "gate": "build",
+      "status": "PASS",
+      "command": ".tools/node-v22.23.4-win-x64/node.exe scripts/verify-ci.mjs --lane build",
+      "result": "contracts, service, SDK JavaScript/declarations and Medusa plugin built"
+    },
+    {
+      "gate": "postgres",
+      "status": "FAIL",
+      "runScope": "changedesk_test_finishlab_20261024f",
+      "result": "20 passed, 2 failed in 4 files; database dropped",
+      "blocker": "Recovery converts a clean pre-send execution lease to reconcile; both verticals end partial with a needs_review row instead of executing once."
+    },
+    {
+      "gate": "medusa-official",
+      "status": "FAIL",
+      "runScope": "changedesk_test_medusa_20261024e",
+      "result": "one suite discovered, zero behavioral tests executed; database dropped",
+      "blocker": "Jest VM/CJS harness still requires a test-only canonicalize ESM bridge."
+    },
+    {
+      "gate": "buyer-fixture",
+      "status": "PASS",
+      "result": "buyer-only seed completed for Atlas and Boreal; private credentials and maps remain ignored"
+    },
+    {
+      "gate": "live-services",
+      "status": "NOT_RUN",
+      "result": "environment checkout updated and built; project API, worker and both Medusa hosts intentionally stopped before final publication; PostgreSQL remains running"
+    }
+  ],
+  "safety": {
+    "foreignPort8000ServiceUntouched": true,
+    "storefrontPort": 8001,
+    "isolatedDatabasesRemoved": true,
+    "secretsRecorded": false
+  }
+}
