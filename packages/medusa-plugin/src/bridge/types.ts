@@ -90,6 +90,7 @@ export type EffectDelegationClaims = DelegationBase & {
     productStatus: "published"
     productUnlocked: true
     relationAbsent: true
+    preconditionFingerprint: string
   }
 }
 

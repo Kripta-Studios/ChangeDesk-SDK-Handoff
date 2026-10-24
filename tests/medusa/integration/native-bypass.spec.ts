@@ -132,16 +132,16 @@ medusaIntegrationTestRunner({
         planId: "plan-integration", planHash: "a".repeat(64), planVersion: 1,
         approvalId: "approval-integration", approvalExpiresAt: now + 120,
         semanticInputHash: "b".repeat(64), operationKey: "exec-integration/row-product/category", fence: 1,
-        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true },
+        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: "integration-fingerprint" },
       }
       const key = createPrivateKey(Buffer.from(process.env.CHANGEDESK_TEST_SERVICE_PRIVATE_KEY_PEM_BASE64!, "base64"))
       const invoke = (value: EffectDelegationClaims) => api.post("/changedesk/bridge/v1/commands", {
         capability: value.capability, args,
       }, { headers: { Authorization: `ChangeDesk-Delegation ${signEnvelope(value, key)}` } })
       const first = await invoke(claims)
-      expect(first.data.result.status).toBe("confirmed")
+      expect(first.data.result).toMatchObject({ observed: true, receipt: { status: "confirmed" } })
       const retry = await invoke({ ...claims, jti: randomUUID(), iat: now + 1, exp: now + 61 })
-      expect(retry.data.result.id).toBe(first.data.result.id)
+      expect(retry.data.result.receipt.id).toBe(first.data.result.receipt.id)
       const query = getContainer().resolve(ContainerRegistrationKeys.QUERY)
       const observed = await query.graph({ entity: "product", fields: ["id", "categories.id"], filters: { id: productId } })
       expect(observed.data[0].categories.filter((item: { id: string }) => item.id === categoryId)).toHaveLength(1)

@@ -55,7 +55,7 @@ const effectClaims = (args: object): EffectDelegationClaims => ({
   semanticInputHash: "b".repeat(64),
   operationKey: "atlas/execution-1/row-1/step-1",
   fence: 7,
-  preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true },
+  preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: "fixture-fingerprint" },
 })
 
 it("Ed25519 compact envelope detects payload tampering", () => {
