@@ -237,6 +237,11 @@ describe("PostgreSQL storage integration", () => {
     const bundle=await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle(targetLease!));
     expect(bundle).toMatchObject({request:{id:requestId,redactedText:"prepara la campaña",contextRef},tenant:{policyVersion:"1"},capabilityManifest:{manifestHash:"e".repeat(64)}});
     expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle({...targetLease!,fence:targetLease!.fence-1}))).toBeNull();
+    const candidate={id:randomUUID(),version:"1",artifactHash:null,recipeKey:"catalog.campaign.prepare.v1",displayName:"Preparar campaña",requiredCapabilities:["medusa.products.list"],compatibility:"compatible" as const,evidenceStatus:"not_run" as const,estimatedCost:null,safeMetadata:{source:"generated"}};
+    expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.addRequestCandidates(targetLease!,requestId,[candidate]))).toBe(true);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.listRequestCandidates(requestId))).toMatchObject([{id:candidate.id,state:"offered"}]);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.selectRequestCandidate({requestId,candidateId:candidate.id,version:"1",choice:"reuse",idempotencyKey:randomUUID(),requestHash:"7".repeat(64)}))).toMatchObject({id:candidate.id,state:"selected",selectedChoice:"reuse"});
+    await jobs.finish(targetLease!,{status:"completed"});
   });
 
   it("ACC-008 preserves attempt state across recovery and requires fenced business transitions",async()=>{
@@ -244,6 +249,11 @@ describe("PostgreSQL storage integration", () => {
     const actorId="operator";
     await seedTenant(tenantId,actorId);
     const ids=await seedReadyPlan(tenantId,actorId);
+    const evidenceId=randomUUID();
+    await store.withTenant({tenantId,actorId},async(tx)=>{
+      await tx.insertEvidence({id:evidenceId,artifactHash:ids.artifactHash,environmentDigest:"environment",suiteVersion:"1",status:"passed",artifactRefs:{},privacyScope:"private"});
+      expect(await tx.getEvidence(evidenceId)).toMatchObject({id:evidenceId,status:"passed",privacyScope:"private"});
+    });
     const hostSessionId=await seedHostSession(tenantId,actorId);
     const approval=await store.withTenant({tenantId,actorId},(tx)=>tx.createApproval({id:randomUUID(),planId:ids.planId,planVersion:1,planHash:ids.planHash,actorId,hostSessionId,scope:["execute"],expiresAt:new Date(Date.now()+60_000),idempotencyKey:randomUUID(),requestHash:"1".repeat(64)}));
     const executionJobId=randomUUID();
@@ -259,8 +269,12 @@ describe("PostgreSQL storage integration", () => {
     const attempt={executionId:execution.id,rowId:"product-1",stepId:"category",attemptNo:1,semanticInputHash:"3".repeat(64),operationKey:randomUUID()};
     await workerStore.withTenant({tenantId,actorId},async(tx)=>{
       expect(await tx.insertExecutionRows(lease!,execution.id,[{rowId:"product-1",resourceRef:"product-1",preconditionFingerprint:"precondition"}])).toBe(true);
+      expect(await tx.updateExecutionWithLease(lease!,execution.id,"running",0)).toMatchObject({state:"running",revision:1});
       expect(await tx.recordAttemptIntent(lease!,attempt)).toMatchObject({inserted:true,state:"intent_recorded",operationKey:attempt.operationKey});
       expect(await tx.recordAttemptIntent(lease!,attempt)).toMatchObject({inserted:false,state:"intent_recorded"});
+      const claim={executionId:execution.id,planHash:ids.planHash,planVersion:1,approvalId:approval.id,operationKey:attempt.operationKey,jobId:lease!.jobId,leaseOwner:lease!.leaseOwner,fence:lease!.fence,hostSessionId,policyVersion:"1"};
+      expect(await tx.authorizeEffectClaim(claim)).toMatchObject({authorized:true,executionId:execution.id,hostSessionId});
+      expect(await tx.authorizeEffectClaim({...claim,fence:claim.fence-1})).toEqual({authorized:false,reasonCode:"claim_invalid"});
       expect(await tx.transitionAttempt(lease!,attempt,"sent","receipt-1")).toBe(true);
     });
     await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",[lease!.jobId]);
@@ -278,11 +292,11 @@ describe("PostgreSQL storage integration", () => {
       expect(await tx.adoptAttemptForReconciliation(reconcileLease!,attempt)).toMatchObject({state:"sent",receiptRef:"receipt-1",inserted:false});
       expect(await tx.transitionAttempt(reconcileLease!,attempt,"confirmed","receipt-1","observation-1")).toBe(true);
       expect(await tx.updateRowWithLease(reconcileLease!,{executionId:execution.id,rowId:"product-1",state:"succeeded",finalObservationRef:"observation-1"})).toBe(true);
-      expect(await tx.updateExecutionWithLease(reconcileLease!,execution.id,"succeeded",0)).toMatchObject({state:"succeeded",revision:1});
+      expect(await tx.updateExecutionWithLease(reconcileLease!,execution.id,"succeeded",1)).toMatchObject({state:"succeeded",revision:2});
       expect(await tx.loadExecutionBundle(execution.id)).toMatchObject({authority:{hostSessionId}});
     });
     expect(await jobs.finish(reconcileLease!,{status:"completed"})).toBe(true);
-    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.getExecution(execution.id))).toMatchObject({state:"succeeded",revision:1});
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.getExecution(execution.id))).toMatchObject({state:"succeeded",revision:2});
   });
 
   async function seedTenant(tenantId: string, actorId: string) {
@@ -300,11 +314,13 @@ describe("PostgreSQL storage integration", () => {
     const requestId = randomUUID();
     const planId = randomUUID();
     const planHash = "c".repeat(64);
+    const artifactHash=randomUUID().replaceAll("-","").padEnd(64,"0");
     await store.withTenant({ tenantId, actorId }, async (tx) => {
+      await tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1.0",canonicalBody:{recipeKey:"catalog.category.assign.v1",compatibility:{adapter:"medusa-v2",capabilityContract:"1"}},idempotencyKey:randomUUID(),requestHash:artifactHash});
       await tx.createRequestAndJob({ id: requestId, actorId, redactedText: "request", contextRef: {}, budget: {}, jobId: randomUUID(), idempotencyKey: randomUUID(), requestHash: "3".repeat(64) });
-      await tx.createPlan(testPlan({ requestId, actorId, tenantId, id: planId, planHash, idempotencyKey: randomUUID(), requestHash: "4".repeat(64) }));
+      await tx.createPlan(testPlan({ requestId, actorId, tenantId, id: planId, planHash,artifactHash,idempotencyKey: randomUUID(), requestHash: "4".repeat(64) }));
     });
-    return { requestId, planId, planHash };
+    return { requestId, planId, planHash,artifactHash };
   }
 
   async function seedHostSession(tenantId:string,actorId:string) {

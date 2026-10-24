@@ -26,6 +26,12 @@ export interface RequestRecord {
 }
 
 export interface RequestMessageRecord { readonly id:string;readonly requestId:string;readonly actorId:string;readonly clientRequestId:string;readonly redactedText:string;readonly createdAt:Date }
+export interface RequestCandidateRecord {
+  readonly id:string;readonly requestId:string;readonly version:string;readonly artifactHash:string|null;readonly recipeKey:string;
+  readonly displayName:string;readonly requiredCapabilities:readonly string[];readonly compatibility:"compatible"|"adaptation_required"|"incompatible";
+  readonly evidenceStatus:"passed"|"failed"|"blocked"|"not_run"|"not_applicable";readonly estimatedCost:JsonValue|null;
+  readonly safeMetadata:JsonValue;readonly state:"offered"|"selected"|"dismissed";readonly selectedChoice:"reuse"|"adapt"|null;
+}
 
 export interface PlanRecord {
   readonly id: string;
@@ -133,6 +139,10 @@ export interface AttemptRecord {
   readonly inserted:boolean;
 }
 
+export type EffectClaimDecision=
+  | {readonly authorized:true;readonly executionId:string;readonly approvalId:string;readonly planHash:string;readonly planVersion:number;readonly actorId:string;readonly hostSessionId:string;readonly policyVersion:string}
+  | {readonly authorized:false;readonly reasonCode:"claim_invalid"};
+
 export interface NewExecutionRow { readonly rowId:string;readonly resourceRef:string;readonly preconditionFingerprint:string }
 
 export interface ExecutionBundle {
@@ -213,6 +223,7 @@ export interface PublicationKey {
   readonly publicKey: Uint8Array;
   readonly status: string;
 }
+export interface EvidenceRecord { readonly id:string;readonly status:"passed"|"failed"|"blocked"|"not_run"|"not_applicable";readonly artifactHash:string;readonly environmentDigest:string;readonly suiteVersion:string;readonly privacyScope:"private"|"generic";readonly createdAt:Date }
 
 export interface SessionRecord {
   readonly id: string;
