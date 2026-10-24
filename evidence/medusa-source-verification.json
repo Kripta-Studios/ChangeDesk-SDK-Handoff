@@ -16,6 +16,11 @@
       "observedGap": "The official Medusa plugin build compiled the backend, then Rollup could not resolve the generated @medusajs/admin-shared import; the frontend also imports @medusajs/admin-sdk directly.",
       "alternativesConsidered": ["Rely on accidental package-manager hoisting", "Externalize an undocumented generated import", "Declare the official SDK peer/dev dependency and exact build dependency"],
       "decision": "Declare @medusajs/admin-sdk@2.22.1 as dev and peer, and @medusajs/admin-shared@2.22.1 as an exact dev build dependency. Central environment verification and lock update remain required before claiming the admin build green."
+    },
+    "host-module-mode": {
+      "observedGap": "The Medusa 2.22.1 CLI rejected examples/medusa/medusa-config.ts with ERR_REQUIRE_ESM when the standalone host package declared type=module.",
+      "alternativesConsidered": ["Patch the Medusa loader", "Rename and rewrite configuration around the loader", "Use the CommonJS package mode required by the official loader"],
+      "decision": "Remove type=module from the standalone example host package. The plugin package remains ESM."
     }
   },
   "runtime": {
