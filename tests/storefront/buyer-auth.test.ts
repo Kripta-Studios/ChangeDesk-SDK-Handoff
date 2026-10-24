@@ -21,6 +21,8 @@ describe("buyer session domain", () => {
       CHANGEDESK_ORIGINS: "https://atlas.test",
       CHANGEDESK_SESSION_AUDIENCE: "changedesk",
       CHANGEDESK_SESSION_ISSUERS: "atlas-host,boreal-host",
+      CHANGEDESK_PLANNER_PROVIDER: "fake-test",
+      CHANGEDESK_ALLOW_TEST_FAKE: "true",
       CHANGEDESK_HOSTS_JSON: JSON.stringify([host("atlas"), host("boreal")]),
       CHANGEDESK_PUBLICATION_KEY_ID: "fixture",
       CHANGEDESK_PUBLICATION_PRIVATE_KEY_PEM: privateKeyPem,
