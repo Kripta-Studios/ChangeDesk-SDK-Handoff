@@ -17,6 +17,11 @@
       "behavior": "API proposal parser rejects extra fields and preserves measured usage on rejection",
       "command": "vitest run tests/planner/providers.test.ts",
       "result": "FAIL as expected: response containing unexpected=true was accepted; 7 passed, 1 failed"
+    },
+    {
+      "behavior": "publication semantic comparison ignores JSON object and set-like capability ordering",
+      "command": "vitest run tests/planner/catalog.test.ts",
+      "result": "FAIL as expected: equivalent reordered recipe raised PUBLICATION_SEMANTICS_MISMATCH; 7 passed, 1 failed"
     }
   ],
   "green": [
@@ -44,6 +49,14 @@
       "files": 1,
       "tests": 8,
       "durationSeconds": 8.48
+    },
+    {
+      "command": "vitest run tests/planner",
+      "result": "PASS",
+      "files": 5,
+      "tests": 24,
+      "durationSeconds": 7.91,
+      "coverage": "ACL-first reuse, requester generation with mutation capabilities, canonical generic persistence, and viewer provider denial"
     }
   ],
   "separation": {

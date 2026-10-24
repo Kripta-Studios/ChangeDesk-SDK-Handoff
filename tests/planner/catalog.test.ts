@@ -36,6 +36,15 @@ test("publication rejects a recipe whose claimed key hides different capabilitie
   assert.throws(()=>sanitizeRecipeForPublication(poisoned),(error:any)=>error.code==="PUBLICATION_SEMANTICS_MISMATCH");
 });
 
+test("publication accepts semantically equivalent key and capability ordering", () => {
+  const reordered: Recipe = {
+    ...recipe,
+    requiredCapabilities: [...recipe.requiredCapabilities].reverse(),
+    steps: recipe.steps.map((step) => ({ ...step, arguments: { categoryId: { $param: "categoryId" }, productId: { $record: "id" } } })),
+  };
+  assert.equal(sanitizeRecipeForPublication(reordered).recipeKey, recipe.recipeKey);
+});
+
 test("publication source must be owned, not merely visible",async()=>{
   const {service}=fixture();await assert.rejects(service.publishAuthorized({actor:boreal,sourceArtifactHash:"private-hash",visibility:"provider_catalog",allowedTenantIds:["atlas"],consent:true,keyId:"key-1",idempotencyKey:"idem"}),(error:any)=>error.code==="CATALOG_NOT_FOUND_OR_FORBIDDEN");
 });

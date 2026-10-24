@@ -2,6 +2,7 @@ import { createPublicKey, sign, verify, type KeyLike } from "node:crypto";
 import type { Recipe, RecipeKey } from "@changedesk/contracts";
 import type { CanonicalEncoder, PublicationSigner } from "./catalog-repository.js";
 import { CatalogValidationError } from "./types.js";
+import { canonicalizeJson } from "../core/hashing.js";
 
 const GENERIC_COPY: Readonly<Record<RecipeKey, { displayName: string; description: string; uiLabel: string }>> = {
   "catalog.campaign.prepare.v1": {
@@ -35,7 +36,7 @@ export function sanitizeRecipeForPublication(source: Recipe): Recipe {
   }
 
   const sanitized = canonicalGenericRecipe(source.recipeKey);
-  if (JSON.stringify(semanticProjection(source)) !== JSON.stringify(semanticProjection(sanitized))) {
+  if (canonicalizeJson(semanticProjection(source)) !== canonicalizeJson(semanticProjection(sanitized))) {
     throw new CatalogValidationError("PUBLICATION_SEMANTICS_MISMATCH", "Recipe semantics do not match its finite catalog key");
   }
   return sanitized;
@@ -50,8 +51,9 @@ export function canonicalGenericRecipe(recipeKey: RecipeKey): Recipe {
 
 function semanticProjection(recipe: Recipe) {
   return { schemaVersion:recipe.schemaVersion, recipeKey:recipe.recipeKey, compatibility:recipe.compatibility,
-    parameters:recipe.parameters, selection:recipe.selection, requiredCapabilities:recipe.requiredCapabilities,
-    steps:recipe.steps, ui:{kind:recipe.ui.kind,fields:recipe.ui.fields.map(({name,control})=>({name,control}))} };
+    parameters:recipe.parameters, selection:recipe.selection, requiredCapabilities:[...recipe.requiredCapabilities].sort(),
+    steps:recipe.steps.map((step)=>({...step,dependsOn:[...step.dependsOn].sort()})),
+    ui:{kind:recipe.ui.kind,fields:recipe.ui.fields.map(({name,control})=>({name,control})).sort((left,right)=>left.name.localeCompare(right.name))} };
 }
 
 function base(copy: (typeof GENERIC_COPY)[RecipeKey]) {
