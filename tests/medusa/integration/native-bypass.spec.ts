@@ -146,6 +146,10 @@ medusaIntegrationTestRunner({
       expect(first.data.result).toMatchObject({ observed: true, receipt: { status: "confirmed" } })
       const retry = await invoke({ ...claims, jti: randomUUID(), iat: now + 1, exp: now + 61 })
       expect(retry.data.result.receipt.id).toBe(first.data.result.receipt.id)
+      const bridge = getContainer().resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService
+      const receipts = await bridge.listOperationReceipts({ tenant_id: "atlas", operation_key: claims.operationKey })
+      expect(receipts).toHaveLength(1)
+      expect(receipts[0]).toMatchObject({ status: "confirmed", product_id: productId, destination_id: categoryId })
       const query = getContainer().resolve(ContainerRegistrationKeys.QUERY)
       const observed = await query.graph({ entity: "product", fields: ["id", "categories.id"], filters: { id: productId } })
       expect(observed.data[0].categories.filter((item: { id: string }) => item.id === categoryId)).toHaveLength(1)
