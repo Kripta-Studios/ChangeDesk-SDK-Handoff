@@ -14,7 +14,7 @@
       "default": "./dist/schemas.js"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "schemas"],
   "scripts": {
     "build": "tsc -b"
   }
