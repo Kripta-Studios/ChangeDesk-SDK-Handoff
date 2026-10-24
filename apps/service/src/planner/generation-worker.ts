@@ -94,8 +94,8 @@ function parseStructuredIntent(value:unknown):PlannerInput["structuredIntent"]|u
   if(recipeKey!==undefined&&!(["catalog.campaign.prepare.v1","catalog.category.assign.v1","catalog.channel.assign.v1"] as const).includes(recipeKey as never))return undefined;
   if(operation!==undefined&&!(["campaign","assign_category","assign_channel"] as const).includes(operation as never))return undefined;
   if(recipeKey===undefined&&operation===undefined)return undefined;
-  const parsed: {recipeKey?:NonNullable<PlannerInput["structuredIntent"]>["recipeKey"];operation?:NonNullable<PlannerInput["structuredIntent"]>["operation"]}={};
-  if(recipeKey!==undefined)parsed.recipeKey=recipeKey as NonNullable<PlannerInput["structuredIntent"]>["recipeKey"];
-  if(operation!==undefined)parsed.operation=operation as NonNullable<PlannerInput["structuredIntent"]>["operation"];
-  return parsed;
+  type Intent=NonNullable<PlannerInput["structuredIntent"]>;type Key=Exclude<Intent["recipeKey"],undefined>;type Operation=Exclude<Intent["operation"],undefined>;
+  if(recipeKey!==undefined&&operation!==undefined)return{recipeKey:recipeKey as Key,operation:operation as Operation};
+  if(recipeKey!==undefined)return{recipeKey:recipeKey as Key};
+  return{operation:operation as Operation};
 }
