@@ -50,7 +50,7 @@ foreach ($value in @($databaseUrl, $jwtSecret, $cookieSecret, $credential, $boot
 
 $categoryId = "bootstrap-placeholder"
 $channelId = "bootstrap-placeholder"
-$seedMap = Join-Path $root "evidence/medusa-seed-map.$Tenant.json"
+$seedMap = Join-Path $root "evidence/local/seed-map.$Tenant.json"
 if (Test-Path -LiteralPath $seedMap) {
   $map = Get-Content -Raw -LiteralPath $seedMap | ConvertFrom-Json
   $categoryId = $map.categories.campaign
