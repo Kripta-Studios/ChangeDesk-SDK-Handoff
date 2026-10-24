@@ -25,7 +25,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["{apps,packages,infra,tests}/**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["tests/e2e/**", "**/node_modules/**", "**/dist/**"],
+    exclude: ["tests/e2e/**", "tests/laws/**/*.live.test.ts", "**/node_modules/**", "**/dist/**"],
     passWithNoTests: false,
     restoreMocks: true,
     clearMocks: true,
