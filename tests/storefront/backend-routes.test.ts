@@ -100,7 +100,7 @@ describe("storefront Fastify routes", () => {
 
   async function build() {
     const app = Fastify();
-    const tokens = new Map<string, BuyerContext | StorefrontAdminContext>([["buyer-a", buyer("atlas", "same-id")], ["buyer-b", buyer("atlas", "buyer-b")], ["buyer-boreal", buyer("boreal", "buyer-b")], ["admin-a", admin("atlas", "same-id")], ["admin-boreal", admin("boreal")]]);
+    const tokens = new Map<string, BuyerContext | StorefrontAdminContext>([["buyer-a", buyer("atlas", "same-id")], ["buyer-b", buyer("atlas", "buyer-b")], ["buyer-boreal", buyer("boreal", "buyer-b")], ["admin-a", admin("atlas", "same-id")], ["operator-a", { ...admin("atlas", "operator"), role: "operator" }], ["expired", { ...buyer("atlas", "expired"), expiresAt: "2020-01-01T00:00:00.000Z" }], ["invalid-expiry", { ...buyer("atlas", "invalid"), expiresAt: "not-a-date" }], ["admin-boreal", admin("boreal")]]);
     const resolve = (request: FastifyRequest) => tokens.get(String(request.headers.authorization).replace("Bearer ", ""));
     await registerStorefrontRoutes(app, { repository, authenticateBuyer: async (request) => { const value = resolve(request); return value?.kind === "buyer" ? value : null; }, authenticateAdmin: async (request) => { const value = resolve(request); return value?.kind === "staff" ? value : null; } });
     return app;
@@ -121,6 +121,9 @@ describe("storefront Fastify routes", () => {
     const app = await build();
     expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("admin-a") })).statusCode).toBe(401);
     expect((await app.inject({ method: "GET", url: "/v1/storefront/admin/global-change-proposals", headers: headers("buyer-a") })).statusCode).toBe(401);
+    expect((await app.inject({ method: "GET", url: "/v1/storefront/admin/global-change-proposals", headers: headers("operator-a") })).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("expired") })).statusCode).toBe(401);
+    expect((await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("invalid-expiry") })).statusCode).toBe(401);
     for (const overrides of [{ theme: null }, { theme: "javascript:alert(1)" }, { productLayout: "https://evil.invalid" }, { density: "compact", css: "body{}" }]) {
       const response = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", crypto.randomUUID()), payload: { expectedRevision: 0, overrides } });
       expect(response.statusCode).toBe(422);
@@ -130,8 +133,8 @@ describe("storefront Fastify routes", () => {
 
   it("uses CAS and body-bound idempotency without effects on conflicts", async () => {
     const app = await build(); const key = "00000000-0000-4000-8000-000000000010";
-    const first = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", key), payload: { expectedRevision: 0, overrides: { density: "compact" } } });
-    const replay = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", key), payload: { expectedRevision: 0, overrides: { density: "compact" } } });
+    const first = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", key), payload: { expectedRevision: 0, overrides: { theme: "dark", density: "compact" } } });
+    const replay = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", key), payload: { overrides: { density: "compact", theme: "dark" }, expectedRevision: 0 } });
     expect(replay.json()).toEqual(first.json());
     expect((await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", key), payload: { expectedRevision: 1, overrides: { theme: "dark" } } })).statusCode).toBe(409);
     expect((await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", crypto.randomUUID()), payload: { expectedRevision: 0, overrides: {} } })).statusCode).toBe(409);
@@ -166,5 +169,20 @@ describe("storefront Fastify routes", () => {
     const rejected = await app.inject({ method: "POST", url: `/v1/storefront/admin/global-change-proposals/${created.json().id}/reject`, headers: headers("admin-a", crypto.randomUUID()), payload: { expectedProposalRevision: 1 } });
     expect(rejected.statusCode).toBe(200); expect(rejected.json().status).toBe("rejected");
     expect(repository.globals.has("atlas")).toBe(false); expect(rejected.headers["cache-control"]).toBe("no-store");
+  });
+
+  it("enforces pending quota, 64 KiB bodies, and uniform dependency errors", async () => {
+    const app = await build();
+    for (let index = 0; index < 5; index++) {
+      const response = await app.inject({ method: "POST", url: "/v1/storefront/global-change-proposals", headers: headers("buyer-a", crypto.randomUUID()), payload: { baseGlobalRevision: 0, proposed: { theme: "dark", density: "compact", productLayout: "list" } } });
+      expect(response.statusCode).toBe(201);
+    }
+    const quota = await app.inject({ method: "POST", url: "/v1/storefront/global-change-proposals", headers: headers("buyer-a", crypto.randomUUID()), payload: { baseGlobalRevision: 0, proposed: { theme: "dark", density: "compact", productLayout: "list" } } });
+    expect(quota.statusCode).toBe(429); expect(quota.headers["retry-after"]).toBe("60");
+    const huge = await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: { ...headers("buyer-a", crypto.randomUUID()), "content-type": "application/json" }, payload: JSON.stringify({ expectedRevision: 0, overrides: {}, padding: "x".repeat(70_000) }) });
+    expect(huge.statusCode).toBe(413); expect(huge.json().error.code).toBe("body_too_large");
+    repository.getPreferences = async () => { throw new Error("database secret detail"); };
+    const unavailable = await app.inject({ method: "GET", url: "/v1/storefront/me/preferences", headers: headers("buyer-b") });
+    expect(unavailable.statusCode).toBe(503); expect(unavailable.body).not.toContain("database secret detail");
   });
 });

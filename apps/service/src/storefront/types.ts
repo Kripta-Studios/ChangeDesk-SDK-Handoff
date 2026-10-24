@@ -28,7 +28,7 @@ export interface StorefrontAdminContext {
   readonly kind: "staff";
   readonly tenantId: string;
   readonly actorId: string;
-  readonly role: "admin";
+  readonly role: "viewer" | "requester" | "operator" | "admin";
   readonly policyVersion: string;
   readonly expiresAt: string;
 }

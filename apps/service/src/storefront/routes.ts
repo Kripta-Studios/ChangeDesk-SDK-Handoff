@@ -24,7 +24,11 @@ function parseOverrides(value: unknown, complete: boolean): StorefrontOverrides 
   if ("theme" in value && !THEMES.has(value.theme as string)) return null;
   if ("density" in value && !DENSITIES.has(value.density as string)) return null;
   if ("productLayout" in value && !LAYOUTS.has(value.productLayout as string)) return null;
-  return value as StorefrontOverrides;
+  return {
+    ...(typeof value.theme === "string" ? { theme: value.theme as "light" | "dark" | "system" } : {}),
+    ...(typeof value.density === "string" ? { density: value.density as "comfortable" | "compact" } : {}),
+    ...(typeof value.productLayout === "string" ? { productLayout: value.productLayout as "grid" | "list" } : {}),
+  };
 }
 function fingerprint(operation: string, body: unknown): string { return createHash("sha256").update(`storefront:${operation}:v1\0${JSON.stringify(body)}`).digest("hex"); }
 function privateResponse(reply: FastifyReply): void { void reply.header("Cache-Control", "no-store"); }
@@ -44,22 +48,31 @@ function publicProposal(proposal: StorefrontProposal) {
 /** Explicit opt-in route registration. No routes are registered by importing this module. */
 export async function registerStorefrontRoutes(app: FastifyInstance, dependencies: StorefrontRouteDependencies): Promise<void> {
   const nextRequestId = dependencies.requestId ?? randomUUID;
+  const routeErrorHandler = (error: Error & { statusCode?: number }, _request: FastifyRequest, reply: FastifyReply) => {
+    const tooLarge = error.statusCode === 413;
+    return fail(reply, tooLarge ? 413 : 503, tooLarge ? "body_too_large" : "storefront_unavailable", tooLarge ? "Request body exceeds 64 KiB" : "Storefront dependency unavailable", nextRequestId(), !tooLarge);
+  };
+  const readOptions = { errorHandler: routeErrorHandler };
+  const mutationOptions = { bodyLimit: 65_536, errorHandler: routeErrorHandler };
   async function requireBuyer(request: FastifyRequest, reply: FastifyReply): Promise<BuyerContext | null> {
     const context = await dependencies.authenticateBuyer(request);
-    if (!context || context.kind !== "buyer" || Date.parse(context.expiresAt) <= (dependencies.now?.() ?? new Date()).getTime()) { fail(reply, 401, "buyer_session_required", "A current buyer session is required", nextRequestId()); return null; }
+    const expiry = context ? Date.parse(context.expiresAt) : Number.NaN;
+    if (!context || context.kind !== "buyer" || !context.tenantId || !context.buyerId || !context.hostSessionId || !context.policyVersion || !Number.isFinite(expiry) || expiry <= (dependencies.now?.() ?? new Date()).getTime()) { fail(reply, 401, "buyer_session_required", "A current buyer session is required", nextRequestId()); return null; }
     return context;
   }
   async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<StorefrontAdminContext | null> {
     const context = await dependencies.authenticateAdmin(request);
-    if (!context || context.kind !== "staff" || context.role !== "admin" || Date.parse(context.expiresAt) <= (dependencies.now?.() ?? new Date()).getTime()) { fail(reply, 401, "admin_session_required", "A current administrator session is required", nextRequestId()); return null; }
+    const expiry = context ? Date.parse(context.expiresAt) : Number.NaN;
+    if (!context || context.kind !== "staff" || !context.tenantId || !context.actorId || !context.policyVersion || !Number.isFinite(expiry) || expiry <= (dependencies.now?.() ?? new Date()).getTime()) { fail(reply, 401, "staff_session_required", "A current staff session is required", nextRequestId()); return null; }
+    if (context.role !== "admin") { fail(reply, 403, "admin_required", "Administrator authority is required", nextRequestId()); return null; }
     return context;
   }
 
-  app.get("/v1/storefront/me/preferences", async (request, reply) => {
+  app.get("/v1/storefront/me/preferences", readOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireBuyer(request, reply); if (!context) return reply;
     return dependencies.repository.getPreferences(context);
   });
-  app.put("/v1/storefront/me/preferences", async (request, reply) => {
+  app.put("/v1/storefront/me/preferences", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireBuyer(request, reply); if (!context) return reply;
     const key = idempotencyKey(request); const body = request.body;
     if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
@@ -69,7 +82,7 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
     const result = await dependencies.repository.replacePreferences({ context, ...normalized, idempotencyKey: key, requestFingerprint: fingerprint("replace-preferences", normalized) });
     if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return result.value;
   });
-  app.post("/v1/storefront/global-change-proposals", async (request, reply) => {
+  app.post("/v1/storefront/global-change-proposals", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireBuyer(request, reply); if (!context) return reply;
     const key = idempotencyKey(request); const body = request.body;
     if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
@@ -79,18 +92,18 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
     const result = await dependencies.repository.createProposal({ context, ...normalized, idempotencyKey: key, requestFingerprint: fingerprint("create-proposal", normalized) });
     if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return reply.code(201).send(publicProposal(result.value));
   });
-  app.get<{ Params: { id: string } }>("/v1/storefront/global-change-proposals/:id", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/v1/storefront/global-change-proposals/:id", readOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireBuyer(request, reply); if (!context) return reply;
     const result = await dependencies.repository.getBuyerProposal(context, request.params.id); if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return publicProposal(result.value);
   });
-  app.get("/v1/storefront/admin/global-change-proposals", async (request, reply) => {
+  app.get("/v1/storefront/admin/global-change-proposals", readOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply; return { proposals: await dependencies.repository.listAdminProposals(context) };
   });
-  app.get<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id", readOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
     const result = await dependencies.repository.getAdminProposal(context, request.params.id); if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return result.value;
   });
-  app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/approve", async (request, reply) => {
+  app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/approve", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
     const key = idempotencyKey(request); const body = request.body; if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
     if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision", "expectedGlobalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision) || !Number.isSafeInteger(body.expectedGlobalRevision)) return fail(reply, 422, "invalid_approval", "Expected exact proposal and global revisions", nextRequestId());
@@ -98,7 +111,7 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
     const result = await dependencies.repository.approveProposal({ context, ...normalized, idempotencyKey: key, requestFingerprint: fingerprint("approve-proposal", normalized) });
     if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return result.value;
   });
-  app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/reject", async (request, reply) => {
+  app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/reject", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
     const key = idempotencyKey(request); const body = request.body; if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
     if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision)) return fail(reply, 422, "invalid_rejection", "Expected an exact proposal revision", nextRequestId());

@@ -1,0 +1,23 @@
+{
+  "recordedAt": "2026-10-24T14:28:20+02:00",
+  "classification": "post-implementation integration verification; not claimed as test-first storage TDD",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/storefront/run-postgres-live.ps1 -ConfirmScopedCleanup",
+  "result": "passed",
+  "summary": {
+    "testFiles": { "passed": 1 },
+    "tests": { "passed": 5 },
+    "durationSeconds": 7.56,
+    "cleanup": "temporary database and nonowner role dropped"
+  },
+  "covered": [
+    "real Fastify inject through PostgresStorefrontRepository into PostgreSQL",
+    "forced RLS own/cross-buyer/cross-tenant and buyer/staff identity-kind separation",
+    "concurrent buyer preference CAS and body-bound idempotency",
+    "proposal has no effect before approval; cross-buyer 404",
+    "approval preserves buyer overrides",
+    "SQL finite-value/null checks and PUBLIC execute revocation",
+    "buyer quota 5 and tenant quota 100 through non-row-leaking counters"
+  ],
+  "setupNote": "An earlier invocation found no tests because the dedicated filename was outside the shared include. That was a setup failure, not a RED behavior result. The gate now selects the live suite through the repository's single vitest.config.ts using STOREFRONT_POSTGRES_LIVE=1.",
+  "limits": "This gate does not verify Medusa customer authentication or a real browser."
+}
