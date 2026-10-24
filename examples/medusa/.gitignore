@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+.local/
+.medusa/
+node_modules/

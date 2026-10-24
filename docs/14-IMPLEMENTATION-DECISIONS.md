@@ -23,3 +23,29 @@ Carencia observada: Node no ofrece JCS y el contrato exige una implementación c
 ## ADR-003 — Routing del swarm (2026-10-24)
 
 El mapa público de `collaboration.spawn_agent` ofrece explícitamente `gpt-6.1-sol` y `gpt-6-astra` y esfuerzo `high`. Se solicitan overrides exactos con `fork_turns=none`, sin `agent_type` que los sustituya. La respuesta pública de creación devuelve nombre de tarea, no confirma metadatos internos del modelo; se registra esa limitación de observabilidad sin afirmar el modelo actual de la sesión principal. El agente Astra de arquitectura asesora coordinación y se reservará un Astra fresco de solo lectura para revisión final. Estas instrucciones del usuario prevalecen sobre los modelos predeterminados de la skill de orquestación.
+
+## ADR-004 — Frontera host y reconciliación (2026-10-24)
+
+Estado: contrato aceptado; garantía pendiente de pruebas contra Medusa.
+
+Hay tres operaciones distintas: lectura autorizada para preview, efecto autorizado y reconciliación acotada a una operación histórica. Una revocación impide nuevos efectos; no impide reconciliar el recibo/postcondición de una operación ya enviada. Esta última autoridad no permite lecturas arbitrarias.
+
+El recibo host tiene unicidad por `(tenant, operationKey)` y liga inmutablemente capability, argumentos/hash semántico, ejecución, fila y paso. Se registra intención antes del workflow. Repetición idéntica consulta el recibo; cuerpo distinto devuelve conflicto. Un nonce de transporte de un uso es distinto de la identidad estable de la operación.
+
+El fencing corresponde a job/ejecución/operación, no a un contador global del actor. La autoridad de efecto comprueba lease vigente, aprobación, plan, política y revocación antes de cada delegación; el host comprueba además identidad y permisos actuales. Una lectura previa más un mutex del worker no acredita atomicidad. La prueba de concurrencia debe incluir escritura nativa privilegiada de estado bajo el mismo guard host; denegar únicamente a actores demo no prueba esa garantía.
+
+Una fila ya satisfecha sigue siendo elegible con efectos `no_op`; no se cuenta como excluida. Los DTO de presentación se separan del cuerpo inmutable del plan.
+
+## ADR-005 — Codex local como proveedor live de demo (2026-10-24)
+
+El usuario solicita utilizar su Codex local autenticado por defecto y permitir configuración posterior de DeepSeek/OpenCode/OpenAI por API key. No se extraen ni copian credenciales de Codex. El CLI instalado observado es 0.164.0; `codex exec` admite autenticación guardada, ejecución efímera y salida estructurada según la documentación oficial de modo no interactivo: https://learn.chatgpt.com/docs/non-interactive-mode.
+
+Se implementará un adaptador de proveedor invocado con ejecutable/argumentos fijos y `shell:false`, stdin para datos no confiables, timeout y límites de llamadas/salida. Debe comprobarse la desactivación efectiva de herramientas, apps, plugins, MCP, navegación e instrucciones de proyecto, además del sandbox read-only. Una instrucción de prompt que diga «no uses herramientas» no cumple esa frontera. Si no puede verificarse, este proveedor queda BLOCKED y no se disfraza como fake.
+
+Codex solo propone JSON; el parser, autorización, preview, aprobación y runner permanecen independientes. Registrar proveedor, modelo realmente observado, tokens y latencia; precio desconocido permanece desconocido. APIs facturables requieren configuración externa y presupuesto explícito; los nombres de modelo solicitados no se sustituyen silenciosamente ni se presentan como disponibles sin verificación.
+
+## ADR-006 — Hash de argumentos del bridge (2026-10-24)
+
+`argsHash` usa `hashCanonical("bridge-arguments", "1", args)`. `semanticInputHash` usa un dominio distinto, `semantic-input`, para la identidad del efecto. El framing es UTF-8 de cuatro segmentos unidos mediante un byte NUL: `changedesk`, dominio, versión y JCS del valor. No se intercambian hashes de artefacto, plan, argumentos y efecto.
+
+El plugin host usa también `canonicalize@5.1.0` para JCS, sustituyendo el serializador recursivo preliminar. La dependencia aprobada cubre servicio y backend del plugin; sigue fuera del bundle del SDK. No se crea dependencia plugin→service: la fórmula del protocolo y vectores conocidos verifican igualdad. Los sobres Ed25519 firman los bytes JCS exactos y sus claims incluyen un `typ` fijo por dominio. El uso de formato entero para timestamps no sustituye una canonicalización contrastada.

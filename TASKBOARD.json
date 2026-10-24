@@ -70,8 +70,8 @@
         "T01",
         "T03"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/runtime",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -102,7 +102,7 @@
         "T04"
       ],
       "status": "not_started",
-      "assignedAgent": null,
+      "assignedAgent": "/root/runtime",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -118,7 +118,7 @@
         "T06"
       ],
       "status": "not_started",
-      "assignedAgent": null,
+      "assignedAgent": "/root/planner",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -134,7 +134,7 @@
         "T07"
       ],
       "status": "not_started",
-      "assignedAgent": null,
+      "assignedAgent": "/root/planner",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -151,7 +151,7 @@
         "T08"
       ],
       "status": "not_started",
-      "assignedAgent": null,
+      "assignedAgent": "/root/frontend",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",

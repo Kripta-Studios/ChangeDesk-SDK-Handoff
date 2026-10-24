@@ -1,0 +1,38 @@
+{
+  "recordedAt": "2026-10-24",
+  "status": "verified_primary_sources_no_install",
+  "context7": {
+    "requested": true,
+    "available": false,
+    "note": "The Context7 skill was read, but no Context7 MCP tools were exposed in this agent runtime; primary official sources and npm registry metadata were used instead."
+  },
+  "runtime": {
+    "observedNode": "25.8.1",
+    "requiredNode": ">=22.22.0 <23",
+    "status": "BLOCKED_WRONG_NODE_MAJOR"
+  },
+  "docker": {
+    "client": "29.4.3",
+    "server": null,
+    "status": "BLOCKED_ENGINE_UNAVAILABLE"
+  },
+  "packages": [
+    {"name":"canonicalize","version":"5.1.0","license":"Apache-2.0","integrity":"sha512-bab9+WefZljqQ8jT0qRwVmTyzAUU63K97QIQD3agynIBrb6sa5M2eAy8Hv8K3p4V9+ONVYZKtGYl4Dg+/5Gumw=="},
+    {"name":"@medusajs/medusa","version":"2.22.1","license":"MIT except separately identified Enterprise Edition materials","integrity":"sha512-Sx00tN9aZ5002rXwuGD2duxCvTNg1qCD0AeyPbWOTGpg+GYEc4647GQZi15zcs6s2dBX54f81uY3A0n163SpCg=="},
+    {"name":"@medusajs/framework","version":"2.22.1","license":"MIT except separately identified Enterprise Edition materials","integrity":"sha512-F0bw5Bxly9vwxwWkWh2aZk1buOEen8WJndIZi2J54dmjjzflln/yAuKi+onu1+vMw8Yn/rbvcscseCN+7Lomqg=="},
+    {"name":"@medusajs/core-flows","version":"2.22.1","license":"MIT except separately identified Enterprise Edition materials","integrity":"sha512-2iDUCgFKrd4VhFGLremVVqfu/UzW6q5lYPEdBJgnruoV6reZuZZwY4e8uihTMaV7n/1nqFUuFLpALA7EtgqNCw=="},
+    {"name":"@medusajs/test-utils","version":"2.22.1","license":"MIT","integrity":"sha512-QfNxPdfd0dcgKjgCLvhhVJfADPPT4iiBPARQ+7MANfu5ktThUOfNeCWbLmBP1P5VsKdvmkd25JaH+OKYwEYiAYg9YAA=="},
+    {"name":"@medusajs/cli","version":"2.22.1","license":"MIT","integrity":"sha512-KuFnPfiwE/5GnAOlp0KiZ9VYC6AhFeA+VuEr+8xR2N8Lz1YT3IUsy1zvjRxO1gitPE9Xoz1EHvyGO3wBE1tgyA=="},
+    {"name":"@swc/core","version":"1.15.3","license":"Apache-2.0","integrity":"sha512-Qd8eBPkUFL4eAONgGjycZXj1jFCBW8Fd+xF0PzdTlBCWQIV1xnUT7B93wUANtW3KGjl3TRcOyxwSx/u/jyKw/Q=="},
+    {"name":"typescript","version":"5.9.3","license":"Apache-2.0","integrity":"sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="}
+  ],
+  "sources": [
+    "https://github.com/medusajs/medusa/releases/tag/v2.22.1",
+    "https://raw.githubusercontent.com/medusajs/medusa/v2.22.1/LICENSE",
+    "https://raw.githubusercontent.com/medusajs/medusa/v2.22.1/packages/medusa/src/api/admin/product-categories/%5Bid%5D/products/route.ts",
+    "https://raw.githubusercontent.com/medusajs/medusa/v2.22.1/packages/medusa/src/api/admin/sales-channels/%5Bid%5D/products/route.ts",
+    "https://docs.medusajs.com/learn/fundamentals/api-routes/middlewares",
+    "https://docs.medusajs.com/learn/debugging-and-testing/testing-tools/integration-tests",
+    "https://docs.medusajs.com/learn/fundamentals/plugins/create"
+  ]
+}
