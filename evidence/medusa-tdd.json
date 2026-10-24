@@ -18,8 +18,8 @@
   "finalAdr006Green": {
     "command": "Node 22.23.4 path + Vitest 4.0.16 run tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts",
     "exitCode": 0,
-    "tests": {"files":2,"pass":12,"fail":0},
-    "durationMs": 2720,
+    "tests": {"files":2,"pass":13,"fail":0},
+    "durationMs": 2230,
     "reportedBy": "Medusa lane using the exact Node 22 executable and direct Vitest entrypoint"
   },
   "strictTypecheck": {
