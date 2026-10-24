@@ -30,6 +30,12 @@ module.exports = {
   },
   testEnvironment: "node",
   moduleFileExtensions: ["js", "ts", "json"],
+  moduleDirectories: [
+    "node_modules",
+    "<rootDir>/examples/medusa/node_modules",
+    "<rootDir>/packages/medusa-plugin/node_modules",
+  ],
+  transformIgnorePatterns: ["[\\/]node_modules[\\/](?!\\.pnpm[\\/]canonicalize@|canonicalize[\\/])"],
   roots: ["<rootDir>/tests/medusa/integration"],
   modulePathIgnorePatterns: ["[\\/]dist[\\/]", "[\\/]\.medusa[\\/]"],
   setupFiles: ["<rootDir>/examples/medusa/integration-tests/setup.cjs"],
