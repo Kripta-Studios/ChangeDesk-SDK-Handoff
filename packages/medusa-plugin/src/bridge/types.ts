@@ -90,6 +90,7 @@ export type EffectDelegationClaims = DelegationBase & {
     productStatus: "published"
     productUnlocked: true
     relationAbsent: true
+    preconditionFingerprint: string
   }
 }
 
@@ -120,6 +121,7 @@ export type ActorPolicy = {
   role: "viewer" | "requester" | "operator" | "admin"
   policyVersion: string
   hostSessionId: string
+  readableProductIds: string[]
 }
 
 export type BridgeReceipt = {

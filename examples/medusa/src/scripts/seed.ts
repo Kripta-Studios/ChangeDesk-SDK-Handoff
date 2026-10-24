@@ -111,7 +111,7 @@ export default async function seed({ container }: ExecArgs) {
           first_name: actor.role,
           last_name: tenantKey,
           metadata: {
-            changedesk: { managed: true, active: true, role: actor.role, policyVersion: "changedesk-lab-v1", hostSessionId: "not-bootstrapped" },
+            changedesk: { managed: true, active: true, role: actor.role, policyVersion: "changedesk-lab-v1", hostSessionId: "not-bootstrapped", readableProductIds: products.map((product) => product.id) },
           },
         },
       },

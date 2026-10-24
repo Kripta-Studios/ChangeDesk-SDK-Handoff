@@ -6,15 +6,22 @@
     "available": false,
     "note": "The Context7 skill was read, but no Context7 MCP tools were exposed in this agent runtime; primary official sources and npm registry metadata were used instead."
   },
+  "dependencyDecision": {
+    "ts-node": {
+      "observedGap": "@medusajs/cli@2.22.1 exits with Cannot find module 'ts-node' before any host command.",
+      "alternativesConsidered": ["Avoid the CLI", "Use an implicit/global ts-node", "Declare exact ts-node in both CLI-consuming packages"],
+      "decision": "Declare ts-node@10.9.2 exactly; the official plugin build, seed command, and Medusa integration runner require the CLI and must not depend on undeclared global state."
+    }
+  },
   "runtime": {
     "observedNode": "25.8.1",
     "requiredNode": ">=22.22.0 <23",
-    "status": "BLOCKED_WRONG_NODE_MAJOR"
+    "status": "PINNED_NODE_22_AVAILABLE_AT_COORDINATOR_PROVIDED_TOOL_PATH"
   },
   "docker": {
     "client": "29.4.3",
-    "server": null,
-    "status": "BLOCKED_ENGINE_UNAVAILABLE"
+    "server": "29.4.2",
+    "status": "AVAILABLE_POSTGRES_HEALTHY_REPORTED_BY_ENVIRONMENT"
   },
   "packages": [
     {"name":"canonicalize","version":"5.1.0","license":"Apache-2.0","integrity":"sha512-bab9+WefZljqQ8jT0qRwVmTyzAUU63K97QIQD3agynIBrb6sa5M2eAy8Hv8K3p4V9+ONVYZKtGYl4Dg+/5Gumw=="},
@@ -24,7 +31,8 @@
     {"name":"@medusajs/test-utils","version":"2.22.1","license":"MIT","integrity":"sha512-QfNxPdfd0dcgKjgCLvhhVJfADPPT4iiBPARQ+7MANfu5ktThUOfNeCWbLmBP1P5VsKdvmkd25JaH+OKYwEYiAYg9YAA=="},
     {"name":"@medusajs/cli","version":"2.22.1","license":"MIT","integrity":"sha512-KuFnPfiwE/5GnAOlp0KiZ9VYC6AhFeA+VuEr+8xR2N8Lz1YT3IUsy1zvjRxO1gitPE9Xoz1EHvyGO3wBE1tgyA=="},
     {"name":"@swc/core","version":"1.15.3","license":"Apache-2.0","integrity":"sha512-Qd8eBPkUFL4eAONgGjycZXj1jFCBW8Fd+xF0PzdTlBCWQIV1xnUT7B93wUANtW3KGjl3TRcOyxwSx/u/jyKw/Q=="},
-    {"name":"typescript","version":"5.9.3","license":"Apache-2.0","integrity":"sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="}
+    {"name":"typescript","version":"5.9.3","license":"Apache-2.0","integrity":"sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="},
+    {"name":"ts-node","version":"10.9.2","license":"MIT","note":"Exact integrity is recorded by the central lock/environment owner; no abbreviated digest is treated as evidence."}
   ],
   "sources": [
     "https://github.com/medusajs/medusa/releases/tag/v2.22.1",

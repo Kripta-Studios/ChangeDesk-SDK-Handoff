@@ -10,8 +10,8 @@ export class JobStore {
     for(let index=0;index<limit;index++) {
       const result=await this.pool.query<JobRow>("SELECT * FROM storage.claim_next_job($1,$2,$3)",[input.workerId,input.leaseSeconds,input.globalCap]);
       if(result.rowCount!==1) break;
-      const row=result.rows[0];
-      leases.push({jobId:row.id,tenantId:row.tenant_id,backendKey:row.backend_key,kind:row.kind,requestId:row.request_id,executionId:row.execution_id,leaseOwner:input.workerId,fence:Number(row.fence),leaseUntil:row.lease_until,attemptCount:row.attempt_count});
+      const row=result.rows[0]!;
+      leases.push({jobId:row.id,tenantId:row.tenant_id,actorId:row.actor_id,backendKey:row.backend_key,kind:row.kind,requestId:row.request_id,executionId:row.execution_id,leaseOwner:input.workerId,fence:Number(row.fence),leaseUntil:row.lease_until,attemptCount:row.attempt_count});
     }
     return leases;
   }
@@ -32,4 +32,4 @@ export class JobStore {
   }
 }
 
-interface JobRow extends QueryResultRow { id:string;tenant_id:string;backend_key:string;kind:JobKind;request_id:string|null;execution_id:string|null;fence:string|number;lease_until:Date;attempt_count:number }
+interface JobRow extends QueryResultRow { id:string;tenant_id:string;actor_id:string;backend_key:string;kind:JobKind;request_id:string|null;execution_id:string|null;fence:string|number;lease_until:Date;attempt_count:number }

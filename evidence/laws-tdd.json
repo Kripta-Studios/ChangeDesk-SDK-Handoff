@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0.0",
+  "scope": "T11 pure association model and Bend proof adapter",
+  "toolchain": {
+    "bendVersion": "2.0.39",
+    "bendCommit": "a3efe8a3801f423827424227172eed9802c5e6cb",
+    "bendLicense": "Apache-2.0",
+    "archiveSha256": "6cf462fd8f70b094a4950ebb709a9c4ffd8f1d1189d9cedf1fd63cd5d041c7ab",
+    "binarySha256": "2ec160fa4486d33aff51e9eedcc294d6b531dc10c279c00b0c00685dae2045cd",
+    "releaseUrl": "https://github.com/bendlang/bend/releases/tag/v2.0.39"
+  },
+  "reviewedSources": {
+    "modelSha256": "ac9d10d08692f9259301edf9d897ddb782eb403b98f1fbeff13b9e987baa1596",
+    "lawsSha256": "02584a23199db88ec67974a4e458a0e7f16f8ed9196b8c1ba5b0a08cfa6937ac",
+    "proofSha256": "827e041bc627ff9db7416e9f7f25693e08a170c9d1146330a4c9221c40a344ae"
+  },
+  "red": [
+    {
+      "command": "vitest run tests/laws/model.test.ts tests/laws/verdict.test.ts",
+      "result": "FAIL: model.js and verdict.js absent; tests were authored first"
+    },
+    {
+      "fixture": "tests/laws/fixtures/false-law",
+      "result": "failed as required with the real Bend 2.0.39 checker; final kernel execution pending Lean/BENDTT availability"
+    }
+  ],
+  "green": [
+    {
+      "command": "vitest run tests/laws/model.test.ts tests/laws/verdict.test.ts",
+      "result": "PASS: 9 tests"
+    },
+    {
+      "command": "bend PROOF.bend",
+      "result": "ALL PROOFS CHECK; non-kernel checker only"
+    },
+    {
+      "command": "tsc -p tests/laws/tsconfig.json --pretty false",
+      "result": "PASS"
+    }
+  ],
+  "kernelGate": {
+    "status": "blocked",
+    "reason": "Bend --verdict requires the Lean 4.34.0 BendTT kernel; workspace provisioning is in progress. Non-kernel output is not counted as verified.",
+    "exactPendingStep": "Run the explicit tests/laws/bend.live.test.ts lane with CHANGEDESK_BEND_BINARY_WINDOWS, CHANGEDESK_BEND_BINARY_LINUX and CHANGEDESK_BENDTT_LINUX; production law must return verified and false-law fixture must return failed. The default unit lane excludes this live file and tests unavailable as unavailable, never as proof success."
+  },
+  "boundary": "The four laws prove only the reviewed pure boolean association model. Adapter correspondence and external Medusa effects require separate integration evidence.",
+  "challengedHypothesis": "Bend exit code zero and ALL PROOFS CHECK from the ordinary checker are insufficient. Historical unsafe-proof behavior and v2.0.39 requirements make --verdict plus the BendTT kernel mandatory."
+}

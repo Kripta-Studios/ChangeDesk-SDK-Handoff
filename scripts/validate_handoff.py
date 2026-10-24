@@ -17,6 +17,20 @@ from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 checks: list[dict] = []
+SPEC_ROOT_FILES = {
+    "AGENTS.md", "README.md", "START-HERE.md", "TASKBOARD.json"
+}
+SPEC_DIRECTORIES = ("contracts", "docs", "fixtures", "prompts", "templates")
+
+
+def specification_files(pattern: str = "*") -> list[Path]:
+    """Return a bounded inventory of handoff inputs, never generated/runtime trees."""
+    files = [ROOT / name for name in sorted(SPEC_ROOT_FILES) if (ROOT / name).match(pattern)]
+    for directory in SPEC_DIRECTORIES:
+        base = ROOT / directory
+        if base.is_dir():
+            files.extend(path for path in base.rglob(pattern) if path.is_file())
+    return sorted(files)
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -78,9 +92,7 @@ docs = sorted((ROOT / "docs").glob("*.md"))
 check("domain-documents", len(docs) >= 12, str(len(docs)))
 
 parsed = {}
-for path in sorted(ROOT.rglob("*.json")):
-    if "evidence" in path.relative_to(ROOT).parts:
-        continue
+for path in specification_files("*.json"):
     try:
         parsed[path.relative_to(ROOT).as_posix()] = read_json(path)
         check("json:" + path.name, True)
@@ -212,7 +224,7 @@ check("attack-fixture-no-stale-sse", "SSE" not in attack_fixture_text)
 check("attack-fixture-no-ir-proof-required", "receta proofRequired" not in attack_fixture_text and
       "recipe proofRequired" not in attack_fixture_text)
 
-for path in sorted(ROOT.rglob("*.md")):
+for path in specification_files("*.md"):
     text = path.read_text(encoding="utf-8")
     for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", text):
         target = target.strip("<>")
@@ -224,10 +236,9 @@ for path in sorted(ROOT.rglob("*.md")):
             check("link:" + path.relative_to(ROOT).as_posix() + ":" + target, dest.exists())
 
 manifest = []
-for path in sorted(ROOT.rglob("*")):
-    if path.is_file() and not any(p in {"evidence", ".git", "__pycache__"} for p in path.relative_to(ROOT).parts):
-        manifest.append({"path": path.relative_to(ROOT).as_posix(), "bytes": path.stat().st_size,
-                         "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+for path in specification_files():
+    manifest.append({"path": path.relative_to(ROOT).as_posix(), "bytes": path.stat().st_size,
+                     "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
 passed = all(c["status"] == "PASS" for c in checks)
 report = {"generatedAt": datetime.now(timezone.utc).isoformat(), "scope": "specification-package-only",
           "sdkImplemented": False, "sdkTestsExecuted": False,

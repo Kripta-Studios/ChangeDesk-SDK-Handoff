@@ -2,10 +2,10 @@ import type { ActorContext, ActorRole, ApprovalRequestInput, CapabilityId, Evide
 import { CAPABILITY_MANIFEST, isCapabilityId } from "../core/capabilities.js";
 
 const ROLE_PERMISSIONS: Readonly<Record<ActorRole, readonly Permission[]>> = Object.freeze({
-  viewer: Object.freeze(["read"]),
-  requester: Object.freeze(["read", "request", "preview"]),
-  operator: Object.freeze(["read", "request", "preview", "approve", "execute"]),
-  admin: Object.freeze(["read", "request", "preview", "approve", "execute", "install", "share", "revoke", "policy.manage"]),
+  viewer: Object.freeze(["read"] as const),
+  requester: Object.freeze(["read", "request", "preview"] as const),
+  operator: Object.freeze(["read", "request", "preview", "approve", "execute"] as const),
+  admin: Object.freeze(["read", "request", "preview", "approve", "execute", "install", "share", "revoke", "policy.manage"] as const),
 });
 export const permissionsForRole = (role: ActorRole): readonly Permission[] => ROLE_PERMISSIONS[role];
 export type AuthorizationDecision = { readonly allowed: true } | { readonly allowed: false; readonly code: "actor_disabled" | "scope_denied" | "permission_denied" | "capability_unknown" | "capability_denied" };

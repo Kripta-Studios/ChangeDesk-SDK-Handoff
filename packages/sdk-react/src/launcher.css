@@ -1,0 +1,5 @@
+.cd-launcher { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.cd-launcher__button, .cd-button { min-height: 44px; border: 1px solid #19342e; border-radius: 8px; padding: 0 16px; background: #efff7a; color: #12211d; font: 700 14px/1 inherit; cursor: pointer; box-shadow: 3px 3px 0 #19342e; }
+.cd-launcher__button:hover, .cd-button:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 #19342e; }
+.cd-launcher__button:focus-visible, .cd-button:focus-visible { outline: 3px solid #6a45ff; outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) { .cd-launcher__button, .cd-button { transition: transform 140ms ease, box-shadow 140ms ease; } }

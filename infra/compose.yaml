@@ -1,0 +1,37 @@
+name: changedesk-sdk-local
+
+services:
+  postgres:
+    image: postgres:17.11-alpine3.23@sha256:01ea903aa65deb58eb49d6e09d859ecff63a6bb7d61feca55f2abad71d08f72a
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: changedesk_bootstrap
+      POSTGRES_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:?set POSTGRES_BOOTSTRAP_PASSWORD in .env}
+      POSTGRES_DB: postgres
+      CHANGEDESK_MIGRATOR_PASSWORD: ${CHANGEDESK_MIGRATOR_PASSWORD:?set CHANGEDESK_MIGRATOR_PASSWORD in .env}
+      CHANGEDESK_RUNTIME_PASSWORD: ${CHANGEDESK_RUNTIME_PASSWORD:?set CHANGEDESK_RUNTIME_PASSWORD in .env}
+      CHANGEDESK_WORKER_PASSWORD: ${CHANGEDESK_WORKER_PASSWORD:?set CHANGEDESK_WORKER_PASSWORD in .env}
+      ATLAS_DB_PASSWORD: ${ATLAS_DB_PASSWORD:?set ATLAS_DB_PASSWORD in .env}
+      BOREAL_DB_PASSWORD: ${BOREAL_DB_PASSWORD:?set BOREAL_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${CHANGEDESK_POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U changedesk_bootstrap -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    volumes:
+      - changedesk-postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - changedesk-local
+
+networks:
+  changedesk-local:
+    name: changedesk-sdk-local
+
+volumes:
+  changedesk-postgres-data:
+    name: changedesk-sdk-local-postgres-data
+

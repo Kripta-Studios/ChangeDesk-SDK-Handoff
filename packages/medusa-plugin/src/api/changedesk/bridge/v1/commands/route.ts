@@ -3,7 +3,7 @@ import { readActorPolicy } from "../../../../../bridge/actor.ts"
 import { executeEffect, executeRead, getProduct } from "../../../../../bridge/capabilities.ts"
 import { BridgeError } from "../../../../../bridge/errors.ts"
 import { verifyEnvelope } from "../../../../../bridge/crypto.ts"
-import { authorizeDelegation, parseCommand } from "../../../../../bridge/validation.ts"
+import { authorizeDelegation, parseCommand, parseDelegationClaims } from "../../../../../bridge/validation.ts"
 import type { DelegationClaims, EffectDelegationClaims, ReconcileDelegationClaims } from "../../../../../bridge/types.ts"
 import { CHANGEDESK_MODULE } from "../../../../../modules/changedesk/index.ts"
 import type ChangeDeskModuleService from "../../../../../modules/changedesk/service.ts"
@@ -14,7 +14,7 @@ const handle = async (req: MedusaRequest, res: MedusaResponse) => {
     throw new BridgeError(401, "delegation_required", "Signed delegation is required")
   }
   const service = req.scope.resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService
-  const claims = verifyEnvelope<DelegationClaims>(authorization.slice("ChangeDesk-Delegation ".length), service.getServicePublicKey())
+  const claims = parseDelegationClaims(verifyEnvelope<DelegationClaims>(authorization.slice("ChangeDesk-Delegation ".length), service.getServicePublicKey()))
   if (claims.typ === "changedesk.reconcile") {
     const body = req.body as Record<string, unknown>
     if (!body || Object.keys(body).length !== 1 || typeof body.operationKey !== "string" || body.operationKey !== claims.operationKey) {
@@ -52,11 +52,13 @@ const handle = async (req: MedusaRequest, res: MedusaResponse) => {
     now: Math.floor(Date.now() / 1000),
   })
   await service.consumeJti(claims.jti, claims.exp)
-  if (claims.typ === "changedesk.effect") await service.assertCurrentAuthority(claims)
 
   const result = claims.typ === "changedesk.read"
-    ? await executeRead(req.scope as never, command)
-    : await executeEffect(req.scope as never, command, claims as EffectDelegationClaims)
+    ? await executeRead(req.scope as never, command, actor)
+    : await executeEffect(req.scope as never, command, claims as EffectDelegationClaims).then((receipt) => ({
+        receipt,
+        observed: receipt.status === "confirmed" || receipt.status === "no_effect",
+      }))
   res.setHeader("Cache-Control", "no-store")
   return res.status(200).json({ result })
 }

@@ -7,6 +7,7 @@ export type JobFinishStatus = "pending" | "completed" | "failed" | "cancelled";
 export interface JobLease {
   readonly jobId: string;
   readonly tenantId: string;
+  readonly actorId: string;
   readonly backendKey: string;
   readonly kind: JobKind;
   readonly requestId: string | null;
@@ -25,6 +26,12 @@ export interface RequestRecord {
 }
 
 export interface RequestMessageRecord { readonly id:string;readonly requestId:string;readonly actorId:string;readonly clientRequestId:string;readonly redactedText:string;readonly createdAt:Date }
+export interface RequestCandidateRecord {
+  readonly id:string;readonly requestId:string;readonly version:string;readonly artifactHash:string|null;readonly recipeKey:string;
+  readonly displayName:string;readonly requiredCapabilities:readonly string[];readonly compatibility:"compatible"|"adaptation_required"|"incompatible";
+  readonly evidenceStatus:"passed"|"failed"|"blocked"|"not_run"|"not_applicable";readonly estimatedCost:JsonValue|null;
+  readonly safeMetadata:JsonValue;readonly state:"offered"|"selected"|"dismissed";readonly selectedChoice:"reuse"|"adapt"|null;
+}
 
 export interface PlanRecord {
   readonly id: string;
@@ -41,6 +48,7 @@ export interface ApprovalRecord {
   readonly planVersion: number;
   readonly planHash: string;
   readonly actorId: string;
+  readonly hostSessionId:string|null;
   readonly expiresAt: Date;
   readonly consumedExecutionId: string | null;
 }
@@ -92,6 +100,7 @@ export interface NewApproval {
   readonly planVersion: number;
   readonly planHash: string;
   readonly actorId: string;
+  readonly hostSessionId:string;
   readonly scope: readonly string[];
   readonly expiresAt: Date;
   readonly idempotencyKey: string;
@@ -119,6 +128,23 @@ export interface AttemptIntent {
   readonly operationKey: string;
 }
 
+export type AttemptState="intent_recorded"|"sent"|"confirmed"|"no_effect"|"rejected"|"unknown";
+export interface AttemptRecord {
+  readonly operationKey:string;
+  readonly attemptNo:number;
+  readonly state:AttemptState;
+  readonly receiptRef:string|null;
+  readonly observationRef:string|null;
+  readonly errorCode:string|null;
+  readonly inserted:boolean;
+}
+
+export type EffectClaimDecision=
+  | {readonly authorized:true;readonly executionId:string;readonly approvalId:string;readonly planHash:string;readonly planVersion:number;readonly actorId:string;readonly hostSessionId:string;readonly policyVersion:string}
+  | {readonly authorized:false;readonly reasonCode:"claim_invalid"};
+
+export interface NewExecutionRow { readonly rowId:string;readonly resourceRef:string;readonly preconditionFingerprint:string }
+
 export interface ExecutionBundle {
   readonly execution: Record<string, unknown>;
   readonly plan: Record<string, unknown>;
@@ -128,6 +154,26 @@ export interface ExecutionBundle {
   readonly actor: Record<string, unknown>;
   readonly rows: readonly Record<string, unknown>[];
   readonly attempts: readonly Record<string, unknown>[];
+  readonly authority: { readonly hostSessionId:string|null };
+}
+
+export interface GenerationBundle {
+  readonly request: {
+    readonly id:string;
+    readonly actorId:string;
+    readonly redactedText:string;
+    readonly contextRef:JsonValue;
+    readonly budget:JsonValue;
+    readonly state:RequestState;
+    readonly createdAt:Date;
+  };
+  readonly tenant: { readonly policyVersion:string;readonly backendKey:string };
+  readonly capabilityManifest: {
+    readonly id:string;
+    readonly manifestHash:string;
+    readonly adapterVersion:string;
+    readonly body:JsonValue;
+  };
 }
 
 export interface CatalogQuery {
@@ -177,6 +223,7 @@ export interface PublicationKey {
   readonly publicKey: Uint8Array;
   readonly status: string;
 }
+export interface EvidenceRecord { readonly id:string;readonly status:"passed"|"failed"|"blocked"|"not_run"|"not_applicable";readonly artifactHash:string;readonly environmentDigest:string;readonly suiteVersion:string;readonly privacyScope:"private"|"generic";readonly createdAt:Date }
 
 export interface SessionRecord {
   readonly id: string;

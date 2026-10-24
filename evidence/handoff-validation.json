@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T11:33:50.721669+00:00",
+  "generatedAt": "2026-10-24T12:33:05.562661+00:00",
   "scope": "specification-package-only",
   "sdkImplemented": false,
   "sdkTestsExecuted": false,
@@ -73,7 +73,7 @@
     {
       "name": "domain-documents",
       "status": "PASS",
-      "detail": "14"
+      "detail": "15"
     },
     {
       "name": "json:agent-policy.json",
@@ -548,6 +548,11 @@
       "sha256": "09204f63a7b6b7ee07ed1361fecb4fd7db77dd2d0e7b3be7442c7cd623bbf63d"
     },
     {
+      "path": "docs/14-IMPLEMENTATION-DECISIONS.md",
+      "bytes": 9106,
+      "sha256": "353f52940db2a54f9bdc9c6e4f9b443596314d6968d1c246875ab0f09713b67b"
+    },
+    {
       "path": "fixtures/attack-cases.json",
       "bytes": 16326,
       "sha256": "67c10c1cae411f88458107750b38aa4d6194528b7ab10e9db56f3911ffaf1af9"
@@ -568,19 +573,14 @@
       "sha256": "7c32f681f50aefc3e02549d016d093c907ee98f7f4e855aa7d98b5cfde7c080a"
     },
     {
-      "path": "scripts/validate_handoff.py",
-      "bytes": 12380,
-      "sha256": "ea9112ebdbe7df2243e94bc60b1430348774e2e896e645b4b8be26e9a0772bb4"
-    },
-    {
       "path": "START-HERE.md",
       "bytes": 3564,
       "sha256": "e0782fe2af854136a3b02ecfb84ac0886baf5279d2fa96d7e2695e25f02940a1"
     },
     {
       "path": "TASKBOARD.json",
-      "bytes": 5897,
-      "sha256": "a2496699d4eee4541dcfd5e54c41540005ca3780559495648039c2bb6e135879"
+      "bytes": 6368,
+      "sha256": "1e24595cfb9c4ed9559520d03fff283e6fa018ea008bbb1a41b97b5f599bd7da"
     },
     {
       "path": "templates/ci.yml.example",

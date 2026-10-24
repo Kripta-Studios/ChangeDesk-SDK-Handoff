@@ -1,9 +1,8 @@
-import test from "node:test"
-import assert from "node:assert/strict"
+import { describe, expect, it } from "vitest"
 import { generateKeyPairSync } from "node:crypto"
 import { signEnvelope, sha256Json, verifyEnvelope } from "../../packages/medusa-plugin/src/bridge/crypto.ts"
 import { BridgeError } from "../../packages/medusa-plugin/src/bridge/errors.ts"
-import { authorizeDelegation, buildBootstrapClaims, parseCommand } from "../../packages/medusa-plugin/src/bridge/validation.ts"
+import { authorizeDelegation, buildBootstrapClaims, parseCommand, parseDelegationClaims } from "../../packages/medusa-plugin/src/bridge/validation.ts"
 import type { ActorPolicy, EffectDelegationClaims, ReadDelegationClaims } from "../../packages/medusa-plugin/src/bridge/types.ts"
 
 const { privateKey, publicKey } = generateKeyPairSync("ed25519")
@@ -13,14 +12,15 @@ const actor: ActorPolicy = {
   role: "operator",
   policyVersion: "policy-1",
   hostSessionId: "host-session",
+  readableProductIds: ["prod_1"],
 }
 const expected = { issuer: "service", audience: "atlas-plugin", tenantId: "atlas", now: 100 }
 
-test("argsHash matches the ADR006 NUL-framed JCS vector", () => {
-  assert.equal(
+describe("bridge contract", () => {
+it("argsHash matches the ADR006 NUL-framed JCS vector", () => {
+  expect(
     sha256Json({ productId: "prod_1", categoryId: "pcat_1" }),
-    "52578f36f4e7ab3083bd06158123a9ca0d467bab028d3ff635ceac81dc2c1366"
-  )
+  ).toBe("52578f36f4e7ab3083bd06158123a9ca0d467bab028d3ff635ceac81dc2c1366")
 })
 
 const readClaims = (capability: ReadDelegationClaims["capability"], args: object): ReadDelegationClaims => ({
@@ -55,52 +55,61 @@ const effectClaims = (args: object): EffectDelegationClaims => ({
   semanticInputHash: "b".repeat(64),
   operationKey: "atlas/execution-1/row-1/step-1",
   fence: 7,
-  preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true },
+  preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: "fixture-fingerprint" },
 })
 
-test("Ed25519 compact envelope detects payload tampering", () => {
+it("Ed25519 compact envelope detects payload tampering", () => {
   const claims = readClaims("medusa.products.retrieve", { productId: "prod_1" })
   const envelope = signEnvelope(claims, privateKey)
-  assert.deepEqual(verifyEnvelope(envelope, publicKey), claims)
+  expect(verifyEnvelope(envelope, publicKey)).toEqual(claims)
   const [payload, signature] = envelope.split(".")
   const tampered = `${payload.slice(0, -1)}A.${signature}`
-  assert.throws(() => verifyEnvelope(tampered, publicKey), BridgeError)
+  expect(() => verifyEnvelope(tampered, publicKey)).toThrow(BridgeError)
 })
 
-test("bootstrap ticket TTL cannot exceed 60 seconds", () => {
-  assert.throws(() => buildBootstrapClaims({
+it("bootstrap ticket TTL cannot exceed 60 seconds", () => {
+  expect(() => buildBootstrapClaims({
     iss: "atlas", aud: "service", sub: "user-1", tenantId: "atlas",
     hostSessionId: "session", policyVersion: "policy-1", origin: "http://127.0.0.1:9001",
     jti: "ticket-1", iat: 100, exp: 161,
-  }), /at most 60 seconds/)
+  })).toThrow(/at most 60 seconds/)
 })
 
-test("closed command parser rejects remove and batch effects", () => {
-  assert.throws(() => parseCommand({
+it("strict claims reject missing timestamps, unknown typ, and extra fields", () => {
+  const valid = readClaims("medusa.products.retrieve", { productId: "prod_1" })
+  const { exp: _exp, ...missingExp } = valid
+  expect(() => parseDelegationClaims(missingExp)).toThrow(/missing or unknown/)
+  expect(() => parseDelegationClaims({ ...valid, typ: "changedesk.future" })).toThrow(/Unknown delegation type/)
+  expect(() => parseDelegationClaims({ ...valid, surprise: true })).toThrow(/missing or unknown/)
+})
+
+it("closed command parser rejects remove and batch effects", () => {
+  expect(() => parseCommand({
     capability: "medusa.product_categories.products.add",
     args: { productId: "prod_1", categoryId: "pcat_1", remove: ["prod_2"] },
-  }), /missing or unknown/)
-  assert.throws(() => parseCommand({
+  })).toThrow(/missing or unknown/)
+  expect(() => parseCommand({
     capability: "medusa.product_categories.products.add",
     args: { productId: ["prod_1", "prod_2"], categoryId: "pcat_1" },
-  }), /bounded identifier/)
+  })).toThrow(/bounded identifier/)
 })
 
-test("read delegation cannot authorize an effect", () => {
+it("read delegation cannot authorize an effect", () => {
   const command = parseCommand({
     capability: "medusa.product_categories.products.add",
     args: { productId: "prod_1", categoryId: "pcat_1" },
   })
-  assert.throws(() => authorizeDelegation(readClaims(command.capability, command.args), command, actor, expected), /Read delegation/)
+  expect(() => authorizeDelegation(readClaims(command.capability, command.args), command, actor, expected)).toThrow(/Read delegation/)
 })
 
-test("effect is bound to exact args and current role/session/policy", () => {
+it("effect is bound to exact args and current role/session/policy", () => {
   const command = parseCommand({
     capability: "medusa.product_categories.products.add",
     args: { productId: "prod_1", categoryId: "pcat_1" },
   })
   authorizeDelegation(effectClaims(command.args), command, actor, expected)
-  assert.throws(() => authorizeDelegation(effectClaims({ productId: "prod_2", categoryId: "pcat_1" }), command, actor, expected), /does not authorize/)
-  assert.throws(() => authorizeDelegation(effectClaims(command.args), command, { ...actor, role: "viewer" }, expected), /cannot execute/)
-  assert.throws(() => authorizeDelegation(effectClaims(command.args), command, { ...actor, hostSessionId: "new-session" }, expected), /session or policy changed/)
+  expect(() => authorizeDelegation(effectClaims({ productId: "prod_2", categoryId: "pcat_1" }), command, actor, expected)).toThrow(/does not authorize/)
+  expect(() => authorizeDelegation(effectClaims(command.args), command, { ...actor, role: "viewer" }, expected)).toThrow(/cannot execute/)
+  expect(() => authorizeDelegation(effectClaims(command.args), command, { ...actor, hostSessionId: "new-session" }, expected)).toThrow(/session or policy changed/)
+})
 })

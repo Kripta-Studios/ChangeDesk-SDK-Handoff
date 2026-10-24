@@ -1,0 +1,11 @@
+
+ RUN  v4.0.16 C:/Users/Álvaro Schwiedop/Desktop/KriptaStudios/ChangeDesk-SDK-Handoff/.worktrees/environment
+
+ ✓ infra/environment.test.ts (5 tests) 3164ms
+     ✓ keeps handoff validation bounded to specification inputs  3103ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  14:17:05
+   Duration  5.35s (transform 330ms, setup 0ms, import 557ms, tests 3.16s, environment 1ms)
+
