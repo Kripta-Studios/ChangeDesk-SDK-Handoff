@@ -16,8 +16,9 @@ import { NodeEd25519Signer, canonicalGenericRecipe } from "./publication.js";
 import { ValidatingPlanner } from "./planner.js";
 import type { CatalogPort, PlannerProvider, RecipeValidator } from "./types.js";
 
+export type BootstrapCodexConfig=Omit<CodexCliProviderConfig,"maxReportedInputTokens">&{readonly kind?:"codex-cli";readonly maxInputTokens:number};
 export type BootstrapPlannerConfig =
-  | (CodexCliProviderConfig & {readonly kind?:"codex-cli"})
+  | BootstrapCodexConfig
   | {readonly kind:"api";readonly config:ApiProviderConfig;readonly secrets:SecretResolver;readonly budget:ApiBudgetReservationPort}
   | {readonly kind:"fake-test";readonly allowExplicitTestFake:true};
 export interface ProductionGenerationOptions {
@@ -42,6 +43,6 @@ export function publicationPrivateKeyFromPem(pem:string){return createPrivateKey
 function providerFor(config:BootstrapPlannerConfig):PlannerProvider {
   if(config.kind==="api"){if(!config.secrets||!config.budget)throw new Error("API planner requires explicit secret and durable spend ports");return new BudgetedApiPlannerProvider(config.config,config.secrets,config.budget);}
   if(config.kind==="fake-test"){if(!config.allowExplicitTestFake)throw new Error("Fake planner must be explicitly enabled for tests");const recipes={"catalog.campaign.prepare.v1":canonicalGenericRecipe("catalog.campaign.prepare.v1"),"catalog.category.assign.v1":canonicalGenericRecipe("catalog.category.assign.v1"),"catalog.channel.assign.v1":canonicalGenericRecipe("catalog.channel.assign.v1")};return new DeterministicFakePlannerProvider(recipes);}
-  return new CodexCliPlannerProvider(config,new FixedArgvProcessRunner(),new InstalledCodex0164IsolationProbe("0.164.0",config.executableSha256));
+  const{maxInputTokens,kind:_kind,...codex}=config;return new CodexCliPlannerProvider({...codex,maxReportedInputTokens:maxInputTokens},new FixedArgvProcessRunner(),new InstalledCodex0164IsolationProbe("0.164.0",config.executableSha256));
 }
 function modelFor(config:BootstrapPlannerConfig){return config.kind==="api"?config.config.model:config.kind==="fake-test"?"deterministic-fixture-v1":config.model;}
