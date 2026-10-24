@@ -92,7 +92,8 @@ export class PlannerGenerationProcessor implements GenerationProcessor {
 
 function parsePlannerInput(lease:GenerationLease,bundle:GenerationBundle,adapter:AdapterDescriptor):PlannerInput|null {
   const context=bundle.request.contextRef,manifest=bundle.capabilityManifest.body;
-  if(bundle.capabilityManifest.adapterVersion!==adapter.id||!record(context)||!record(manifest)||manifest.capabilityContract!==adapter.capabilityContract||manifest.verifiedMedusaVersion!==adapter.version)return null;
+  const wireVersion=`medusa-${adapter.version}/changedesk-${adapter.capabilityContract}`;
+  if(bundle.capabilityManifest.adapterVersion!==wireVersion||!record(context)||!record(manifest)||manifest.adapter!==adapter.id||manifest.capabilityContract!==adapter.capabilityContract||manifest.verifiedMedusaVersion!==adapter.version)return null;
   const selected=context.selectedProductIds,locale=context.locale,capabilities=manifest.capabilities;
   if(!Array.isArray(selected)||selected.some((value)=>typeof value!=="string")||(locale!=="en"&&locale!=="es")||!Array.isArray(capabilities)||capabilities.some((value)=>typeof value!=="string"||!isCapabilityId(value)))return null;
   const structuredIntent=parseStructuredIntent(context.structuredIntent);

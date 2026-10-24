@@ -25,18 +25,30 @@
     {
       "behavior": "real scheduler integration",
       "observed": "the first global claim belonged to a prior orphan fixture and returned generation_bundle_unavailable; the harness now processes durable queue entries without deleting unrelated data"
+    },
+    {
+      "behavior": "explicit planner provider configuration",
+      "commit": "3d8b3ee",
+      "observed": "loadConfig always returned the Codex shape and ignored the requested DeepSeek and guarded fake-test modes"
+    },
+    {
+      "behavior": "idempotent trusted service provisioning",
+      "commit": "06146ac",
+      "observed": "runtime provision test failed to import the absent production provisioner"
     }
   ],
   "green": {
-    "command": "node.exe node_modules/vitest/vitest.mjs run apps/service/tests/runtime --reporter=dot --pool=forks --maxWorkers=1",
-    "result": "8 files, 20 tests passed",
+    "command": "node.exe node_modules/vitest/vitest.mjs run apps/service/tests/runtime --config vitest.config.ts",
+    "result": "10 files, 25 tests passed",
     "materialCoverage": [
       "strict REST authorization and schemas",
       "one-time durable bootstrap sessions",
       "deterministic plan compiler and ADR009 step fingerprints",
       "generation dispatch and lease recovery",
       "unknown-effect reconciliation and fencing",
-      "contract DTO mapping and installed-action plan materialization"
+      "contract DTO mapping and installed-action plan materialization",
+      "Codex default plus explicitly budgeted API and test-only fake provider configuration",
+      "closed two-tenant provisioning for trusted actor roles, wire-bound capability manifests and the publication verification key"
     ]
   },
   "realPostgres": {
@@ -51,6 +63,6 @@
   },
   "notRun": [
     "live Codex provider invocation in this runtime vertical (planner lane verified it separately)",
-    "real Medusa two-store effect flow; host fixture is explicitly controlled"
+    "real Medusa two-store effect flow: 2026-10-24 browser attempt was BLOCKED because the host widget reported Change Desk disabled before any API request or fixture mutation"
   ]
 }
