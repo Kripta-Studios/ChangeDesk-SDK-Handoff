@@ -1,5 +1,7 @@
 import { planHash } from "../core/hashing.js";
 import type { CompiledPlan, CompiledPlanBody, ProductSnapshot, Recipe } from "./types.js";
+import type { PlanExclusion } from "@changedesk/contracts";
+import type { EvidenceStatus } from "@changedesk/contracts";
 
 const EFFECT_CAPABILITIES = new Set([
   "medusa.product_categories.products.add",
@@ -15,19 +17,23 @@ export interface CompilePlanInput {
   adapterVersion: string; policyVersion: string; capabilityManifestHash: string; recipe: Recipe;
   parameters: Readonly<Record<string, string>>; selectedProductIds: readonly string[];
   readableProducts: readonly ProductSnapshot[]; expiresAt: string; planVersion: number; priorExecutionId?: string;
+  proofPolicy: { proofRequired: boolean; evidenceStatus: EvidenceStatus; evidenceRefs: readonly string[] };
 }
 
 export function compilePlan(input: CompilePlanInput): CompiledPlan {
   if (input.selectedProductIds.length > 100) throw new PlanCompileError("selection_limit", "Selection exceeds 100 records");
   if (new Set(input.selectedProductIds).size !== input.selectedProductIds.length) throw new PlanCompileError("duplicate_selection", "Selection contains duplicate ids");
   validateRecipe(input.recipe, input.parameters);
+  if (input.proofPolicy.proofRequired && input.proofPolicy.evidenceStatus !== "passed") throw new PlanCompileError("proof_required", "Required evidence is not passed");
   const byId = new Map(input.readableProducts.map((product) => [product.id, product]));
   if (input.selectedProductIds.some((id) => !byId.has(id))) throw new PlanCompileError("selection_not_authorized", "The complete selection is not readable");
 
   const products = [...input.selectedProductIds].sort().map((id) => byId.get(id)!);
-  const exclusions = products.flatMap((product) =>
-    product.status !== "published" ? [{ recordId: product.id, reason: "status" as const }]
-      : product.blocked ? [{ recordId: product.id, reason: "policy" as const }] : []);
+  const exclusions: PlanExclusion[] = [];
+  for (const product of products) {
+    if (product.status !== "published") exclusions.push({ recordId: product.id, reason: "status" });
+    else if (product.blocked) exclusions.push({ recordId: product.id, reason: "policy" });
+  }
   const eligible = products.filter((product) => product.status === "published" && !product.blocked);
   const effects = eligible.flatMap((product) => input.recipe.steps.map((step) => {
     const args = resolveArguments(step.arguments, product.id, input.parameters);
@@ -44,7 +50,7 @@ export function compilePlan(input: CompilePlanInput): CompiledPlan {
     parameters: Object.fromEntries(Object.entries(input.parameters).sort(([a], [b]) => a.localeCompare(b))),
     selectionSnapshot: eligible.map(({ id, protectedDigest }) => ({ productId: id, preconditionFingerprint: protectedDigest })),
     perRecordEffects: effects, exclusions,
-    limits: { maxRecords: 100, maxSteps: 12 }, expiresAt: input.expiresAt, evidenceRefs: [],
+    limits: { maxRecords: 100, maxSteps: 12 }, expiresAt: input.expiresAt, evidenceRefs: [...input.proofPolicy.evidenceRefs].sort(),
     planVersion: input.planVersion, ...(input.priorExecutionId ? { priorExecutionId: input.priorExecutionId } : {}),
   };
   return { ...body, planHash: planHash(body) };
@@ -56,7 +62,7 @@ function resolveArguments(spec: Recipe["steps"][number]["arguments"], productId:
     const value = parameters[ref.$param];
     if (!value) throw new PlanCompileError("missing_parameter", `Missing parameter ${ref.$param}`);
     return [key, value];
-  }).sort(([a], [b]) => a.localeCompare(b)));
+  }).sort((left, right) => left[0]!.localeCompare(right[0]!)));
 }
 
 function validateRecipe(recipe: Recipe, parameters: Readonly<Record<string, string>>): void {

@@ -18,13 +18,14 @@ export async function startApi(app: FastifyInstance, config: ServiceConfig): Pro
 
 export async function main(): Promise<void> {
   const config = loadConfig();
-  const pool = new Pool({ connectionString: config.databaseUrl, max: 10 });
+  const pool = new Pool({ connectionString: config.apiDatabaseUrl, max: 10 });
   const store = new Store(pool);
   const registry = new ConfiguredHostRegistry(config.hosts);
   const sessions = new SessionManager(new TicketReplayStore(store), registry, { audience: config.sessionAudience, issuers: config.sessionIssuerAllowlist, origins: config.publicOriginAllowlist, ticketMaxTtlSeconds: config.bridgeTicketMaxTtlSeconds, sessionTtlSeconds: config.sessionTtlSeconds });
   const connector = new SignedBridgeConnector(registry);
   const resourceIds = Object.fromEntries(config.hosts.map((host) => [host.tenantId, { category: host.categoryIds, channel: host.channelIds }]));
   const app = buildApi({ config, sessions, operations: new StorageApiOperations(store, connector, resourceIds) });
+  app.get("/readyz", async (_request, reply) => { try { await pool.query("SELECT 1"); return { status: "ready" }; } catch { return reply.status(503).send({ status: "not_ready" }); } });
   const shutdown = async () => { await app.close(); await pool.end(); };
   process.once("SIGINT", () => void shutdown()); process.once("SIGTERM", () => void shutdown());
   await startApi(app, config);

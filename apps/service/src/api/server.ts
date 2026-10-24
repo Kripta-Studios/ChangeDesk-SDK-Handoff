@@ -39,6 +39,7 @@ export function buildApi(options: { config: ServiceConfig; sessions: SessionMana
     const actor = request.actor!; requireRole(actor, roles); const result = await handler(actor, request); if (result === null) throw notFound(); return reply.send(result);
   };
   const auth = { preHandler: authenticate };
+  app.get("/healthz", async () => ({ status: "ok" }));
 
   app.options("/*", async (request, reply) => {
     const origin = request.headers.origin;

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, verify, type KeyObject } from "node:crypto";
 import type { ActorContext, Role } from "../runtime/types.js";
-import { forbidden, unauthorized } from "./errors.js";
+import { ApiError, forbidden, unauthorized } from "./errors.js";
 
 export interface BootstrapClaims {
   v: 1; typ: "changedesk.bootstrap"; iss: string; aud: string; sub: string; tenantId: string;
@@ -20,7 +20,10 @@ export class SessionManager {
   }) {}
 
   async exchange(ticket: string, requestOrigin: string): Promise<{ accessToken: string; expiresAt: string }> {
-    const now = Math.floor((this.options.clock?.() ?? new Date()).getTime() / 1000);
+    const currentTime = this.options.clock?.() ?? new Date();
+    const now = Math.floor(currentTime.getTime() / 1000);
+    this.purgeExpired(currentTime.getTime());
+    if (this.#sessions.size >= 10_000) throw new ApiError(429, "SESSION_CAPACITY", "Session capacity is temporarily exhausted", true);
     const [payloadPart, signaturePart, extra] = ticket.split(".");
     if (!payloadPart || !signaturePart || extra) throw unauthorized();
     let claims: BootstrapClaims;
@@ -50,5 +53,7 @@ export class SessionManager {
     if (!current.active) { this.#sessions.delete(key); throw unauthorized(); }
     return { ...session, roles: current.roles, policyVersion: current.policyVersion };
   }
+
+  private purgeExpired(now: number): void { for (const [key, session] of this.#sessions) if (Date.parse(session.expiresAt) <= now) this.#sessions.delete(key); }
 }
 function hashToken(token: string) { return createHash("sha256").update(token).digest("hex"); }

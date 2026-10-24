@@ -12,21 +12,21 @@ import { ConfiguredHostRegistry } from "./adapter/registry.js";
 import { SignedBridgeConnector } from "./adapter/bridge-connector.js";
 import { StrictEffectAuthority } from "./runtime/authority.js";
 
-export async function startWorker(worker: DurableWorker, options: { workerId: string; signal: AbortSignal; idleDelayMs?: number }): Promise<void> {
+export async function startWorker(worker: DurableWorker, options: { workerId: string; signal: AbortSignal; idleDelayMs?: number; concurrency?: number; recoveryIntervalMs?: number }): Promise<void> {
   const idleDelayMs = options.idleDelayMs ?? 500;
-  while (!options.signal.aborted) {
-    const outcome = await worker.runOnce(options.workerId);
-    if (outcome === "idle") await abortableDelay(idleDelayMs, options.signal);
-  }
+  const concurrency = Math.max(1, Math.min(options.concurrency ?? 1, 32));
+  const lane = async (index: number) => { while (!options.signal.aborted) { const outcome = await worker.runOnce(`${options.workerId}-${index}`); if (outcome === "idle") await abortableDelay(idleDelayMs + Math.floor(Math.random() * 200), options.signal); } };
+  const recovery = async () => { while (!options.signal.aborted) { await abortableDelay(options.recoveryIntervalMs ?? 10_000, options.signal); if (!options.signal.aborted) await worker.recoverOrphanedLeases(100); } };
+  await Promise.all([...Array(concurrency)].map((_, index) => lane(index)).concat([recovery()]));
 }
 
 export async function main(): Promise<void> {
-  const config = loadConfig(); const pool = new Pool({ connectionString: config.databaseUrl, max: config.workerGlobalCap + 2 });
+  const config = loadConfig(); const pool = new Pool({ connectionString: config.workerDatabaseUrl, max: config.workerGlobalCap + 2 });
   const storage = new StorageRuntimeAdapter(new Store(pool) as any, new JobStore(pool) as any, { workerActorId: "unused-lease-actor-is-authoritative", leaseSeconds: config.workerLeaseSeconds, globalCap: config.workerGlobalCap });
   await storage.recoverOrphanedLeases(100);
   const worker = new WorkerImplementation({ store: storage, connector: new SignedBridgeConnector(new ConfiguredHostRegistry(config.hosts)), authority: new StrictEffectAuthority() });
   const controller = new AbortController(); const stop = () => controller.abort(); process.once("SIGINT", stop); process.once("SIGTERM", stop);
-  try { await startWorker(worker, { workerId: config.workerId, signal: controller.signal }); } finally { await pool.end(); }
+  try { await startWorker(worker, { workerId: config.workerId, signal: controller.signal, concurrency: config.workerGlobalCap }); } finally { await pool.end(); }
 }
 
 function abortableDelay(milliseconds: number, signal: AbortSignal): Promise<void> {
