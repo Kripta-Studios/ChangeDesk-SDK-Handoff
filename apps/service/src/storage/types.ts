@@ -41,6 +41,7 @@ export interface PlanRecord {
   readonly state: PlanState;
   readonly expiresAt: Date;
 }
+export interface PlanDetailRecord extends PlanRecord {readonly requestId:string;readonly installationId:string|null;readonly artifactHash:string;readonly adapterVersion:string;readonly policyVersion:string;readonly capabilityManifestHash:string;readonly body:JsonValue;readonly createdAt:Date}
 
 export interface ApprovalRecord {
   readonly id: string;
@@ -158,6 +159,16 @@ export interface ExecutionBundle {
 }
 
 export interface CapabilityManifestRecord {readonly id:string;readonly manifestHash:string;readonly adapterVersion:string;readonly body:JsonValue}
+export interface GenerationReservationInput {
+  readonly id:string;readonly actorId:string;readonly intentHash:string;readonly contractVersion:string;readonly requestId:string;
+  readonly maxAttempts:number;readonly tokenBudget:bigint;readonly costBudgetMicros:bigint;readonly provider:string;readonly model:string;
+}
+export type GenerationReservationResult=
+  | {readonly state:"acquired";readonly id:string;readonly fence:number;readonly attempt:number}
+  | {readonly state:"existing";readonly id:string;readonly status:"pending"|"running"|"completed"|"failed";readonly artifactId?:string}
+  | {readonly state:"exhausted"};
+export interface GenerationUsage {readonly artifactId:string;readonly usedTokens:bigint;readonly usedCostMicros:bigint}
+export interface RetentionResult {readonly requestsCleaned:number;readonly attemptsCleaned:number;readonly usageDeleted:number}
 export interface GenerationBundle {
   readonly request: {
     readonly id:string;
@@ -212,6 +223,11 @@ export interface InstallationRecord {
   readonly artifactHash: string;
   readonly status: InstallationState;
   readonly policyVersion: string;
+}
+export interface InstallationDetailRecord extends InstallationRecord {
+  readonly recipeKey:string;readonly displayName:string;readonly version:string;
+  readonly evidenceStatus:"passed"|"failed"|"blocked"|"not_run"|"not_applicable";
+  readonly installedAt:Date;readonly lastValidatedAt:Date|null;
 }
 
 export interface PublicationKey {
