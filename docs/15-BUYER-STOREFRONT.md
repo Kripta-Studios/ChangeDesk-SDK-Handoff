@@ -1,6 +1,6 @@
 # Storefront personalizable por compradores
 
-Estado: contrato v1 aceptado por el coordinador el 2026-10-24 tras revisión independiente; implementación y gates pendientes. Solicitud del usuario amplía el alcance originalmente administrativo. Rama `feat/buyer-storefront`; baseline de integración `325c81e`. No implica completar ni sustituir los gates del SDK principal.
+Estado: contrato v1 aceptado por el coordinador el 2026-10-24 antes de implementar. Backend, persistencia, autenticación, SDK y UI implementados; pruebas locales registradas en [el handoff](../evidence/storefront/HANDOFF.md), con revisión final y gate Medusa real separados. Solicitud del usuario amplía el alcance originalmente administrativo. Rama `feat/buyer-storefront`; baseline final de integración `6adbb2f` (contrato originalmente fijado sobre `325c81e`). No implica completar ni sustituir los gates del SDK principal. La instrucción posterior del usuario excluye objetivos de rendimiento de este cierre y prioriza funcionalidades operativas.
 
 ## ADR-SF-001 — Alcance y autoridad
 
@@ -47,3 +47,5 @@ TDD por comportamiento con fallo esperado y green registrados. Probar handlers r
 Gates separados: unit/contrato backend, SDK DOM, PostgreSQL/RLS real, auth customer Medusa real, browser E2E dos tiendas y empaquetado subpath. No sustituir integración real por fixture ni declarar LOCAL_VERIFIED según docs11 con solo Fastify/mocks. Si infraestructura/host en implementación concurrente no permite gate live, completar lo independiente y documentar BLOCKED/NOT_RUN y pasos exactos. Sin proveedor LLM nuevo ni gastos.
 
 Hipótesis cuestionada y resuelta: snapshot completo de preferencias impediría herencia futura; se usan overrides parciales. Aprobar “la versión actual” sin modelar precedencia sería engañoso; preview conserva y explica overrides. Código y UI en otra sesión siguen cambiando: la integración se revisará contra HEAD observado, nunca se fuerza sobre sus cambios sin commit/handoff.
+
+ADR-SF-006 (revisión independiente, 2026-10-24): el TTL no limita memoria por sí solo. El almacén efímero de sesiones buyer purga expiradas al intercambiar y autenticar, y limita sesiones activas más intercambios en curso a10000 por instancia por defecto. La reserva sucede antes de awaits; capacidad agotada devuelve429 reintentable, sin expulsar sesiones activas. El ledger durable de replay permanece separado. Este límite protege disponibilidad; no constituye un benchmark ni un objetivo de rendimiento. Revisiones administrativas, como las personales, deben ser enteros seguros no negativos y fallan422 antes del repositorio.
