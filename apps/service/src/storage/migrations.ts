@@ -18,7 +18,7 @@ export async function runMigrations(pool:Pool,directory:URL|string):Promise<void
     for(const file of files) {
       const version=Number(file.match(MIGRATION_PATTERN)?.[1]);
       const sql=await readFile(join(directoryPath,file),"utf8");
-      const checksum=createHash("sha256").update(sql).digest("hex");
+      const checksum=migrationChecksum(sql);
       const existing=await client.query<{checksum:string}>("SELECT checksum FROM public.changedesk_schema_migrations WHERE version=$1",[version]);
       if(existing.rowCount===1) {
         if(existing.rows[0]!.checksum!==checksum) throw new Error(`Migration checksum mismatch at version ${version}`);
@@ -36,3 +36,6 @@ export async function runMigrations(pool:Pool,directory:URL|string):Promise<void
     client.release();
   }
 }
+
+/** Git may materialize SQL with CRLF on Windows; line endings are not semantic migration content. */
+export function migrationChecksum(sql:string):string { return createHash("sha256").update(sql.replace(/\r\n/gu,"\n"),"utf8").digest("hex"); }
