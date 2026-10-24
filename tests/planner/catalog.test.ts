@@ -42,8 +42,18 @@ test("publication source must be owned, not merely visible",async()=>{
 
 test("installation verifies active Ed25519 key and keeps local bindings separate",async()=>{
   const {repo,service}=fixture();const published=await service.publishAuthorized({actor:atlas,sourceArtifactHash:"private-hash",visibility:"shared_allowlist",allowedTenantIds:["boreal"],consent:true,keyId:"key-1",idempotencyKey:"p"});
-  const installed=await service.installAuthorized({actor:boreal,publicationId:published.publicationId,expectedArtifactHash:published.artifactHash,bindings:{categoryId:"boreal-category"},policyVersion:"policy-1",idempotencyKey:"i"});assert.equal(installed.state,"active");
-  repo.key={...repo.key!,status:"revoked"};await assert.rejects(service.installAuthorized({actor:boreal,publicationId:published.publicationId,expectedArtifactHash:published.artifactHash,bindings:{categoryId:"other"},policyVersion:"policy-1",idempotencyKey:"i2"}),(error:any)=>error.code==="PUBLICATION_SIGNATURE_INVALID");
+  const common={actor:boreal,artifactHash:published.artifactHash,adapter:{id:"medusa-v2" as const,capabilityContract:"1" as const,version:"2.22.1"},approvedCapabilities:recipe.requiredCapabilities,allowedResourceIds:{categoryId:["boreal-category","other"],channelId:[]},policyVersion:"policy-1"};
+  const installed=await service.installAuthorized({...common,bindings:{categoryId:"boreal-category"},idempotencyKey:"i"});assert.equal(installed.state,"active");
+  repo.key={...repo.key!,status:"revoked"};await assert.rejects(service.installAuthorized({...common,bindings:{categoryId:"other"},idempotencyKey:"i2"}),(error:any)=>error.code==="PUBLICATION_SIGNATURE_INVALID");
+});
+
+test("admin can install an owned validated generic private artifact without a publication",async()=>{
+  const {service}=fixture();const installed=await service.installAuthorized({actor:atlas,artifactHash:"private-hash",bindings:{categoryId:"atlas-category"},policyVersion:"policy-1",idempotencyKey:"private-i",adapter:{id:"medusa-v2",capabilityContract:"1",version:"2.22.1"},approvedCapabilities:recipe.requiredCapabilities,allowedResourceIds:{categoryId:["atlas-category"],channelId:[]}});assert.equal(installed.artifactHash,"private-hash");
+});
+
+test("installation rejects wrong adapter version and resource outside host allowlist",async()=>{
+  const {service}=fixture();const base={actor:atlas,artifactHash:"private-hash",bindings:{categoryId:"foreign"},policyVersion:"policy-1",idempotencyKey:"bad-i",adapter:{id:"medusa-v2" as const,capabilityContract:"1" as const,version:"2.22.0"},approvedCapabilities:recipe.requiredCapabilities,allowedResourceIds:{categoryId:["atlas-category"],channelId:[]}};
+  await assert.rejects(service.installAuthorized(base),(error:any)=>error.code==="CATALOG_NOT_FOUND_OR_FORBIDDEN");
 });
 
 test("withdrawal and security revocation remain distinct",async()=>{

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "date": "2026-10-24",
+  "scope": "planner providers and authorized catalog",
+  "red": [
+    {
+      "behavior": "Codex fixed argv disables code-mode host and every known execution surface",
+      "command": "esbuild providers.test.ts then node --test",
+      "result": "FAIL as expected: code_mode_host disable absent; 3 passed, 1 failed"
+    },
+    {
+      "behavior": "publication key cannot disguise a different capability/step graph",
+      "command": "esbuild catalog.test.ts then node --test",
+      "result": "FAIL as expected: missing PUBLICATION_SEMANTICS_MISMATCH; 4 passed, 1 failed"
+    }
+  ],
+  "green": [
+    {
+      "command": "node_modules/.bin/vitest.cmd run tests/planner --exclude tests/planner/live.codex.test.ts",
+      "result": "PASS",
+      "files": 3,
+      "tests": 15,
+      "durationSeconds": 3.38
+    },
+    {
+      "command": "CHANGEDESK_RUN_CODEX_LIVE=1 CHANGEDESK_CODEX_MODEL=gpt-6.1-sol vitest run tests/planner/live.codex.test.ts",
+      "result": "PASS",
+      "files": 1,
+      "tests": 1,
+      "testDurationSeconds": 13.927,
+      "observedModel": "not_observed_by_codex_jsonl",
+      "tokenMetric": "positive usage asserted; exact value was not retained in this first smoke and must be captured by the committed logging on rerun"
+    }
+  ],
+  "separation": {
+    "fake": "deterministic-fixture-v1; live=false",
+    "codex": "live gate; existing local CLI authentication; no API key",
+    "api": "configuration-only; positive budget and dated tariff still fail closed until a provider-specific live gate is approved"
+  }
+}

@@ -87,11 +87,13 @@ export interface PublishInput {
 
 export interface InstallInput {
   readonly actor: ActorContext;
-  readonly publicationId: string;
-  readonly expectedArtifactHash: string;
+  readonly artifactHash: string;
   readonly bindings: Readonly<Record<string, string>>;
   readonly policyVersion: string;
   readonly idempotencyKey: string;
+  readonly adapter: AdapterDescriptor;
+  readonly approvedCapabilities: readonly CapabilityId[];
+  readonly allowedResourceIds: Readonly<{ categoryId: readonly string[]; channelId: readonly string[] }>;
 }
 
 export interface PublicationMutationInput {
