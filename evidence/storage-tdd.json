@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "recordedAt": "2026-10-24T14:13:30+02:00",
+  "recordedAt": "2026-10-24T14:25:45+02:00",
   "scope": "P1-T03 PostgreSQL storage and P3 durable jobs substrate",
   "environment": {
     "postgres": "17.11",
@@ -33,9 +33,15 @@
       "reason": "Actor backfill FK validation could not see referenced actors under FORCE RLS."
     },
     {
+      "phase": "RED_GENERATION_RESTART",
+      "command": "vitest run tests/storage/store.integration.test.ts -t reloads private generation input",
+      "result": "FAIL 1/1",
+      "reason": "The durable worker could not persist or reload the tenant capability manifest and private request input."
+    },
+    {
       "phase": "GREEN",
       "command": "vitest run tests/storage --config vitest.config.ts",
-      "result": "PASS 12/12 in 2 files",
+      "result": "PASS 13/13 in 2 files",
       "verified": [
         "migration checksum rerun",
         "runtime and worker role privilege posture",
@@ -48,12 +54,14 @@
         "fair claims with distinct tenant turns",
         "stale and expired fence rejection",
         "expired lease recovery",
-        "worker tenant-scoped bundle access"
+        "worker tenant-scoped bundle access",
+        "restart-safe generation bundle with redacted intent, context, budget, current policy, backend, and registered capability manifest",
+        "stale generation lease cannot load private input"
       ]
     },
     {
       "phase": "TYPECHECK",
-      "command": "tsc -p temporary storage-only config using pinned workspace dependencies",
+      "command": "tsc --noEmit --strict --noUncheckedIndexedAccess over apps/service/src/storage",
       "result": "PASS",
       "note": "The temporary config was removed; the root workspace typecheck remains authoritative after integration."
     }

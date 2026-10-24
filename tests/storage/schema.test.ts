@@ -28,6 +28,7 @@ it("storage schema forces RLS on every tenant-scoped table", async () => {
     "sessions",
     "audit_events",
     "signing_key_secrets",
+    "capability_manifests",
   ];
 
   for (const table of tenantTables) {
