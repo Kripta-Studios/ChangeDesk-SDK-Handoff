@@ -4,7 +4,7 @@ import { ChangeDeskApiError } from "../client.js";
 import { PanelErrorBoundary } from "../error-boundary.js";
 import { pollResource, type PollController } from "../polling.js";
 import { useChangeDesk } from "../provider.js";
-import "./panel.css";
+import panelStyles from "./panel.css?inline";
 
 type Screen = "request" | "configure" | "plan" | "execution" | "library" | "evidence";
 const messages = {
@@ -80,7 +80,7 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
     poller.current = pollResource((signal) => client.getRequest(id, signal), {
       isTerminal: (value) => terminalRequest.has(value.status),
       onValue: (value) => {
-        setRequest(value); setPermissions(value.permissions); if (value.identity) setIdentity(value.identity);
+        setRequest(value); setPermissions(value.permissions ?? []); if (value.identity) setIdentity(value.identity);
         value.candidates.forEach((item) => config.onEvent?.({ type: "candidate_offered", candidateId: item.id }));
       }, onError: showError,
     });
@@ -187,7 +187,7 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
   }
 
   return (
-    <div className="cd-backdrop" role="presentation">
+    <><style>{panelStyles}</style><div className="cd-backdrop" role="presentation">
       <aside ref={dialogRef} className="cd-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={containKeyboardFocus}>
         <PanelErrorBoundary onReset={client.clearSession}>
           <header className="cd-header"><div><span className="cd-kicker">{copy.kicker}</span><h1 id={titleId}>Change Desk</h1><p>{identity ? `${identity.tenantName} · ${identity.actorName} · ${identity.role} · ` : ""}{selection.length} {copy.selected} · {config.getContext().surface}</p></div>{onClose ? <button className="cd-icon-button" type="button" aria-label={config.locale === "es" ? "Cerrar Change Desk" : "Close Change Desk"} onClick={onClose}>×</button> : null}</header>
@@ -204,7 +204,7 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
           <footer className="cd-footer"><span>{copy.footer}</span><span aria-live="polite">{request ? stateLabel[request.status] ?? request.status : copy.ready}</span></footer>
         </PanelErrorBoundary>
       </aside>
-    </div>
+    </div></>
   );
 }
 
