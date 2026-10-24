@@ -48,6 +48,25 @@ $provisionPath = Join-Path $localRoot "provision.json"
 $env:CHANGEDESK_MIGRATOR_DATABASE_URL = Required-Environment "CHANGEDESK_MIGRATOR_DATABASE_URL"
 $env:CHANGEDESK_PROVISION_FILE = $provisionPath
 $node = Join-Path $root ".tools/node-v22.23.4-win-x64/node.exe"
-& $node (Join-Path $root "apps/service/dist/provision.js")
+$moduleUri = ([Uri](Join-Path $root "apps/service/dist/provision.js")).AbsoluteUri
+& $node --input-type=module -e "const module = await import(process.argv[1]); await module.main();" $moduleUri
 if ($LASTEXITCODE -ne 0) { throw "Service provisioning failed with exit code $LASTEXITCODE." }
+$pgUri = ([Uri](Join-Path $root "node_modules/pg/lib/index.js")).AbsoluteUri
+$readback = @'
+const [{default:pg},fs] = await Promise.all([import(process.argv[1]),import('node:fs')]);
+const root=process.argv[2],client=new pg.Client({connectionString:process.env.CHANGEDESK_MIGRATOR_DATABASE_URL});
+await client.connect();
+try {
+  for (const tenant of ['atlas','boreal']) {
+    const map=JSON.parse(fs.readFileSync(`${root}/evidence/local/seed-map.${tenant}.json`,'utf8'));
+    await client.query('BEGIN');
+    await client.query("SELECT set_config('app.tenant_id',$1,true),set_config('app.actor_id',$2,true)",[tenant,map.users[`${tenant}.admin`]]);
+    const result=await client.query('SELECT count(*)::int AS count FROM storage.capability_manifests WHERE active');
+    await client.query('ROLLBACK');
+    if (result.rows[0]?.count !== 1) throw new Error(`Expected one active capability manifest for ${tenant}.`);
+  }
+} finally { await client.end(); }
+'@
+& $node --input-type=module -e $readback $pgUri ($root -replace '\\','/')
+if ($LASTEXITCODE -ne 0) { throw "Service provisioning readback failed with exit code $LASTEXITCODE." }
 Write-Output "Provisioned two tenants and their trusted identities without printing secret material."
