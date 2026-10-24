@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-24",
+  "deliveryStatus": "INCOMPLETE",
+  "combined": {"status":"PASS","tests":131,"files":27,"command":"node node_modules/vitest/vitest.mjs run tests/sdk apps/service/tests/runtime tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts tests/storefront tests/recovery tests/tooling/verification-lanes.test.ts --reporter=dot --maxWorkers=2"},
+  "functional": {"status":"PASS","tests":100,"files":22,"command":"node scripts/verify-ci.mjs --lane functional"},
+  "deterministic": {"status":"PASS","tests":61,"files":11,"command":"node scripts/verify-ci.mjs --lane deterministic"},
+  "types": {"service":"PASS","sdk":"PASS after contracts rebuild","e2e":"PASS"},
+  "tarballConsumerSmoke": "PASS independently repeated after buyer adapter inclusion",
+  "postgresLatest": "FAIL 20/22; finish-lab.json",
+  "browser": "NOT_RUN in this continuation",
+  "remoteCi": "NOT_RUN before push",
+  "initialFailures": ["Planner provider suite could not resolve root Ajv; portable alias fixed", "SDK typecheck consumed stale contracts dist; rebuilding contracts fixed", "Evidence verifier rejected explicit ACC-015 exclusion; bounded exemption fixed"],
+  "note": "Overlapping counts must not be added. Controlled verifier and host fixtures do not establish live Bend/Medusa behavior."
+}

@@ -1,0 +1,15 @@
+{
+  "date":"2026-10-24",
+  "reviewer":"/root/completion_review",
+  "requestedModel":"gpt-6.1-sol",
+  "requestedReasoning":"medium",
+  "observedModel":null,
+  "readOnly":"behavioral; runtime filesystem access is not sandbox-enforced read-only",
+  "reviewedRange":"e77fe3f..563eb60",
+  "verdict":"fix-first",
+  "finding":"Migration 015 retains generic capacity expiry cleanup even when the associated job lease remains active; restrict stale cleanup consistently in recovery/claim and verify real PostgreSQL.",
+  "remaining":"Latest PG20/2 FAIL; official Medusa, browser and real Bend-to-plan acceptance not established",
+  "followupChanges":"Test harness compatibility and evidence closure after reviewed range are not a fresh final ship verdict.",
+  "localVerified":false,
+  "liveVerified":false
+}

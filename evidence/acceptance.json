@@ -65,16 +65,22 @@
     {
       "id": "ACC-008",
       "criterion": "Dos workers, mensajes duplicados y pérdida de respuesta no duplican efectos ni ocultan incertidumbre",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+      "status": "FAIL",
+      "evidence": [
+        "evidence/finish-lab.json",
+        "evidence/finish-regression.json"
+      ],
+      "note": "Latest isolated PostgreSQL run: 20 PASS / 2 FAIL; recovered pre-send execution becomes reconcile and does not complete. Active-capacity cleanup review remains fix-first."
     },
     {
       "id": "ACC-009",
       "criterion": "Caída y reinicio real de worker recupera o detiene de forma explícita; cierre del navegador no cancela implícitamente",
-      "status": "NOT_RUN",
-      "evidence": [],
-      "note": "Acceptance check pending integrated functional verification; partial unit evidence is not a complete pass."
+      "status": "FAIL",
+      "evidence": [
+        "evidence/finish-lab.json",
+        "evidence/finish-regression.json"
+      ],
+      "note": "Latest isolated PostgreSQL run: 20 PASS / 2 FAIL; recovered pre-send execution becomes reconcile and does not complete. Active-capacity cleanup review remains fix-first."
     },
     {
       "id": "ACC-010",

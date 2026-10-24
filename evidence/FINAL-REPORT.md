@@ -1,47 +1,50 @@
 # Informe de cierre — 2026-10-24
 
-**Estado: implementación integrada y publicada para continuar; INCOMPLETE. No LOCAL_VERIFIED, LIVE_VERIFIED ni PILOT_COMPLETE.** El usuario solicita cerrar y publicar, excluyendo los objetivos de rendimiento. Se conservan fallos y límites; no se presentan como pruebas pasadas.
+**INCOMPLETE / FIX-FIRST. No LOCAL_VERIFIED, LIVE_VERIFIED ni PILOT_COMPLETE.** Cierre y publicación solicitados explícitamente por el usuario para limitar tiempo y tokens. Baseline e77fe3f; bd7f3df conservado. Los resultados anteriores permanecen en Git y en sus evidencias originales.
 
-Repositorio público: https://github.com/Kripta-Studios/ChangeDesk-SDK-Handoff
+## Cambios integrados
 
-## Entregado
+- Bridge conserva incertidumbre ante HTTP 409; lectura acotada del error y reconciliación.
+- Replanificación limitada a efectos pendientes exactos; no incorpora productos excluidos ni repite efectos confirmados.
+- Normalización del cuerpo persistido del plan y regresiones para ejecución directa y por instalación.
+- Política proofRequired conectada al verificador revisado, evidencia privada ligada al plan y evidencia genérica separada; controles de publicación, admisión y worker. Alcance: modelo puro de asociaciones, no prueba de IO.
+- Migración 015 libera capacidad por identidad de jobs recuperados. Conserva los archivos de migración anteriores. Hay fallos pendientes descritos abajo.
+- Storefront conectado a sesiones customer, compradores sintéticos idempotentes Atlas/Boreal y E2E buyer ejecutable. Puerto 8001: 8000 pertenece a un servicio ajeno que no se alteró.
+- CI funcional ampliada, configuración de proveedor y orígenes corregida, runner oficial Medusa adaptado al entorno ESM/CJS.
+- Tarballs SDK/contracts actuales instalados en un consumidor aislado offline, incluido createMedusaBuyerSession.
 
-Cuatro workspaces, SDK React, chat/planner con Codex predeterminado y perfiles API configurables, recetas finitas validadas, preview/aprobación, jobs PostgreSQL, bridge/guard Medusa, catálogo firmado, ofertas, instalaciones y reutilización con bindings locales. Atlas y Boreal tienen datos ficticios y ocho actores con cuatro roles. La personalización de compradores y aprobación administrativa se integró desde main `bd7f3df`, preservando su evidencia y limitaciones.
+## Verificación de esta continuación
 
-La queja visual se corrigió en `d045249`: el CSS externo del plugin no se aplicaba en el host. La ruta ahora incluye CSS encapsulado, tabla legible y controles separados. El host se reconstruyó y reinició con este arreglo; no se obtuvo captura posterior de verificación visual antes del cierre.
-
-## Resultados acreditados
-
-| Comprobación | Resultado y alcance |
+| Gate | Resultado |
 |---|---|
-| Root SDK/runtime/bridge + storefront tras merge y arreglos finales | PASS:103 tests/23 archivos; no implica efectos en Medusa |
-| TypeScript del servicio | PASS, incluido merge de storefront |
-| PostgreSQL vertical | PASS con Fastify/storage/worker reales y proveedor/host fixture explícitos; ruta por instalación |
-| Catálogo ACL-first | PASS PostgreSQL: oferta autorizada, tenant sin grant vacío y retirada |
-| Medusa real | Build, migraciones, seed, health de dos hosts y baseline browser de login/selector/oráculo PASS |
-| Codex real | Un smoke semántico válido:13554 tokens entrada,227 salida,11705ms; modelo configurado gpt-6.1-sol, observado null, precio null |
-| Bend real | Kernel acepta leyes y rechaza mutante falso:2/2; solo modelo booleano puro |
-| Storefront independiente |58/58 declaradas en su entrega; tipos/buildSDK. Auth/logout y browser Medusa reales pendientes |
+| Suite combinada final SDK/runtime/bridge/storefront/recovery/tooling | PASS: 131/131, 27 archivos; dependencias controladas, no efectos Medusa |
+| CI funcional | PASS: 100/100, 22 archivos |
+| CI determinista y pins/tipos core/leyes | PASS: 61/61, 11 archivos |
+| Tipos servicio, SDK y E2E | PASS en las revisiones comprobadas |
+| Tarballs e imports/tipos/CSS/peers | PASS; parent repitió smoke del consumidor final |
+| Build del laboratorio | PASS registrado por integrador |
+| PostgreSQL real, última pasada | FAIL: 20 PASS / 2 FAIL de 22; ver finish-lab.json |
+| Runner oficial Medusa | Configuración/compatibilidad corregida; recorrido de 8 tests sin PASS acreditado tras el último arreglo |
+| Browser administrativo y buyer | NOT_RUN en esta continuación; fallo histórico administrativo conservado |
+| Bend conectado a plan con kernel real + PostgreSQL | NOT_RUN; wiring probado con verificador controlado, kernel histórico separado |
+| CI remota del nuevo commit | NOT_RUN al cerrar; workflows se activan con el push a main |
 
-La verificación combinada inicial falló por resolución de Fastify y entrypoint storefront no construido. Tras el alias portable y rebuild, el rerun final pasó103/103 en23archivos. Ver `parent-final-verification.json`.
+Los contadores corresponden a suites que se solapan; no sumarlos como pruebas únicas. Evidencias: finish-runtime.json, finish-buyer.json, finish-packaging.json, finish-lab.json, finish-regression.json y finish-parent-verification.json. La evidencia regression registra una pasada anterior 19/3; la última 20/2 de lab prevalece.
 
-## Pendiente o fallido
+## Pendientes concretos
 
-- El E2E completo sigue sin PASS: último resultado baseline1PASS, requester1FAIL antes de candidato, tres casos seriales no ejecutados. No acredita aprobación, efectos, reutilización ni recuperación end-to-end contra Medusa.
-- Bootstrap/session/create devolvieron200. El bloqueo observado de generación se diagnosticó con job pending/intento0. Después del reinicio final, environment observó el último job completed/intento1; no se repitió el recorrido browser hasta efectos.
-- La revisión Astra detectó ejecución directa sin instalación sin artefacto en bundle y error de job capaz de terminar el worker. `27b57bd` corrige ambos y pasa tests unitarios; falta regresión PostgreSQL directa y browser tras el arreglo.
-- Runner oficial Medusa: intentos anteriores ejecutaron cero tests por incompatibilidades de configuración Windows/ESM. Última corrección `209a057`, rerun no acreditado.
-- `proofRequired=true` aún no está conectado a verificación/evidencia de un plan real; el modo predeterminado false declara not_applicable. Kernel PASS no demuestra efectos del backend.
-- Evaluación adversarial independiente restante BLOCKED por filtro del runtime. Holdout permanece sellado y no ejecutado. No hay ASR live ni afirmación de inmunidad.
-- APIs pagadas y CI remoto no ejecutados. Configuración y tests con respuestas controladas no equivalen a llamadas API reales.
-- Rendimiento NOT_APPLICABLE por instrucción explícita del usuario; resultados históricos FAIL permanecen intactos.
+1. La recuperación de una ejecución interrumpida antes del envío la convierte en reconcile y termina partial/needs_review; dos regresiones PostgreSQL siguen fallando. Corregir distinguiendo trabajo no enviado de efecto incierto y repetir el gate aislado.
+2. Reviewer fresco fix-first: la limpieza por timestamp de capacity_leases puede liberar una reserva cuyo job sigue leased y vigente. Restringirla a jobs no activos/reconciliar ambos relojes, incluyendo claim y recovery, y demostrarlo con PostgreSQL. No editar migraciones ya aplicadas para ocultarlo.
+3. Repetir runner oficial Medusa después del último puente canonicalize. El mapper usa la dependencia declarada del plugin, no una dependencia root implícita. El smoke Jest del autor no sustituye los tests de comportamiento.
+4. Ejecutar E2E administrativo fake/live y buyer en ambas tiendas, con oráculo de efectos exactos, persistencia, logout y aislamiento. No hay captura posterior ni veredicto browser nuevo.
+5. Ejecutar kernel Bend real ligado a un plan PostgreSQL; la prueba controlada del wiring no acredita el kernel.
+6. Completar replay de checkout limpio/arranque y CI remota, actualizar acceptance con evidencia y obtener otra revisión final.
+7. Evaluación adversarial independiente/holdout continúa BLOCKED por filtro del runtime; no se reintentó ni reruteó. APIs pagadas no ejecutadas.
 
-## Revisión y continuación
+Rendimiento sigue NOT_APPLICABLE por instrucción explícita (ADR-012). No se instalaron dependencias nuevas ni se creó un quinto workspace. No se declara seguridad o escalabilidad por estas suites.
 
-Astra fresco, solo lectura: FIX-FIRST/INCOMPLETE. Revisión posterior acepta el arreglo de código P0, mantiene NO LOCAL_VERIFIED/NO LIVE_VERIFIED por falta de ejecución integrada. Ver `FINAL-REVIEW.json`, `acceptance.json`, `runtime-tdd.json`, `frontend-browser.md` y `SESSION-HANDOFF.md`.
+## Operación y publicación
 
-Arranque/configuración: [runbook](../docs/16-LOCAL-RUNBOOK.md). Demo: [Atlas](http://127.0.0.1:9001/app/changedesk) y [Boreal](http://127.0.0.1:9002/app/changedesk). Los secretos, credenciales y capturas privadas de diagnóstico quedan fuera de Git.
+Runbook: docs/16-LOCAL-RUNBOOK.md. Checkout operativo: .worktrees/environment; archivos privados permanecen ignorados. El integrador detuvo servicios propios durante la actualización y el coordinador solicitó restaurarlos al cierre; consultar finish-close-services.json para el resultado final. PostgreSQL permanece activo. Ningún servicio ajeno se detuvo.
 
-## Estado publicado final
-
-Main conserva bd7f3df y las personalizaciones de compradores. Se integraron los fixes visuales/runtime/provisioning sin force-push. Último estado local observado: Atlas9001/Boreal9002/API4100 health200, worker activo. La pantalla está abierta en la demo local; refrescar para cargar el CSS reconstruido. Los cambios sin commit de coordinación de la otra sesión se conservaron y no se publicaron indiscriminadamente.
+Se publica mediante push normal HEAD:main, sin force. Se preservan cambios previos del usuario en evidence/handoff-validation.json y evidence/BUYER-STOREFRONT-COORDINATION.md sin incluirlos indiscriminadamente.

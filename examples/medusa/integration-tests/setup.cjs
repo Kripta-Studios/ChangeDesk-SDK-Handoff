@@ -12,7 +12,7 @@ MetadataStorage.clear()
 // Jest patches even Module.createRequire().resolve through moduleNameMapper.
 // Address the workspace's pinned dependency by file and verify its manifest
 // before compiling, avoiding both the mapper recursion and an unpinned copy.
-const canonicalizeDir = resolve(__dirname, "../../../node_modules/canonicalize")
+const canonicalizeDir = resolve(__dirname, "../../../packages/medusa-plugin/node_modules/canonicalize")
 const canonicalizeManifest = JSON.parse(readFileSync(resolve(canonicalizeDir, "package.json"), "utf8"))
 if (canonicalizeManifest.name !== "canonicalize" || canonicalizeManifest.version !== "5.1.0") throw new Error("unexpected canonicalize test dependency")
 const canonicalizePath = resolve(canonicalizeDir, "lib/canonicalize.js")

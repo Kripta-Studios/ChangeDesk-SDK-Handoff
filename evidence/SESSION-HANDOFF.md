@@ -1,3 +1,12 @@
+# Último cierre solicitado — 2026-10-24
+
+Esta actualización prevalece sobre el historial siguiente. Continuación desde e77fe3f con agentes GPT-6.1 Sol medium por instrucción del usuario. Commits locales integrados; push normal a main solicitado, preservando bd7f3df y cambios ajenos sin commit.
+
+Suite final combinada131/131 PASS; funcional100/100 y determinista61/61 PASS, scopes solapados. SDK tarball consumidor limpio PASS. PostgreSQL último20/22 PASS y2FAIL: recuperación antes de envío se convierte en reconcile/partial. Reviewer fix-first además por limpieza de capacity lease aún activa. No LOCAL_VERIFIED/LIVE_VERIFIED. Runner Medusa y browser administrativo/buyer necesitan rerun; Bend real conectado a plan+PG NOT_RUN. Rendimiento excluido; evaluación adversarial bloqueada no reroute.
+
+Nueva migración015, storefront8001, buyers aprovisionados y configuración proofRequired implementada. Consultar FINAL-REPORT.md, finish-lab.json, finish-final-review.json y finish-parent-verification.json. Checkout operativo .worktrees/environment; resultado de restauración de procesos en finish-close-services.json. No reseedear ni limpiar datos ajenos. No afirmar que todos los gates están verdes por el push.
+
+---
 # Estado de implementación
 
 2026-10-24. EN CURSO. Aún no LOCAL_VERIFIED, LIVE_VERIFIED ni PILOT_COMPLETE. Leer Git antes de integrar. Este estado sustituye el historial acumulativo anterior.

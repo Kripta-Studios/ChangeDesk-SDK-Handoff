@@ -283,10 +283,10 @@
       "status": "review",
       "assignedAgent": "/root/final_review",
       "evidence": [
-        "evidence/FINAL-REVIEW.json",
+        "evidence/finish-final-review.json",
         "evidence/FINAL-REPORT.md"
       ],
-      "blocker": "FIX-FIRST: corrected P0 code needs integrated PostgreSQL/browser verification; user requests immediate publication with limitations.",
+      "blocker": "FIX-FIRST: final PostgreSQL 20/2 FAIL, active capacity cleanup finding, Medusa/browser/Bend-plan gates pending; user requests immediate close and push.",
       "model": "gpt-6-astra",
       "reasoningEffort": "high"
     }
