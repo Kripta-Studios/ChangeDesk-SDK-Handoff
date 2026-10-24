@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-24",
+  "source": "Astra architecture advisory live local probe; no raw transcript retained",
+  "cliVersion": "0.164.0",
+  "provider": "codex-cli",
+  "authentication": "existing CLI account; auth file not read or copied",
+  "model": "not_observed",
+  "result": "effective_tool_authority_denied",
+  "residualToolDefinitions": ["functions.exec"],
+  "observedToolDispatchSuccesses": 0,
+  "denial": "Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed",
+  "inputTokens": 104520,
+  "cachedInputTokens": 80128,
+  "outputTokens": 524,
+  "reasoningOutputTokens": 58,
+  "approximateWallSeconds": 30.01,
+  "price": null,
+  "scope": "local isolation feasibility probe only; not recipe generation, Medusa E2E or attack benchmark",
+  "requiredControls": ["ignore-user-config", "ignore-rules", "ephemeral", "read-only", "project_doc_max_bytes=0", "code_mode_host=false", "shell_tool=false", "unified_exec=false", "apps/plugins/MCP/web/computer/multi-agent disabled", "fixed argv and isolated cwd"],
+  "limitations": ["Configuration/version-specific; provider must probe again on change", "Large input-token overhead observed", "No zero-tool-definition claim", "No monetary cost estimate without known tariff"]
+}
