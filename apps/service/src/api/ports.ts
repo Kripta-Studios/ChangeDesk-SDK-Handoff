@@ -2,6 +2,7 @@ import type { ActorContext } from "../runtime/types.js";
 
 export interface MutationContext { actor: ActorContext; idempotencyKey: string; requestHash: string }
 export interface ApiOperations {
+  authorizeEffectClaim(input: Record<string, unknown>): Promise<unknown>;
   createRequest(context: MutationContext, input: unknown): Promise<unknown>;
   getRequest(actor: ActorContext, id: string): Promise<unknown | null>;
   addMessage(context: MutationContext, id: string, input: unknown): Promise<unknown>;
