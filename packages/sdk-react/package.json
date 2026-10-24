@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.json --emitDeclarationOnly",
+    "build": "vite build && tsc -b . --force",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {

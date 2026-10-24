@@ -21,6 +21,11 @@
       "observedGap": "The Medusa 2.22.1 CLI rejected examples/medusa/medusa-config.ts with ERR_REQUIRE_ESM when the standalone host package declared type=module.",
       "alternativesConsidered": ["Patch the Medusa loader", "Rename and rewrite configuration around the loader", "Use the CommonJS package mode required by the official loader"],
       "decision": "Remove type=module from the standalone example host package. The plugin package remains ESM."
+    },
+    "admin-export": {
+      "observedGap": "The official plugin build emits admin index.js, index.cjs, and index.css; the initial package export referenced absent index.mjs and mapped require to index.js.",
+      "alternativesConsidered": ["Rename official generated artifacts", "Add a duplicate shim", "Map conditional exports to the emitted artifacts"],
+      "decision": "Map import/default to index.js and require to index.cjs."
     }
   },
   "runtime": {

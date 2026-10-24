@@ -77,6 +77,14 @@
       "tests": 28,
       "durationSeconds": 9.48,
       "note": "post-merge verification with durable storage budget and ACL-first catalog migrations"
+    },
+    {
+      "command": "vitest run tests/planner --reporter dot",
+      "result": "PASS",
+      "files": 6,
+      "tests": 30,
+      "durationSeconds": 2.29,
+      "note": "includes production bootstrap fail-closed tests for fake and API modes"
     }
   ],
   "separation": {

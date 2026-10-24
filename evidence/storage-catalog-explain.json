@@ -26,6 +26,17 @@
     "improvementPercent": 78.93,
     "finding": "The SECURITY DEFINER function validates live tenant/actor scope, materializes only owner or positive unexpired grant IDs, excludes inactive artifacts, limits to 20, then joins publication metadata."
   },
+  "singleEndToEndRetest": {
+    "runId": "4049b5c3-8dd5-4620-8c79-55aa130569d6",
+    "status": "FAIL",
+    "catalogP50Ms": 691.7525,
+    "catalogP95Ms": 1191.1576,
+    "catalogErrors": 0,
+    "admissionP50Ms": 161.9021,
+    "admissionP95Ms": 426.0304,
+    "admissionErrors": 0,
+    "interpretation": "The shared lab was contended: both the changed catalog path and unchanged admission control regressed together. The isolated query improvement is real, but the end-to-end 250 ms gate remains failed. No opportunistic rerun was used."
+  },
   "securityProperties": [
     "No global-public artifact path was added.",
     "Expired grants and security_revoked artifacts are excluded by real PostgreSQL tests.",

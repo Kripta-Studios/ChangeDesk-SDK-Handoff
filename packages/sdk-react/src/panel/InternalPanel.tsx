@@ -22,7 +22,7 @@ const stateLabel: Record<string, string> = {
 function Status({ value }: { value: string }) { return <span className={`cd-status cd-status--${value}`}>{stateLabel[value] ?? value}</span>; }
 
 function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => void) | undefined; initialInstallationId?: string | undefined }) {
-  const { client, config, resume, remember, forget } = useChangeDesk();
+  const { client, config, bindScope, remember, forget } = useChangeDesk();
   const titleId = useId();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -59,6 +59,7 @@ function InternalPanel({ onClose, initialInstallationId }: { onClose?: (() => vo
   useEffect(() => {
     client.getInstallations().then(async (value) => {
       setInstallations(value.installations); setPermissions(value.permissions); setIdentity(value.identity);
+      const resume = bindScope(value.identity?.scopeId);
       if (initialInstallationId) await configureInstallation(initialInstallationId, value.installations);
       else if (resume.executionId) { setScreen("execution"); watchExecution(resume.executionId); }
       else if (resume.planId) { const saved = await client.getPlan(resume.planId); setPlan(saved); setScreen("plan"); }

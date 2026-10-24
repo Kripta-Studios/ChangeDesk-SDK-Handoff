@@ -21,6 +21,7 @@ import { productStepPreconditionFingerprint } from "../../../packages/medusa-plu
 medusaIntegrationTestRunner({
   testSuite: ({ api, getContainer }) => {
     let bearer = ""
+    let privilegedBearer = ""
     let actorId = ""
     let authorityServer: Server
     let productId = ""
@@ -29,6 +30,8 @@ medusaIntegrationTestRunner({
     let currentHostSessionId = "not-bootstrapped"
     const email = "operator.integration@example.test"
     const password = "integration-password-not-reused"
+    const privilegedEmail = "bootstrap.integration@example.test"
+    const privilegedPassword = "integration-bootstrap-password-not-reused"
 
     beforeAll(async () => {
       authorityServer = createServer((request, response) => {
@@ -55,6 +58,14 @@ medusaIntegrationTestRunner({
         },
       })
       actorId = user.id
+      const privilegedRegistration = await auth.register("emailpass", {
+        url: "http://127.0.0.1/auth/user/emailpass/register",
+        headers: {}, query: {}, protocol: "http", body: { email: privilegedEmail, password: privilegedPassword },
+      })
+      if (!privilegedRegistration.success || !privilegedRegistration.authIdentity?.id) throw new Error("bootstrap auth registration failed")
+      await createUserAccountWorkflow(container).run({
+        input: { authIdentityId: privilegedRegistration.authIdentity.id, userData: { email: privilegedEmail } },
+      })
       const { result: categories } = await createProductCategoriesWorkflow(container).run({
         input: { product_categories: [{ name: "Integration campaign", handle: `integration-${randomUUID()}`, is_active: true }] },
       })
@@ -80,6 +91,8 @@ medusaIntegrationTestRunner({
       bridge.getOptions().allowedChannelIds.push(channelId)
       const login = await api.post("/auth/user/emailpass", { email, password })
       bearer = login.data.token
+      const privilegedLogin = await api.post("/auth/user/emailpass", { email: privilegedEmail, password: privilegedPassword })
+      privilegedBearer = privilegedLogin.data.token
     })
 
     afterAll(async () => {
@@ -146,6 +159,10 @@ medusaIntegrationTestRunner({
       expect(first.data.result).toMatchObject({ observed: true, receipt: { status: "confirmed" } })
       const retry = await invoke({ ...claims, jti: randomUUID(), iat: now + 1, exp: now + 61 })
       expect(retry.data.result.receipt.id).toBe(first.data.result.receipt.id)
+      const bridge = getContainer().resolve(CHANGEDESK_MODULE) as ChangeDeskModuleService
+      const receipts = await bridge.listOperationReceipts({ tenant_id: "atlas", operation_key: claims.operationKey })
+      expect(receipts).toHaveLength(1)
+      expect(receipts[0]).toMatchObject({ status: "confirmed", product_id: productId, destination_id: categoryId })
       const query = getContainer().resolve(ContainerRegistrationKeys.QUERY)
       const observed = await query.graph({ entity: "product", fields: ["id", "categories.id"], filters: { id: productId } })
       expect(observed.data[0].categories.filter((item: { id: string }) => item.id === categoryId)).toHaveLength(1)
@@ -172,6 +189,41 @@ medusaIntegrationTestRunner({
         capability: claims.capability, args,
       }, { headers: { Authorization: `ChangeDesk-Delegation ${signEnvelope(claims, key)}` } })).rejects.toMatchObject({ response: { status: 409 } })
       await updateProductsWorkflow(getContainer()).run({ input: { products: [{ id: productId, status: "published" }] } })
+    })
+
+    it("serializes a privileged native status competitor with a bridge effect", async () => {
+      const args = { productId, channelId }
+      const previewed = await getProduct(getContainer() as never, productId)
+      const now = Math.floor(Date.now() / 1000)
+      const claims: EffectDelegationClaims = {
+        v: 1, typ: "changedesk.effect", iss: "integration-service", aud: "integration-plugin",
+        tenantId: "atlas", actorId, hostSessionId: currentHostSessionId, policyVersion: "changedesk-lab-v1",
+        adapterVersion: "medusa-2.22.1/changedesk-1", capability: "medusa.sales_channels.products.add",
+        argsHash: sha256Json(args), jti: randomUUID(), iat: now, exp: now + 60,
+        executionId: "exec-race", jobId: "job-race", leaseOwner: "worker-integration", rowId: "row-product", stepId: "channel",
+        planId: "plan-race", planHash: "e".repeat(64), planVersion: 1,
+        approvalId: "approval-race", approvalExpiresAt: now + 120,
+        semanticInputHash: "f".repeat(64), operationKey: "exec-race/row-product/channel", fence: 1,
+        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: productStepPreconditionFingerprint(previewed) },
+      }
+      const key = createPrivateKey(Buffer.from(process.env.CHANGEDESK_TEST_SERVICE_PRIVATE_KEY_PEM_BASE64!, "base64"))
+      const [nativeResult, effectResult] = await Promise.allSettled([
+        api.post(`/admin/products/${productId}`, { status: "draft" }, { headers: { Authorization: `Bearer ${privilegedBearer}` } }),
+        api.post("/changedesk/bridge/v1/commands", { capability: claims.capability, args }, {
+          headers: { Authorization: `ChangeDesk-Delegation ${signEnvelope(claims, key)}` },
+        }),
+      ])
+      expect(nativeResult.status).toBe("fulfilled")
+      const observed = await getProduct(getContainer() as never, productId)
+      expect(observed.status).toBe("draft")
+      const channelPresent = observed.sales_channels?.some(({ id }) => id === channelId) === true
+      if (effectResult.status === "fulfilled") {
+        expect(effectResult.value.data.result).toMatchObject({ observed: true, receipt: { status: "confirmed" } })
+        expect(channelPresent).toBe(true)
+      } else {
+        expect(effectResult.reason).toMatchObject({ response: { status: 409 } })
+        expect(channelPresent).toBe(false)
+      }
     })
 
   },
