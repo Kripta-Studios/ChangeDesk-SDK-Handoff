@@ -30,7 +30,8 @@ module.exports = {
   },
   testEnvironment: "node",
   moduleFileExtensions: ["js", "ts", "json"],
-  modulePathIgnorePatterns: ["dist/"],
+  roots: ["<rootDir>/tests/medusa/integration"],
+  modulePathIgnorePatterns: ["[\\/]dist[\\/]", "[\\/]\.medusa[\\/]"],
   setupFiles: ["<rootDir>/examples/medusa/integration-tests/setup.cjs"],
-  testMatch: ["<rootDir>/tests/medusa/integration/*.spec.ts"],
+  testRegex: "[\\/]tests[\\/]medusa[\\/]integration[\\/].*\\.spec\\.ts$",
 }
