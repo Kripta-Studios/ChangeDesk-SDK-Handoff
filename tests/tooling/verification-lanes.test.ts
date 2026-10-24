@@ -18,12 +18,18 @@ describe("CI lane contracts", () => {
     expect(args).toMatch(/tests\/storefront/);
     expect(args).toMatch(/tests\/planner/);
     expect(args).toMatch(/tests\/security/);
+    expect(args).toMatch(/tests\/recovery/);
+    expect(args).toMatch(/storefront-logout-middleware/);
     expect(args).not.toMatch(/live\.codex|\.integration|postgres\.live/);
   });
 
   it("keeps database, Medusa and browser execution out of the deterministic lane", () => {
     const names = verificationCommands("deterministic").map((command: { name: string }) => command.name).join(" ");
     expect(names).not.toMatch(/postgres|medusa|browser|playwright/i);
+  });
+
+  it("runs the official Medusa runner from the host project root", () => {
+    expect(verificationCommands("medusa")[0]).toMatchObject({ cwd: "examples/medusa" });
   });
 
   it("rejects an unknown lane instead of returning a green no-op", () => {

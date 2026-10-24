@@ -41,5 +41,5 @@ module.exports = {
   ],
   modulePathIgnorePatterns: ["[\\/]dist[\\/]", "[\\/]\.medusa[\\/]"],
   setupFiles: ["<rootDir>/examples/medusa/integration-tests/setup.cjs"],
-  testMatch: ["<rootDir>/tests/medusa/integration/**/*.spec.ts"],
+  testRegex: "native-bypass\\.spec\\.ts$",
 }

@@ -54,6 +54,7 @@ export async function verifyEvidenceDirectory(directory, profile = "ci-local") {
       Array.isArray(criterion?.evidence) && criterion.evidence.includes(PERFORMANCE_EXCLUSION_REFERENCE) &&
       typeof criterion?.note === "string" && /explicit user exclusion.*performance/i.test(criterion.note);
     if (typeof criterion?.id !== "string" || !/^ACC-\d{3}$/.test(criterion.id) || !STATUSES.has(criterion.status)) { errors.push("acceptance criterion has invalid id/status"); continue; }
+    if (criterion.status === "NOT_APPLICABLE" && !isExplicitPerformanceExclusion) errors.push(`${criterion.id} uses NOT_APPLICABLE without the explicit ACC-015/ADR-012 performance exclusion`);
     if (!Array.isArray(criterion.evidence) || criterion.evidence.length === 0) errors.push(`${criterion.id} has no evidence references`);
     else for (const reference of criterion.evidence) {
       if (typeof reference !== "string") { errors.push(`${criterion.id} evidence reference is invalid`); continue; }

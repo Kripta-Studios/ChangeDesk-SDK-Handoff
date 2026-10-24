@@ -29,8 +29,8 @@ export function verificationCommands(lane = "deterministic") {
     functional: [
       { name: "functional storefront, planner and backend security", command: process.execPath, args: [
         "node_modules/vitest/vitest.mjs", "run",
-        "tests/storefront/api-wiring.test.ts", "tests/storefront/backend-routes.test.ts", "tests/storefront/buyer-auth.test.ts", "tests/storefront/medusa-buyer-ticket.test.ts", "tests/storefront/medusa-session-registry.test.ts", "tests/storefront/sdk-admin-host.test.tsx", "tests/storefront/sdk-client.test.ts", "tests/storefront/sdk-ui.test.tsx",
-        "tests/planner/bootstrap.test.ts", "tests/planner/catalog.test.ts", "tests/planner/generation-worker.test.ts", "tests/planner/planner.test.ts", "tests/planner/providers.test.ts",
+        "tests/storefront", "tests/recovery", "tests/medusa/storefront-logout-middleware.test.ts",
+        "tests/planner",
         "tests/security/actual-fastify-attacks.test.ts", "tests/security/attack-corpus.test.ts", "tests/security/backend-effect-oracle.test.ts", "tests/security/change-impact.test.ts", "tests/security/coverage-report.test.ts", "tests/security/paired-metrics.test.ts",
         "--config", "vitest.config.ts", "--reporter=dot"
       ] }
@@ -39,7 +39,7 @@ export function verificationCommands(lane = "deterministic") {
       { name: "PostgreSQL storage and runtime integration", command: process.execPath, args: ["node_modules/vitest/vitest.mjs", "run", "tests/storage/store.integration.test.ts", "tests/runtime/real-pg-vertical.integration.test.ts", "tests/security/storage-operations-adversarial.integration.test.ts", "--config", "vitest.config.ts", "--reporter=dot"] }
     ],
     medusa: [
-      { name: "Medusa official integration runner", command: process.execPath, args: ["--experimental-vm-modules", "node_modules/jest/bin/jest.js", "--config", "examples/medusa/jest.config.cjs", "--runInBand", "--forceExit"] }
+      { name: "Medusa official integration runner", command: process.execPath, args: ["--experimental-vm-modules", "../../node_modules/jest/bin/jest.js", "--config", "jest.config.cjs", "--runInBand", "--forceExit"], cwd: "examples/medusa" }
     ],
     browser: [
       { name: "browser Atlas and Boreal E2E", command: process.execPath, args: ["node_modules/@playwright/test/cli.js", "test", "tests/e2e/changedesk.spec.ts", "--reporter=line"] }
