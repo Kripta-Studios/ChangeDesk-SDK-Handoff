@@ -40,7 +40,7 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
     const sessions = new SessionManager(new StorageSessionPersistence(apiStore), hostIdentity, { audience: "changedesk-test", issuers: ["fixture-host"], origins: ["http://runtime.test"], ticketMaxTtlSeconds: 60, sessionTtlSeconds: 300 });
     const connector = controlledHostFixture();
     const catalog = createProductionCatalog(apiStore, { publicationKeyId: "fixture-publication-key", publicationPrivateKey: publication.privateKey });
-    const operations = new StorageApiOperations(apiStore, connector as any, { [tenantId]: { category: ["category-1"], channel: [] } }, catalog, "fixture-publication-key");
+    const operations = new StorageApiOperations(apiStore, connector as any, { [tenantId]: { category: ["category-1"], channel: [] } }, catalog, "fixture-publication-key", undefined, false, "fake");
     const app = buildApi({ config: testConfig(), sessions, operations });
 
     const now = Math.floor(Date.now() / 1000);
