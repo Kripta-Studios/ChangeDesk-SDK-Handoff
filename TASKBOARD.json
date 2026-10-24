@@ -11,7 +11,10 @@
       "dependsOn": [],
       "status": "in_progress",
       "assignedAgent": "/root/environment",
-      "evidence": [],
+      "evidence": [
+        "evidence/environment.json",
+        "evidence/environment-green.txt"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -26,7 +29,11 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/medusa",
-      "evidence": [],
+      "evidence": [
+        "evidence/medusa-source-verification.json",
+        "evidence/medusa-tdd.json",
+        "evidence/medusa-license-scope.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -62,7 +69,8 @@
       "assignedAgent": "/root/storage",
       "evidence": [
         "evidence/storage-tdd.json",
-        "evidence/parent-integration-tests.json"
+        "evidence/parent-integration-tests.json",
+        "evidence/storage-catalog-explain.json"
       ],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -79,7 +87,9 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/runtime",
-      "evidence": [],
+      "evidence": [
+        "evidence/runtime-tdd.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -95,7 +105,10 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/frontend",
-      "evidence": [],
+      "evidence": [
+        "evidence/frontend-verification.json",
+        "evidence/frontend-packaging.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -110,7 +123,10 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/runtime",
-      "evidence": [],
+      "evidence": [
+        "evidence/runtime-tdd.json",
+        "evidence/security-t10-green.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -126,7 +142,9 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/planner",
-      "evidence": [],
+      "evidence": [
+        "evidence/planner-tdd.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -142,7 +160,10 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/planner",
-      "evidence": [],
+      "evidence": [
+        "evidence/planner-provider-verification.json",
+        "evidence/codex-isolation-feasibility.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -159,7 +180,10 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/frontend",
-      "evidence": [],
+      "evidence": [
+        "evidence/frontend-verification.json",
+        "evidence/frontend-browser.md"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -173,7 +197,7 @@
         "T06",
         "T08"
       ],
-      "status": "in_progress",
+      "status": "blocked",
       "assignedAgent": "/root/security",
       "evidence": [
         "evidence/security-attack-coverage.json",
@@ -194,7 +218,10 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/core",
-      "evidence": [],
+      "evidence": [
+        "evidence/laws-tdd.json",
+        "evidence/laws-decision.md"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -211,9 +238,11 @@
       "status": "in_progress",
       "assignedAgent": "/root/frontend",
       "evidence": [
-        "evidence/frontend-bundle.json"
+        "evidence/frontend-bundle.json",
+        "evidence/p8-performance-after-index.json",
+        "evidence/p8-performance-runs.md"
       ],
-      "blocker": null,
+      "blocker": "Full PostgreSQL benchmark FAIL: catalog p95 1191.1576 ms and admission p95 426.0304 ms; host overhead/fairness measurements still pending.",
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
     },
@@ -229,7 +258,9 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/core",
-      "evidence": [],
+      "evidence": [
+        "evidence/frontend-packaging.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
