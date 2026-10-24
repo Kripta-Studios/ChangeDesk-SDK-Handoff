@@ -34,12 +34,18 @@ export function sanitizeRecipeForPublication(source: Recipe): Recipe {
     throw new CatalogValidationError("PUBLICATION_UNVERIFIED_VERSION", "Recipe targets an unverified Medusa version");
   }
 
-  const sanitized = source.recipeKey === "catalog.campaign.prepare.v1" ? campaignRecipe(copy)
-    : source.recipeKey === "catalog.category.assign.v1" ? categoryRecipe(copy) : channelRecipe(copy);
+  const sanitized = canonicalGenericRecipe(source.recipeKey);
   if (JSON.stringify(semanticProjection(source)) !== JSON.stringify(semanticProjection(sanitized))) {
     throw new CatalogValidationError("PUBLICATION_SEMANTICS_MISMATCH", "Recipe semantics do not match its finite catalog key");
   }
   return sanitized;
+}
+
+export function canonicalGenericRecipe(recipeKey: RecipeKey): Recipe {
+  const copy = GENERIC_COPY[recipeKey];
+  if (recipeKey === "catalog.campaign.prepare.v1") return campaignRecipe(copy);
+  if (recipeKey === "catalog.category.assign.v1") return categoryRecipe(copy);
+  return channelRecipe(copy);
 }
 
 function semanticProjection(recipe: Recipe) {
