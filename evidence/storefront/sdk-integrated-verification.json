@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-10-24T15:09:00+02:00",
+  "integratedWorktree": ".worktrees/buyer-storefront",
+  "integratedHead": "e63f497",
+  "scope": "read-only source verification; commands produced only normal build outputs and local node_modules resolution links",
+  "environment": {
+    "node": "22.23.4",
+    "vitest": "4.0.16",
+    "vite": "7.3.7",
+    "typescript": "5.9.3"
+  },
+  "checks": [
+    {
+      "command": "vitest run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx",
+      "status": "passed",
+      "result": "2 files, 11 tests"
+    },
+    {
+      "command": "tsc -p packages/sdk-react/tsconfig.json --noEmit",
+      "status": "passed_after_environment_resolution"
+    },
+    {
+      "command": "vite build in packages/sdk-react; tsc --emitDeclarationOnly",
+      "status": "passed",
+      "result": "default index.js 0.32 kB; storefront.js 18.56 kB (5.26 gzip); storefront.css 6.11 kB (1.70 gzip); declarations emitted under dist/storefront"
+    },
+    {
+      "command": "npm pack --dry-run --json",
+      "status": "passed",
+      "result": "38 files; storefront JS, CSS and declaration files included; package size 57,017 bytes, unpacked 211,053 bytes"
+    },
+    {
+      "command": "Node ESM import smoke for dist/index.js and dist/storefront.js plus package export/peer checks",
+      "status": "passed",
+      "result": "main exports, storefront exports, storefront CSS, subpath exports and @changedesk/contracts peer all present; default entry contains no storefront implementation symbol"
+    }
+  ],
+  "environmentObservation": "The first integrated typecheck resolved @changedesk/contracts through the ancestor repository's stale dist and failed with missing storefront type exports. Building the integrated contracts project and adding a package-local node_modules junction to that same integrated package resolved the environment without source or Git changes; typecheck then passed.",
+  "workingTreeObservation": "Before and after verification, the only reported source status was packages/medusa-plugin/src/admin/routes/changedesk-storefront/ untracked, owned by the concurrent backend implementer and left untouched."
+}

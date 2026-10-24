@@ -1,0 +1,31 @@
+{
+  "recordedAt": "2026-10-24T15:41:00+02:00",
+  "baseline": "a849cef on fix/storefront-admin-session",
+  "scope": "automatic private-state invalidation after authenticated storefront API returns HTTP 401",
+  "red": {
+    "command": "vitest run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx",
+    "result": "3 failed, 13 passed",
+    "failures": [
+      "buyer client returned StorefrontApiError 401 but did not notify invalidation listeners",
+      "buyer preferences, draft and dark preview remained visible after save returned 401",
+      "administrator Atlas proposal remained visible after approve returned 401"
+    ]
+  },
+  "green": {
+    "command": "vitest run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx tests/storefront/sdk-admin-host.test.tsx",
+    "result": "3 files, 17 tests passed",
+    "assertions": [
+      "the triggering request preserves its StorefrontApiError status, code and safe message for the caller",
+      "HTTP 401 increments transport generation, drops cached and pending session state, aborts active requests and synchronously notifies listeners",
+      "buyer preferences and draft disappear immediately and the opt-in root returns to defaults",
+      "administrator proposals disappear immediately",
+      "a concurrent response that resolves after the 401 is rejected as AbortError and cannot repopulate private state"
+    ]
+  },
+  "typecheck": {
+    "command": "tsc -p packages/sdk-react/tsconfig.json --noEmit",
+    "status": "passed"
+  },
+  "notRun": ["browser live", "tarball consumer", "Medusa real auth"],
+  "note": "No new dependency, endpoint, authority or browser storage was introduced. Explicit clearSession and server 401 now share the same finite invalidation path."
+}

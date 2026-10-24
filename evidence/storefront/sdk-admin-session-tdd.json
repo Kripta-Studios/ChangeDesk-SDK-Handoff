@@ -1,0 +1,45 @@
+{
+  "recordedAt": "2026-10-24T15:36:00+02:00",
+  "baseline": "e8a4e5b",
+  "scope": "administrator SDK/UI session invalidation and Medusa admin host revalidation",
+  "red": {
+    "clientCommand": "vitest run tests/storefront/sdk-client.test.ts",
+    "clientResult": "1 failed, 3 passed: createStorefrontAdminClient did not expose subscribeSessionInvalidation",
+    "uiCommand": "vitest run tests/storefront/sdk-ui.test.tsx",
+    "uiResult": "2 failed, 7 passed: a resolved Atlas card remained after same-client clearSession and a late list response repopulated Atlas state"
+  },
+  "green": {
+    "command": "vitest run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx tests/storefront/sdk-admin-host.test.tsx",
+    "result": "3 files, 14 tests passed",
+    "covered": [
+      "admin invalidation subscription fires from clearSession",
+      "resolved tenant proposals disappear immediately on same-client clearSession",
+      "a list response arriving after invalidation cannot repopulate proposal state",
+      "stale proposal decisions cannot update the panel after its session epoch changes",
+      "Medusa host focus creates a new admin client, clears the old client and obtains a fresh server-authenticated session before listing"
+    ]
+  },
+  "typeChecks": [
+    {
+      "command": "tsc -p packages/sdk-react/tsconfig.json --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --jsx react-jsx --strict --skipLibCheck --esModuleInterop --types vite/client packages/medusa-plugin/src/admin/routes/changedesk-storefront/page.tsx packages/medusa-plugin/src/admin/changedesk-config.ts",
+      "status": "passed",
+      "prerequisite": "SDK declarations emitted locally first"
+    },
+    {
+      "command": "medusa plugin:build",
+      "status": "blocked",
+      "reason": "the shared pre-existing Medusa dependency tree is incomplete (@medusajs/utils dist/bundles.js requires missing ./user); no dependency installation or gate relaxation was attempted"
+    }
+  ],
+  "hostSignal": {
+    "verified": "browser focus causes a second config.getSession call and list request with a new bearer session while the page remains mounted",
+    "mechanism": "focus, pageshow and visible-page visibilitychange; bounded 60-second revalidation while visible",
+    "securityBoundary": "each revalidation calls the existing /admin/changedesk/session bridge through config.getSession; no token, role or identity is read from browser storage",
+    "limitation": "Medusa Admin SDK 2.22.1 exposes no supported session/user identity hook to this extension. The integration therefore invalidates conservatively on host re-entry and within 60 seconds while visible; it does not claim an instantaneous identity-change event from Medusa. Normal logout/navigation also unmounts and clears the client."
+  },
+  "notClaimed": ["Medusa real browser authentication E2E", "instantaneous cross-tab identity notification", "plugin build PASS in the incomplete shared dependency installation"]
+}

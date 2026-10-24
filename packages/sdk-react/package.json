@@ -9,6 +9,13 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./storefront": {
+      "types": "./dist/storefront/index.d.ts",
+      "import": "./dist/storefront.js"
+    },
+    "./storefront.css": {
+      "default": "./dist/storefront.css"
     }
   },
   "scripts": {

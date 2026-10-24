@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-10-24T15:41:20+02:00",
+  "scope": "HTTP protocol behavior only; this is not a performance benchmark",
+  "red": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/api-wiring.test.ts --maxWorkers=1",
+    "result": "1 failed, 2 passed",
+    "expectedReason": "the second real BuyerSessionManager exchange returned controlled 429 session_capacity but omitted Retry-After"
+  },
+  "green": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/api-wiring.test.ts --maxWorkers=1",
+    "result": "3 passed, duration 0.848s",
+    "serviceTypecheck": "passed"
+  },
+  "assertions": [
+    "first signed buyer ticket exchange succeeds",
+    "second distinct signed ticket at maxSessions=1 returns 429",
+    "Retry-After is exactly 60 seconds",
+    "error remains session_capacity and retryable true"
+  ]
+}

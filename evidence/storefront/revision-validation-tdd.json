@@ -1,0 +1,10 @@
+{
+  "recordedAt": "2026-10-24T15:33:25+02:00",
+  "red": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/backend-routes.test.ts",
+    "result": "negative admin revisions reached the repository and returned 404 instead of validation 422"
+  },
+  "green": {
+    "result": "negative and unsafe proposal/global revisions return 422; approveProposal and rejectProposal spies record no calls"
+  }
+}
