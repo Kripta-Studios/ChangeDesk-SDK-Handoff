@@ -1,4 +1,5 @@
 import { medusaIntegrationTestRunner } from "@medusajs/test-utils"
+import { jest } from "@jest/globals"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import {
   createProductCategoriesWorkflow,
