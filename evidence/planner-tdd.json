@@ -12,6 +12,11 @@
       "behavior": "publication key cannot disguise a different capability/step graph",
       "command": "esbuild catalog.test.ts then node --test",
       "result": "FAIL as expected: missing PUBLICATION_SEMANTICS_MISMATCH; 4 passed, 1 failed"
+    },
+    {
+      "behavior": "API proposal parser rejects extra fields and preserves measured usage on rejection",
+      "command": "vitest run tests/planner/providers.test.ts",
+      "result": "FAIL as expected: response containing unexpected=true was accepted; 7 passed, 1 failed"
     }
   ],
   "green": [
@@ -32,6 +37,13 @@
       "observedModel": "not_observed_by_codex_jsonl",
       "tokenMetric": {"input":13554,"cachedInput":0,"output":227,"reasoningOutput":0},
       "priorRejectedAttempt": {"input":11747,"cachedInput":0,"output":294,"reasoningOutput":64}
+    },
+    {
+      "command": "vitest run tests/planner/providers.test.ts",
+      "result": "PASS",
+      "files": 1,
+      "tests": 8,
+      "durationSeconds": 8.48
     }
   ],
   "separation": {

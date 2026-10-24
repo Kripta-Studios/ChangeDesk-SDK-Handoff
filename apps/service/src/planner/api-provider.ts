@@ -39,10 +39,15 @@ export class BudgetedApiPlannerProvider implements PlannerProvider {
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),this.config.timeoutMs),onAbort=()=>controller.abort();signal?.addEventListener("abort",onAbort,{once:true});const started=this.clock();
     try{const response=await this.fetchImpl(this.config.endpoint,{method:"POST",redirect:"error",headers:{authorization:`Bearer ${key}`,"content-type":"application/json"},body:JSON.stringify(body),signal:controller.signal});
       if(!response.ok)throw new PlannerProviderError("PROVIDER_HTTP_ERROR",`Provider returned HTTP ${response.status}`,response.status>=500||response.status===429,[emptyUsage(this.config,Math.max(0,this.clock()-started))]);
-      const decoded=JSON.parse(await readBounded(response,this.config.maxResponseBytes)) as Record<string,unknown>,proposal=JSON.parse(extractText(decoded,this.config.protocol)) as ProviderProposal;
-      if(!validProposal(proposal))throw new PlannerProviderError("PROVIDER_OUTPUT_INVALID","Provider output does not match closed shape",false);
+      const decoded=JSON.parse(await readBounded(response,this.config.maxResponseBytes)) as Record<string,unknown>;
       const counts=extractUsage(decoded),price=this.config.tariff&&counts.inputTokens!==null&&counts.outputTokens!==null?{value:(counts.inputTokens*this.config.tariff.inputPerMillionUsd+counts.outputTokens*this.config.tariff.outputPerMillionUsd)/1_000_000,currency:"USD",tariffDate:this.config.tariff.date}:null;
-      return{proposal,usage:{provider:this.config.provider,configuredModel:this.config.model,observedModel:typeof decoded.model==="string"?decoded.model:null,calls:1,...counts,latencyMs:Math.max(0,this.clock()-started),price,live:true}};
+      const measuredUsage:ProviderUsage={provider:this.config.provider,configuredModel:this.config.model,observedModel:typeof decoded.model==="string"?decoded.model:null,calls:1,...counts,latencyMs:Math.max(0,this.clock()-started),price,live:true};
+      let rawProposal:unknown;
+      try { rawProposal=JSON.parse(extractText(decoded,this.config.protocol)); }
+      catch { throw new PlannerProviderError("PROVIDER_OUTPUT_INVALID","Provider output was not valid proposal JSON",false,[measuredUsage]); }
+      const proposal=parseProposal(rawProposal);
+      if(!proposal)throw new PlannerProviderError("PROVIDER_OUTPUT_INVALID","Provider output does not match closed shape",false,[measuredUsage]);
+      return{proposal,usage:measuredUsage};
     }catch(error){if(error instanceof PlannerProviderError)throw error;throw new PlannerProviderError(controller.signal.aborted?"PROVIDER_TIMEOUT":"PROVIDER_OUTPUT_INVALID","Provider request failed",controller.signal.aborted);}finally{clearTimeout(timeout);signal?.removeEventListener("abort",onAbort);}
   }
 }
@@ -55,5 +60,12 @@ function providerSchema(){const{$schema:_s,$id:_i,title:_t,$defs,...recipe}=reci
 async function readBounded(response:Response,limit:number){if(!response.body)throw new PlannerProviderError("PROVIDER_OUTPUT_INVALID","Provider returned no body",false);const reader=response.body.getReader(),chunks:Uint8Array[]=[];let total=0;for(;;){const{done,value}=await reader.read();if(done)break;if(value){total+=value.byteLength;if(total>limit){await reader.cancel();throw new PlannerProviderError("PROVIDER_OUTPUT_LIMIT","Provider response exceeded byte limit",false);}chunks.push(value);}}const merged=new Uint8Array(total);let offset=0;for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.byteLength;}return new TextDecoder().decode(merged);}
 function extractText(v:Record<string,unknown>,p:ApiProviderConfig["protocol"]){if(p==="chat-completions"){const m=((v.choices as Array<Record<string,unknown>>)?.[0]?.message) as Record<string,unknown>|undefined;if(typeof m?.content==="string")return m.content;}if(typeof v.output_text==="string")return v.output_text;for(const item of (v.output as Array<Record<string,unknown>>|undefined)??[])for(const part of (item.content as Array<Record<string,unknown>>|undefined)??[])if(typeof part.text==="string")return part.text;throw new Error("missing output");}
 function extractUsage(v:Record<string,unknown>){const u=v.usage as Record<string,unknown>|undefined;return{inputTokens:num(u?.input_tokens??u?.prompt_tokens),cachedInputTokens:num((u?.input_tokens_details as Record<string,unknown>|undefined)?.cached_tokens),outputTokens:num(u?.output_tokens??u?.completion_tokens),reasoningOutputTokens:num((u?.output_tokens_details as Record<string,unknown>|undefined)?.reasoning_tokens)};}function num(v:unknown){return typeof v==="number"&&Number.isFinite(v)?v:null;}
-function validProposal(v:unknown):v is ProviderProposal{if(!v||typeof v!=="object")return false;const i=v as Record<string,unknown>;return i.kind==="candidate"?!!i.recipe&&typeof i.recipe==="object":(i.kind==="needs_clarification"||i.kind==="unsupported")&&typeof i.safeMessage==="string"&&i.safeMessage.length<=500;}
+function parseProposal(v:unknown):ProviderProposal|null{
+  if(!v||typeof v!=="object"||Array.isArray(v))return null;
+  const i=v as Record<string,unknown>,keys=Object.keys(i).sort();
+  if(JSON.stringify(keys)!==JSON.stringify(["kind","recipe","safeMessage"]))return null;
+  if(i.kind==="candidate"&&i.recipe!==null&&typeof i.recipe==="object"&&i.safeMessage===null)return{kind:"candidate",recipe:i.recipe};
+  if((i.kind==="needs_clarification"||i.kind==="unsupported")&&i.recipe===null&&typeof i.safeMessage==="string"&&i.safeMessage.length<=500)return{kind:i.kind,safeMessage:i.safeMessage};
+  return null;
+}
 function emptyUsage(c:ApiProviderConfig,latencyMs:number):ProviderUsage{return{provider:c.provider,configuredModel:c.model,observedModel:null,calls:1,inputTokens:null,cachedInputTokens:null,outputTokens:null,reasoningOutputTokens:null,latencyMs,price:null,live:true};}
