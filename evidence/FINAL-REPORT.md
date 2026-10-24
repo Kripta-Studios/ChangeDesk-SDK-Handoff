@@ -8,13 +8,13 @@ Repositorio público: https://github.com/Kripta-Studios/ChangeDesk-SDK-Handoff
 
 Cuatro workspaces, SDK React, chat/planner con Codex predeterminado y perfiles API configurables, recetas finitas validadas, preview/aprobación, jobs PostgreSQL, bridge/guard Medusa, catálogo firmado, ofertas, instalaciones y reutilización con bindings locales. Atlas y Boreal tienen datos ficticios y ocho actores con cuatro roles. La personalización de compradores y aprobación administrativa se integró desde main `bd7f3df`, preservando su evidencia y limitaciones.
 
-La queja visual se corrigió en `d045249`: el CSS externo del plugin no se aplicaba en el host. La ruta ahora incluye CSS encapsulado, tabla legible y controles separados. La captura final se documenta en la evidencia frontend cuando esté disponible.
+La queja visual se corrigió en `d045249`: el CSS externo del plugin no se aplicaba en el host. La ruta ahora incluye CSS encapsulado, tabla legible y controles separados. El host se reconstruyó y reinició con este arreglo; no se obtuvo captura posterior de verificación visual antes del cierre.
 
 ## Resultados acreditados
 
 | Comprobación | Resultado y alcance |
 |---|---|
-| Root SDK/runtime/bridge unitarios tras corrección crítica | PASS:60 tests/15 archivos; no implica efectos en Medusa |
+| Root SDK/runtime/bridge + storefront tras merge y arreglos finales | PASS:103 tests/23 archivos; no implica efectos en Medusa |
 | TypeScript del servicio | PASS, incluido merge de storefront |
 | PostgreSQL vertical | PASS con Fastify/storage/worker reales y proveedor/host fixture explícitos; ruta por instalación |
 | Catálogo ACL-first | PASS PostgreSQL: oferta autorizada, tenant sin grant vacío y retirada |
@@ -23,12 +23,12 @@ La queja visual se corrigió en `d045249`: el CSS externo del plugin no se aplic
 | Bend real | Kernel acepta leyes y rechaza mutante falso:2/2; solo modelo booleano puro |
 | Storefront independiente |58/58 declaradas en su entrega; tipos/buildSDK. Auth/logout y browser Medusa reales pendientes |
 
-La última verificación combinada posterior al merge storefront encontró dependencias de resolución de test/build pendientes; conservar el resultado del rerun final en la evidencia, sin sumar números incompatibles como una única suite.
+La verificación combinada inicial falló por resolución de Fastify y entrypoint storefront no construido. Tras el alias portable y rebuild, el rerun final pasó103/103 en23archivos. Ver `parent-final-verification.json`.
 
 ## Pendiente o fallido
 
 - El E2E completo sigue sin PASS: último resultado baseline1PASS, requester1FAIL antes de candidato, tres casos seriales no ejecutados. No acredita aprobación, efectos, reutilización ni recuperación end-to-end contra Medusa.
-- Bootstrap/session/create devolvieron200 en el último diagnóstico; la solicitud quedó `received` y su job `pending` con intento0. El worker y el despliegue necesitan verificación final tras reconstrucción/reinicio.
+- Bootstrap/session/create devolvieron200. El bloqueo observado de generación se diagnosticó con job pending/intento0. Después del reinicio final, environment observó el último job completed/intento1; no se repitió el recorrido browser hasta efectos.
 - La revisión Astra detectó ejecución directa sin instalación sin artefacto en bundle y error de job capaz de terminar el worker. `27b57bd` corrige ambos y pasa tests unitarios; falta regresión PostgreSQL directa y browser tras el arreglo.
 - Runner oficial Medusa: intentos anteriores ejecutaron cero tests por incompatibilidades de configuración Windows/ESM. Última corrección `209a057`, rerun no acreditado.
 - `proofRequired=true` aún no está conectado a verificación/evidencia de un plan real; el modo predeterminado false declara not_applicable. Kernel PASS no demuestra efectos del backend.
@@ -41,3 +41,7 @@ La última verificación combinada posterior al merge storefront encontró depen
 Astra fresco, solo lectura: FIX-FIRST/INCOMPLETE. Revisión posterior acepta el arreglo de código P0, mantiene NO LOCAL_VERIFIED/NO LIVE_VERIFIED por falta de ejecución integrada. Ver `FINAL-REVIEW.json`, `acceptance.json`, `runtime-tdd.json`, `frontend-browser.md` y `SESSION-HANDOFF.md`.
 
 Arranque/configuración: [runbook](../docs/16-LOCAL-RUNBOOK.md). Demo: [Atlas](http://127.0.0.1:9001/app/changedesk) y [Boreal](http://127.0.0.1:9002/app/changedesk). Los secretos, credenciales y capturas privadas de diagnóstico quedan fuera de Git.
+
+## Estado publicado final
+
+Main conserva bd7f3df y las personalizaciones de compradores. Se integraron los fixes visuales/runtime/provisioning sin force-push. Último estado local observado: Atlas9001/Boreal9002/API4100 health200, worker activo. La pantalla está abierta en la demo local; refrescar para cargar el CSS reconstruido. Los cambios sin commit de coordinación de la otra sesión se conservaron y no se publicaron indiscriminadamente.

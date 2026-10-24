@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-24",
+  "sourceCommit": "3c1c9b3536b6d6b9330761241bb8f10343083c22",
+  "command": "node node_modules/vitest/vitest.mjs run tests/sdk apps/service/tests/runtime tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts tests/storefront --reporter=dot",
+  "status": "PASS",
+  "testFiles": 23,
+  "tests": 103,
+  "failed": 0,
+  "scope": "Unit and integration-with-controlled-ports suite after merging origin/main storefront, visual correction and runtime/provisioning fixes. No Medusa effect/browser/live acceptance claim.",
+  "serviceTypecheck": "PASS after storefront merge",
+  "sdkBuild": "PASS after storefront merge",
+  "remoteCi": "NOT_RUN"
+}
