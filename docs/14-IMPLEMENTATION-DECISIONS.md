@@ -97,3 +97,17 @@ La composición de producción usa una única reserva durable del procesador com
 ## ADR-014 — Identidad y versión del adaptador en el manifiesto
 
 La composición real detectó que generación comparaba `capabilityManifest.adapterVersion` con el ID `medusa-v2`, mientras planes y bridge utilizan la versión `medusa-2.22.1/changedesk-1`. El campo de versión conserva semántica de versión: `adapterVersion = medusa-2.22.1/changedesk-1`. El cuerpo del manifiesto declara por separado `adapter = medusa-v2`, `capabilityContract = 1` y `verifiedMedusaVersion = 2.22.1`. Generación comprueba los cuatro valores; aprovisionamiento, plan y bridge usan el mismo contrato. Las fixtures de tests se corrigen y no se aceptan manifiestos con ID en lugar de versión. No se cambian hashes históricos ni planes existentes para ocultar la discrepancia.
+
+## ADR-015 — Evidencia de leyes vinculada al plan
+
+Carencia observada: activar `proofRequired` bloqueaba todos los planes porque la composición siempre proporcionaba evidencia `blocked`, aunque existe un verificador revisado. Se conecta ese verificador mediante configuración confiable del servidor; no se añaden dependencias ni se modifican leyes para obtener verde.
+
+Antes de verificar, el servidor reserva una referencia opaca de evidencia y compila el plan con esa referencia. El hash final del plan se entrega a `LawVerifier` junto con artefacto y versión de política. Así no hay dependencia circular entre el hash y el contenido de la evidencia. Solo un resultado `verified` con bindings y versiones exactos puede persistirse como `passed`; evidencia y plan listo se guardan transaccionalmente. Ausencia, fallo o indisponibilidad del verificador bloquean el plan requerido. La ejecución comprueba evidencia aplicable al plan; publicación requerida valida evidencia aplicable sin publicar planes, identidad ni datos privados.
+
+El alcance `association-set-laws-v1` conserva las leyes del modelo puro revisado en `evidence/laws-decision.md`. No demuestra autenticación, IO, traducción ni efectos de Medusa. Los resultados de prueba controlados no acreditan ejecución del kernel. Cambios de artefacto, política o versiones aplicables invalidan la evidencia; `proofRequired=false` mantiene su alcance explícito sin invocar Bend.
+
+## ADR-016 — Storefront real del laboratorio
+
+El consumidor comprador se sirve en `http://127.0.0.1:8000`, con selección explícita de Atlas o Boreal y autenticación customer por cookie. Los orígenes confiables del host y la API incluyen exactamente ese origen local junto a los administrativos. Se conservan las audiencias e identidades separadas de buyer y staff, la protección CSRF y el catálogo finito de preferencias. La configuración de puerto/origen y arranque pertenece al laboratorio; el ejemplo no crea otro workspace fuente.
+
+Los compradores sintéticos se aprovisionan de forma idempotente y sus credenciales se guardan únicamente en archivos locales ignorados. No se reseedea ni borra el namespace activo para añadir compradores. El fixture visual, cuando se utilice, permanece explícitamente separado del modo conectado y no acredita el gate Medusa real.
