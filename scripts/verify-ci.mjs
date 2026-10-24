@@ -39,7 +39,7 @@ export function verificationCommands(lane = "deterministic") {
       { name: "PostgreSQL storage and runtime integration", command: process.execPath, args: ["node_modules/vitest/vitest.mjs", "run", "tests/storage/store.integration.test.ts", "tests/runtime/real-pg-vertical.integration.test.ts", "tests/security/storage-operations-adversarial.integration.test.ts", "tests/planner/catalog.pg.integration.test.ts", "--config", "vitest.config.ts", "--reporter=dot", "--no-file-parallelism"] }
     ],
     medusa: [
-      { name: "Medusa official integration runner", command: process.execPath, args: ["../../node_modules/jest/bin/jest.js", "--config", "jest.config.cjs", "--runInBand", "--forceExit"], cwd: "examples/medusa" }
+      { name: "Medusa official integration runner", command: process.execPath, args: ["--experimental-vm-modules", "../../node_modules/jest/bin/jest.js", "--config", "jest.config.cjs", "--runInBand", "--forceExit"], cwd: "examples/medusa" }
     ],
     browser: [
       { name: "browser Atlas and Boreal E2E", command: process.execPath, args: ["node_modules/@playwright/test/cli.js", "test", "tests/e2e/changedesk.spec.ts", "--reporter=line"] }
