@@ -117,8 +117,18 @@ export interface InstallationResult {
   readonly state: "active";
 }
 
+export interface InstallationOffer {
+  readonly artifactHash: string;
+  readonly displayName: string;
+  readonly version: string;
+  readonly recipeKey: RecipeKey;
+  readonly requiredParameters: Candidate["missingParameters"];
+  readonly evidenceStatus: Candidate["evidenceStatus"];
+}
+
 export interface CatalogPort {
   searchAuthorized(query: CatalogSearchQuery): Promise<readonly Candidate[]>;
+  discoverInstallOffers(query: CatalogSearchQuery): Promise<readonly InstallationOffer[]>;
   getAuthorized(actor: ActorContext, publicationId: string): Promise<Candidate | null>;
   publishAuthorized(input: PublishInput): Promise<PublicationResult>;
   installAuthorized(input: InstallInput): Promise<InstallationResult>;

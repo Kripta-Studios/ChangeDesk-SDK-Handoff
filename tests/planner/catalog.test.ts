@@ -61,6 +61,13 @@ test("installation verifies active Ed25519 key and keeps local bindings separate
   repo.key={...repo.key!,status:"revoked"};await assert.rejects(service.installAuthorized({...common,bindings:{categoryId:"other"},idempotencyKey:"i2"}),(error:any)=>error.code==="PUBLICATION_SIGNATURE_INVALID");
 });
 
+test("discovery returns only generic signed compatible install metadata",async()=>{
+  const {repo,service}=fixture();await service.publishAuthorized({actor:atlas,sourceArtifactHash:"private-hash",visibility:"shared_allowlist",allowedTenantIds:["boreal"],consent:true,keyId:"key-1",idempotencyKey:"offer"});
+  const offers=await (service as any).discoverInstallOffers({actor:boreal,adapter:{id:"medusa-v2",capabilityContract:"1",version:"2.22.1"},approvedCapabilities:recipe.requiredCapabilities,limit:20});
+  assert.deepEqual(Object.keys(offers[0]).sort(),["artifactHash","displayName","evidenceStatus","recipeKey","requiredParameters","version"]);assert.deepEqual(offers[0].requiredParameters,["categoryId"]);assert.equal(JSON.stringify(offers).includes("atlas"),false);
+  repo.key={...repo.key!,status:"revoked"};assert.deepEqual(await (service as any).discoverInstallOffers({actor:boreal,adapter:{id:"medusa-v2",capabilityContract:"1",version:"2.22.1"},approvedCapabilities:recipe.requiredCapabilities}),[]);
+});
+
 test("admin can install an owned validated generic private artifact without a publication",async()=>{
   const {service}=fixture();const installed=await service.installAuthorized({actor:atlas,artifactHash:"private-hash",bindings:{categoryId:"atlas-category"},policyVersion:"policy-1",idempotencyKey:"private-i",adapter:{id:"medusa-v2",capabilityContract:"1",version:"2.22.1"},approvedCapabilities:recipe.requiredCapabilities,allowedResourceIds:{categoryId:["atlas-category"],channelId:[]}});assert.equal(installed.artifactHash,"private-hash");
 });

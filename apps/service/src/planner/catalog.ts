@@ -1,7 +1,7 @@
 import type { ActorContext, Candidate, CapabilityId, Permission, Recipe } from "@changedesk/contracts";
 import type { ArtifactIdentity, CanonicalEncoder, CatalogArtifactRecord, CatalogRepository, PublicationSigner } from "./catalog-repository.js";
 import { publicationEnvelope, sanitizeRecipeForPublication, verifyPublicationSignature, type SignatureEnvelope } from "./publication.js";
-import type { CatalogPort, CatalogSearchQuery, InstallInput, InstallationResult, PublicationMutationInput, PublicationResult, PublishInput } from "./types.js";
+import type { CatalogPort, CatalogSearchQuery, InstallationOffer, InstallInput, InstallationResult, PublicationMutationInput, PublicationResult, PublishInput } from "./types.js";
 import { CatalogAuthorizationError, CatalogValidationError } from "./types.js";
 
 export interface CatalogServiceOptions {
@@ -28,6 +28,24 @@ export class AuthorizedCatalog implements CatalogPort {
     assertEnabled(actor);
     const row = await this.options.repository.getVisible(actor, publicationId);
     return row ? toCandidate(row) : null;
+  }
+
+  async discoverInstallOffers(query:CatalogSearchQuery):Promise<readonly InstallationOffer[]> {
+    assertEnabled(query.actor);
+    const rows=await this.options.repository.listVisible(query.actor,{...(query.recipeKey?{recipeKey:query.recipeKey}:{}),adapter:query.adapter,limit:Math.min(Math.max(query.limit??20,1),20)}),offers:InstallationOffer[]=[];
+    for(const row of rows){
+      if(!row.publicationId||!compatible(row.recipe,query))continue;
+      const publication=await this.options.repository.getVisiblePublicationForInstall(query.actor,row.publicationId);
+      if(!publication||publication.state!=="published"||publication.artifactHash!==row.artifactHash)continue;
+      const key=await this.options.repository.getPublicationKey(query.actor,publication.signingKeyId),envelope=extractEnvelope(publication.reviewedMetadata);
+      if(!key||key.algorithm!=="Ed25519"||key.status!=="active"||!envelope||envelope.artifactHash!==row.artifactHash||
+        (publication.publisherTenantId!==query.actor.tenantId&&!envelope.allowedTenantIds.includes(query.actor.tenantId))||
+        !verifyPublicationSignature(key.publicKey,envelope,publication.signature,this.options.encoder))continue;
+      let recipe:Recipe;try{recipe=sanitizeRecipeForPublication(row.recipe);}catch{continue;}
+      if(await this.options.identity.hash(recipe)!==row.artifactHash)continue;
+      offers.push({artifactHash:row.artifactHash,displayName:recipe.displayName,version:"1",recipeKey:recipe.recipeKey,requiredParameters:Object.keys(recipe.parameters) as InstallationOffer["requiredParameters"],evidenceStatus:"not_run"});
+    }
+    return offers.slice(0,3);
   }
 
   async publishAuthorized(input: PublishInput): Promise<PublicationResult> {
