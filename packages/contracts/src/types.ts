@@ -5,21 +5,21 @@ export type PlanHash = string;
 export type IdempotencyKey = string;
 export type ClientRequestId = string;
 
-export const RECIPE_KEYS = [
+export const RECIPE_KEYS = Object.freeze([
   "catalog.campaign.prepare.v1",
   "catalog.category.assign.v1",
   "catalog.channel.assign.v1",
-] as const;
+] as const);
 export type RecipeKey = (typeof RECIPE_KEYS)[number];
 
-export const CAPABILITY_IDS = [
+export const CAPABILITY_IDS = Object.freeze([
   "medusa.products.list",
   "medusa.products.retrieve",
   "medusa.product_categories.retrieve",
   "medusa.sales_channels.retrieve",
   "medusa.product_categories.products.add",
   "medusa.sales_channels.products.add",
-] as const;
+] as const);
 export type CapabilityId = (typeof CAPABILITY_IDS)[number];
 export type MutationCapabilityId = Extract<CapabilityId, `${string}.products.add`>;
 
@@ -85,17 +85,17 @@ export interface ApprovalRequestInput {
   readonly idempotencyKey: IdempotencyKey;
 }
 
-export const PLAN_STATES = [
+export const PLAN_STATES = Object.freeze([
   "draft",
   "validating",
   "ready",
   "rejected",
   "expired",
   "superseded",
-] as const;
+] as const);
 export type PlanState = (typeof PLAN_STATES)[number];
 
-export const EXECUTION_STATES = [
+export const EXECUTION_STATES = Object.freeze([
   "queued",
   "running",
   "waiting_reconciliation",
@@ -103,30 +103,33 @@ export const EXECUTION_STATES = [
   "partial",
   "failed",
   "cancelled",
-] as const;
+] as const);
 export type ExecutionState = (typeof EXECUTION_STATES)[number];
 
-export const STEP_STATES = [
+export const STEP_STATES = Object.freeze([
   "pending",
   "running",
   "succeeded",
   "skipped",
   "unknown",
   "failed",
-] as const;
+] as const);
 export type StepState = (typeof STEP_STATES)[number];
 
-export const ROW_STATES = [...STEP_STATES, "needs_review"] as const;
+export const ROW_STATES = Object.freeze(["pending", "running", "succeeded", "skipped", "failed", "unknown", "needs_review"] as const);
 export type RowState = (typeof ROW_STATES)[number];
 
-export const EVIDENCE_STATUSES = [
+export const EVIDENCE_STATUSES = Object.freeze([
   "passed",
   "failed",
   "blocked",
   "not_run",
   "not_applicable",
-] as const;
+] as const);
 export type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number];
+
+export const PROOF_RESULT_STATUSES = Object.freeze(["verified", "failed", "unavailable", "not_applicable"] as const);
+export type ProofResultStatus = (typeof PROOF_RESULT_STATUSES)[number];
 
 export interface PlanSelectionRecord {
   readonly productId: string;
@@ -214,9 +217,9 @@ export interface Execution {
   readonly revision: number;
 }
 
-export const REQUEST_STATES = [
+export const REQUEST_STATES = Object.freeze([
   "received", "searching", "candidate_offered", "generating", "needs_configuration", "needs_clarification", "plan_ready", "rejected", "error",
-] as const;
+] as const);
 export type RequestState = (typeof REQUEST_STATES)[number];
 
 export interface Candidate {
@@ -263,7 +266,7 @@ export interface ExecutionDetail extends Execution {
   readonly updatedAt: string;
 }
 
-export const INSTALLATION_STATES = ["active", "disabled", "security_revoked"] as const;
+export const INSTALLATION_STATES = Object.freeze(["active", "disabled", "security_revoked"] as const);
 export type InstallationState = (typeof INSTALLATION_STATES)[number];
 
 export interface Installation {
@@ -328,10 +331,10 @@ export interface InstallationListResponse {
   readonly permissions: readonly Permission[];
 }
 
-export const ACTOR_ROLES = ["viewer", "requester", "operator", "admin"] as const;
+export const ACTOR_ROLES = Object.freeze(["viewer", "requester", "operator", "admin"] as const);
 export type ActorRole = (typeof ACTOR_ROLES)[number];
 
-export const PERMISSIONS = [
+export const PERMISSIONS = Object.freeze([
   "read",
   "request",
   "preview",
@@ -341,7 +344,7 @@ export const PERMISSIONS = [
   "share",
   "revoke",
   "policy.manage",
-] as const;
+] as const);
 export type Permission = (typeof PERMISSIONS)[number];
 
 export interface ActorContext {
