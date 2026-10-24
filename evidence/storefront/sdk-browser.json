@@ -1,0 +1,33 @@
+{
+  "recordedAt": "2026-10-24T14:55:00+02:00",
+  "classification": "SDK_BROWSER_FIXTURE; not Medusa real E2E",
+  "server": {
+    "command": "vite examples/storefront --host 127.0.0.1 --port 43127 --strictPort",
+    "ownership": "task-local process and port checked free before start",
+    "shutdown": "same exec session received Ctrl-C after capture"
+  },
+  "browser": {
+    "engine": "Chromium",
+    "playwrightBundle": "locally installed chromium-1243 used by explicit executablePath because package default chromium-1248 was not installed",
+    "network": "localhost fixture only"
+  },
+  "assertions": {
+    "status": "passed",
+    "rootConsumedTheme": "dark",
+    "rootConsumedDensity": "compact",
+    "desktopLayout": "list",
+    "mobileLayout": "grid",
+    "keyboardFocusVisible": true,
+    "selectClipping": false,
+    "adminBeforeAfter": true,
+    "adminExplicitApproveReject": true,
+    "adminLabelsLocalized": true,
+    "visualInspection": "passed after container-query correction: no observed clipping, overlap or unreadable controls at 1440x1000 and 390x844; admin preview inspected at 1100x800"
+  },
+  "artifacts": [
+    { "path": "evidence/storefront/ui/sdk-desktop.png", "viewport": "1440x1000", "sha256": "faef991f8989ddf3e5b5d55b03205a9aae618d6e58db34911cc6003ceb1c034c" },
+    { "path": "evidence/storefront/ui/sdk-mobile.png", "viewport": "390x844", "sha256": "06364eb51a98b209f52cbb0ab3f6ac29213f060e5a93b202ec69bb13e3c0549c" },
+    { "path": "evidence/storefront/ui/sdk-admin.png", "viewport": "1100x800", "sha256": "a185e719d2e833b5e8e6ade921659c941ba0455c04bd562b42a9d9c833692300" }
+  ],
+  "initialAttempt": "not_run_as_gate: Playwright 1.64.1 expected chromium-1248, which was absent; no browser download was performed. The existing chromium-1243 binary provided the completed real-browser run."
+}

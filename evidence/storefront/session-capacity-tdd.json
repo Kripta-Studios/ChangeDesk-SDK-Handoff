@@ -1,0 +1,22 @@
+{
+  "recordedAt": "2026-10-24T15:33:25+02:00",
+  "red": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/buyer-auth.test.ts tests/storefront/backend-routes.test.ts",
+    "sessionFailures": [
+      "a second exchange resolved despite maxSessions=1",
+      "two exchanges crossing an awaited public-key lookup both resolved despite maxSessions=1"
+    ]
+  },
+  "green": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/buyer-auth.test.ts tests/storefront/backend-routes.test.ts --maxWorkers=1",
+    "result": "2 files passed, 13 tests passed, duration 0.864s",
+    "serviceTypecheck": "passed"
+  },
+  "invariants": [
+    "default capacity is 10000 and an optional positive safe-integer maxSessions can lower it",
+    "active sessions plus exchanges in flight never exceed capacity across asynchronous verification",
+    "capacity exhaustion is a controlled retryable 429 SESSION_CAPACITY response",
+    "expired and non-finite records are purged globally at exchange and authenticate entry",
+    "capacity never evicts a live session"
+  ]
+}

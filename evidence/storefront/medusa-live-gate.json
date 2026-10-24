@@ -1,0 +1,22 @@
+{
+  "recordedAt": "2026-10-24T15:22:10+02:00",
+  "status": "BLOCKED",
+  "reason": "No pinned Atlas and Boreal Medusa storefront hosts are installed and listening in this workspace. Unit sessionStore doubles are not classified as a live Medusa result.",
+  "implemented": [
+    "cookie-only customer bootstrap at /store/customers/me/changedesk/session",
+    "opaque bounded in-process mapping to the raw Express session ID",
+    "per-request sessionStore.get reauthorization with timeout and expiry checks",
+    "native DELETE /auth/session middleware accepts authenticated customer and user sessions, retaining staff revocation and customer native destruction",
+    "Medusa admin route /app/changedesk-storefront mounts the separate storefront staff client and StorefrontAdminPanel"
+  ],
+  "requiredLiveRecipe": [
+    "start pinned Medusa 2.22.1 Atlas and Boreal hosts with the plugin and distinct allowed origins",
+    "create or use synthetic customer accounts external to the repository and log in through cookie sessions",
+    "for each host POST /store/customers/me/changedesk/session with credentials include and exchange the returned ticket at the Change Desk session exchange endpoint",
+    "GET /v1/storefront/me/preferences with the buyer access token and verify tenant/buyer isolation",
+    "DELETE the host /auth/session with the same cookie, then reuse the still-unexpired buyer access token",
+    "verify the next preferences request is 401 because host reauthorization sees the destroyed native session",
+    "repeat a session switch between two customers and verify a late response from the first session is discarded in the browser UI"
+  ],
+  "secrets": "Customer credentials and cookies must remain external environment/input state and must not be printed or committed."
+}

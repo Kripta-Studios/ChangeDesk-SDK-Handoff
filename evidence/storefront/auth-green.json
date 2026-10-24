@@ -1,0 +1,17 @@
+{
+  "recordedAt": "2026-10-24T15:22:10+02:00",
+  "result": "passed",
+  "command": "Node 22.23.4 + Vitest 4.0.16 run seven scoped backend/auth/Medusa unit suites; TypeScript 5.9.3 --noEmit for packages/medusa-plugin",
+  "summary": { "testFilesPassed": 7, "testsPassed": 21, "durationSeconds": 2.66, "medusaPluginTypecheck": "passed" },
+  "covered": [
+    "buyer bootstrap typ and audience are separate from staff",
+    "signature tamper, wrong audience/origin and staff typ rejected",
+    "ticket replay rejected",
+    "buyer session reauthorized on every request and revocation rejected",
+    "cookie-only host session mapping keeps raw session ID in bounded process memory",
+    "sessionStore destruction, callback timeout, native cookie expiry, cross-buyer and process restart fail closed",
+    "native logout explicitly authenticates user or customer sessions; staff revocation hook is retained, customer proceeds to native session destruction, and anonymous requests are rejected"
+  ],
+  "securityBoundary": "Bearer customer bootstrap is explicitly unsupported in v1 because its logout lifecycle was not verified. Only an authenticated Medusa cookie session is accepted. The ticket contains an opaque reference; raw session IDs are never serialized, logged, or persisted by Change Desk.",
+  "liveGate": "BLOCKED: no Atlas/Boreal Medusa host is installed/listening. Required next step is to start both pinned hosts, log in two synthetic customers, exchange tickets, DELETE /auth/session, and verify the still-unexpired Change Desk buyer token receives 401 on its next request."
+}

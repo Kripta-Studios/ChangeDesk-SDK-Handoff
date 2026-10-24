@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { mustDenyAdminMutation, mustDenyAuthMutation } from "../../packages/medusa-plugin/src/bridge/native-policy.ts"
+import { mustDenyAdminMutation, mustDenyAuthMutation, mustRevokeStaffHostSession } from "../../packages/medusa-plugin/src/bridge/native-policy.ts"
 
 describe("native mutation guard", () => {
 it("denies all native admin mutation families to every managed demo role", () => {
@@ -23,5 +23,11 @@ it("denies auth registration, reset and MFA mutation and exempts only login/sess
   expect(mustDenyAuthMutation("/auth/user/emailpass/register")).toBe(true)
   expect(mustDenyAuthMutation("/auth/user/emailpass/reset-password")).toBe(true)
   expect(mustDenyAuthMutation("/auth/mfa/enroll")).toBe(true)
+})
+
+it("allows native customer logout while retaining the staff host-session revocation hook", () => {
+  expect(mustRevokeStaffHostSession("customer")).toBe(false)
+  expect(mustRevokeStaffHostSession("user")).toBe(true)
+  expect(mustRevokeStaffHostSession(undefined)).toBe(false)
 })
 })

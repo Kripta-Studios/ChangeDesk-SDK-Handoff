@@ -1,0 +1,34 @@
+{
+  "recordedAt": "2026-10-24",
+  "reviewedHead": "6aca24020147144b654c2b4d7f0af9b2182bfb11",
+  "baseline": "6adbb2f",
+  "reviewer": "/root/buyer_storefront_review2",
+  "requestedRouting": { "model": "gpt-6-astra", "reasoning": "high", "forkTurns": "none" },
+  "mode": "fresh behaviorally read-only review; snapshot unchanged; no builds or mutating tests",
+  "verdict": "fix-first",
+  "findings": [
+    {
+      "id": "SF-R2-01",
+      "severity": "blocker",
+      "file": "packages/sdk-react/src/storefront/client.ts:160",
+      "problem": "HTTP 401 forgets the token but does not clear rendered private state or invalidate concurrent requests.",
+      "requiredInvariant": "Server-confirmed session revocation immediately applies full session invalidation for buyer and administrator panels."
+    },
+    {
+      "id": "SF-R2-02",
+      "severity": "minor",
+      "file": "apps/service/src/storefront/routes.ts:53",
+      "problem": "The 429 SESSION_CAPACITY response lacks Retry-After required by docs10.",
+      "requiredInvariant": "Capacity responses include a controlled retry interval."
+    }
+  ],
+  "acceptedPriorCorrections": ["bounded buyer sessions with reservation before awaits and expiry reclamation", "nonnegative safe administrative revisions", "explicit same-client clearSession removes admin state and rejects late responses"],
+  "challengedHypothesis": "Focus and periodic host revalidation do not replace immediate invalidation after an observed 401.",
+  "hostSignalAssessment": "Focus, visibility and bounded periodic revalidation are acceptable as an explicit limitation for passive cross-tab session changes, provided observed 401 triggers immediate invalidation.",
+  "parentChecksOnSnapshot": { "tests": "42/42 passed, 11 files, 6.83 seconds", "serviceTypes": "passed", "sdkTypes": "passed", "diffCheck": "passed" },
+  "LOCAL_VERIFIED": false,
+  "LIVE_VERIFIED": false,
+  "externalBlockers": ["real Medusa Atlas/Boreal customer authentication, native logout and browser E2E", "full plugin build against incomplete shared @medusajs/utils installation"],
+  "performance": "Excluded by explicit user instruction; no performance objections raised.",
+  "disposition": "UI and backend owners assigned independent worktree fixes; fresh review required after parent verification."
+}

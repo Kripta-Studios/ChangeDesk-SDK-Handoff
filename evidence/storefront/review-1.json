@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-10-24",
+  "reviewedHead": "e8a4e5b777ca89cc5e2fad0d87376c1be4c66f6a",
+  "baseline": "6adbb2f",
+  "reviewer": "/root/buyer_storefront_final_review",
+  "requestedRouting": { "model": "gpt-6-astra", "reasoning": "high", "forkTurns": "none" },
+  "mode": "fresh read-only source and evidence review; snapshot unchanged",
+  "verdict": "fix-first",
+  "findings": [
+    {
+      "id": "SF-R1",
+      "severity": "blocker",
+      "files": ["packages/sdk-react/src/storefront/client.ts", "packages/sdk-react/src/storefront/components.tsx", "packages/medusa-plugin/src/admin/routes/changedesk-storefront/page.tsx"],
+      "problem": "Admin clearSession aborts transport but does not remove already materialized proposals, status or errors from the mounted panel.",
+      "requiredInvariant": "Same-client invalidation or host session change immediately clears private admin state; late responses cannot repopulate it."
+    },
+    {
+      "id": "SF-R2",
+      "severity": "blocker",
+      "files": ["apps/service/src/storefront/session.ts"],
+      "problem": "Buyer session map has no capacity or global expiry sweep; expired tokens never presented again remain indefinitely.",
+      "requiredInvariant": "Ephemeral authentication memory is bounded; expired entries release capacity; concurrent exchanges cannot exceed the cap."
+    },
+    {
+      "id": "SF-R3",
+      "severity": "minor",
+      "files": ["apps/service/src/storefront/routes.ts"],
+      "problem": "Administrative approve/reject parsing accepts negative revisions, producing repository conflicts instead of validation errors.",
+      "requiredInvariant": "Every public revision is a nonnegative safe integer; invalid values receive 422 without repository effects."
+    }
+  ],
+  "challengedHypothesis": "A short token TTL does not bound memory without expiry reclamation.",
+  "independentCoordinatorChecks": {
+    "unitAndContract": "36/36 passed on reviewed head; 10 files, 4.78 seconds",
+    "serviceTypecheck": "passed, exit 0",
+    "postgres": "7/7 passed, 1.24 seconds, 2026-10-24 15:30:49 Europe/Madrid; complete 001-013+1000 migration stack; nonowner forced RLS; scoped temporary database and role both dropped successfully",
+    "diffCheck": "passed"
+  },
+  "disposition": "Backend and UI owners assigned fixes with regression RED/GREEN evidence. A new fresh read-only reviewer is required after integration. This report is not acceptance."
+}

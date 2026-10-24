@@ -1,0 +1,17 @@
+:root { background: #dde2db; color: #15201d; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+body { margin: 0; min-width: 320px; }
+.demo-shell { width: min(1180px, calc(100% - 32px)); margin: 24px auto 60px; }
+.demo-masthead { display: flex; justify-content: space-between; gap: 16px; padding: 12px 2px; border-top: 2px solid #15201d; font: 700 11px/1.2 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.demo-layout { display: grid; grid-template-columns: minmax(300px, .7fr) minmax(0, 1.3fr); align-items: start; gap: 18px; }
+.demo-catalog { border-radius: 20px; min-height: 620px; }
+.demo-catalog__heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 26px; }
+.demo-catalog__heading p { margin: 0 0 8px; font: 700 11px/1.2 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+.demo-catalog__heading h1 { margin: 0; font: 500 clamp(2.4rem, 5vw, 4.8rem)/.92 Georgia, serif; letter-spacing: -.06em; }
+.demo-catalog__heading > span { border: 1px solid currentColor; border-radius: 999px; padding: 7px 10px; white-space: nowrap; }
+.demo-object { min-height: 220px; border-radius: 120px 120px 22px 22px; background: radial-gradient(circle at 50% 30%, #fff9 0 4%, transparent 5%), linear-gradient(145deg, #d77750, #743925); box-shadow: inset -18px -20px 30px #0002; }
+.demo-object--02 { border-radius: 28px 28px 90px 90px; background: repeating-linear-gradient(100deg, #e4c997 0 7px, #d8bb85 7px 9px); }
+.demo-object--03 { border-radius: 50%; background: radial-gradient(circle, #aa7646 0 18%, #82532f 19% 22%, #bd8d5a 23% 45%, #6f4327 46% 48%, #a36e3f 49%); }
+.demo-product-meta { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-top: 14px; }
+.demo-product-meta span { grid-column: 1 / -1; font: 700 10px/1.2 ui-monospace, monospace; text-transform: uppercase; opacity: .65; }
+.demo-product-meta h2, .demo-product-meta strong { margin: 0; font-size: 15px; }
+@media (max-width: 800px) { .demo-layout { grid-template-columns: 1fr; } .demo-masthead { flex-direction: column; } .demo-catalog { min-height: auto; } }

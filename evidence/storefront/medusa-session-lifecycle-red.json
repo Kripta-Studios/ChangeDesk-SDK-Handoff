@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-10-24T14:50:20+02:00",
+  "scope": "cookie-only Medusa session-store lifecycle reauthorization",
+  "result": "failed_as_expected",
+  "summary": { "testsFailed": 1, "testsPassed": 1 },
+  "expectedFailure": "Registry stub failed to authorize a still-live customer session; negative fail-closed cases already held.",
+  "setupFailure": false
+}

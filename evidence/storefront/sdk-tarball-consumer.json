@@ -1,0 +1,57 @@
+{
+  "recordedAt": "2026-10-24T15:14:00+02:00",
+  "status": "passed",
+  "runId": "storefront-tarball-smoke-20261024-1512",
+  "consumer": {
+    "path": ".tools/storefront-tarball-smoke-20261024-1512",
+    "isolation": "temporary gitignored consumer with its own package manifest; not added to the repository workspace list",
+    "sourceLinking": false
+  },
+  "tarballs": [
+    {
+      "package": "@changedesk/contracts@0.0.0",
+      "file": "changedesk-contracts-0.0.0.tgz",
+      "bytes": 22369,
+      "sha256": "433798C90815638C0B8E2D52F2D6B9A071B1F4F4E20799271952CEC5333C6BEE"
+    },
+    {
+      "package": "@changedesk/react@0.0.0",
+      "file": "changedesk-react-0.0.0.tgz",
+      "bytes": 57017,
+      "sha256": "798C429A20494B5FCE2A780534B392C88B9FBE9D7ABB5C43F01A19C904D0B94A"
+    }
+  ],
+  "commands": [
+    "npm pack C:/Users/Álvaro Schwiedop/Desktop/KriptaStudios/ChangeDesk-SDK-Handoff/.worktrees/buyer-storefront/packages/contracts --pack-destination .tools/storefront-tarball-smoke-20261024-1512",
+    "npm pack C:/Users/Álvaro Schwiedop/Desktop/KriptaStudios/ChangeDesk-SDK-Handoff/.worktrees/buyer-storefront/packages/sdk-react --pack-destination .tools/storefront-tarball-smoke-20261024-1512",
+    "pnpm install --offline --ignore-scripts",
+    "pnpm exec tsc -p tsconfig.json",
+    "node smoke.mjs",
+    "pnpm list --depth 1"
+  ],
+  "results": {
+    "offlineInstall": "passed with pnpm 11.22.0; 12 packages added from existing store and the two local tarballs; lifecycle scripts disabled",
+    "typecheck": "passed with TypeScript 5.9.3 against installed tarball declarations for @changedesk/react, @changedesk/react/storefront and @changedesk/contracts",
+    "runtimeImports": {
+      "@changedesk/react": "passed",
+      "@changedesk/react/storefront": "passed",
+      "@changedesk/contracts": "passed"
+    },
+    "cssExport": "passed; installed @changedesk/react/dist/storefront.css exists and exceeds 1 KiB",
+    "declarations": "passed; installed @changedesk/react/dist/storefront/index.d.ts exists and TypeScript consumed it",
+    "packageIsolation": "passed; resolved main and storefront files are under the temporary consumer node_modules/.pnpm store and not under the source workspace packages directory",
+    "peerResolution": "passed; one React 18.3.1 and ReactDOM 18.3.1 installation satisfies the SDK peers; contracts 0.0.0 satisfies the contracts peer"
+  },
+  "dependencyPins": [
+    { "name": "react", "version": "18.3.1", "license": "MIT", "source": "https://github.com/facebook/react.git" },
+    { "name": "react-dom", "version": "18.3.1", "license": "MIT", "source": "https://github.com/facebook/react.git" },
+    { "name": "typescript", "version": "5.9.3", "license": "Apache-2.0", "source": "https://github.com/microsoft/TypeScript.git" },
+    { "name": "@types/react", "version": "18.3.28", "license": "MIT", "source": "https://github.com/DefinitelyTyped/DefinitelyTyped.git" },
+    { "name": "@types/react-dom", "version": "18.3.7", "license": "MIT", "source": "https://github.com/DefinitelyTyped/DefinitelyTyped.git" }
+  ],
+  "notes": [
+    "All third-party versions equal existing repository pins; no dependency was added to a source package or lockfile.",
+    "The first runtime assertion checked a non-existent contracts export named ROLES. Inspection showed the canonical export is ACTOR_ROLES; correcting the diagnostic produced the accepted green run. This was not a tarball or product failure.",
+    "This gate proves real packed-package installation, type resolution, runtime entry imports and CSS export resolution. It does not prove browser rendering or Medusa integration."
+  ]
+}

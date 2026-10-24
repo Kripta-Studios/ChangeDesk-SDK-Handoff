@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-10-24T14:40:50+02:00",
+  "scope": "Medusa customer storefront bootstrap ticket",
+  "result": "failed_as_expected",
+  "summary": { "testsFailed": 1 },
+  "expectedFailure": "Ticket helper reached deliberate not-implemented behavior before separate typ/audience/session-binding implementation.",
+  "setupFailure": false
+}

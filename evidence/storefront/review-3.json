@@ -1,0 +1,33 @@
+{
+  "recordedAt": "2026-10-24",
+  "reviewedHead": "a9e83f9403edd0ed86cc231dfdec5aa5d29624d5",
+  "baseline": "6adbb2f",
+  "reviewer": "/root/buyer_storefront_review3",
+  "requestedRouting": { "model": "gpt-6-astra", "reasoning": "high", "forkTurns": "none" },
+  "mode": "fresh behaviorally read-only review; snapshot unchanged",
+  "verdict": "fix-first",
+  "findings": [
+    {
+      "id": "SF-R3-01",
+      "severity": "blocker",
+      "file": "packages/medusa-plugin/src/storefront/session-registry.ts:9",
+      "problem": "FIFO eviction at host registry capacity lets repeated buyer bootstrap calls invalidate other still-active native session references.",
+      "requiredInvariant": "Capacity admission must not evict active authority; expired entries may be reclaimed, or new registrations rejected with a controlled response."
+    },
+    {
+      "id": "SF-R3-02",
+      "severity": "minor",
+      "file": "apps/service/src/storefront/routes.ts",
+      "problem": "Non-UUID proposal route parameters reach PostgreSQL uuid casts and become retryable 503 instead of controlled client errors.",
+      "requiredInvariant": "Validate proposal IDs before repository calls, retaining the same not-found behavior as inaccessible proposals."
+    }
+  ],
+  "acceptedPriorCorrections": ["full transport and UI invalidation upon 401", "safe administrative revisions", "Retry-After on session capacity 429", "buyer session memory capacity and expiry"],
+  "componentAssessment": "Contracts, persistence, buyer/staff separation, CAS, quotas and SDK accepted within available local evidence; host lifecycle requires correction.",
+  "challengedHypothesis": "FIFO memory admission is unsafe when evicted entries represent active authentication authority.",
+  "parentChecksOnSnapshot": { "tests": "46/46 passed, 11 files, 8.54 seconds", "serviceTypes": "passed", "sdkTypes": "passed", "diffCheck": "passed" },
+  "LOCAL_VERIFIED": false,
+  "LIVE_VERIFIED": false,
+  "performance": "Excluded by explicit user instruction; this defect concerns authenticated-session availability.",
+  "disposition": "Backend owner assigned both fixes in an isolated worktree; fresh review follows parent verification."
+}

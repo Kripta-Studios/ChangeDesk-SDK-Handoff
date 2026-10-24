@@ -1,0 +1,14 @@
+{
+  "recordedAt": "2026-10-24T15:24:25+02:00",
+  "red": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/buyer-auth.test.ts",
+    "result": "1 failed, 2 passed",
+    "reason": "ConfiguredBuyerHostRegistry rejected atlas-host because it read a nonexistent HostConfig.issuer instead of bootstrapIssuer"
+  },
+  "green": {
+    "command": "Node 22.23.4 + Vitest 4.0.16 run tests/storefront/buyer-auth.test.ts",
+    "result": "3 passed"
+  },
+  "fixtureBoundary": "The regression constructs hosts through loadConfig and consumes config.hosts, exercising the repository's real HostConfig parser rather than a structurally invented registry literal.",
+  "serviceTypecheck": "The storefront HostConfig errors are resolved. The full service typecheck remains blocked by the independently owned preexisting apps/service/src/planner/generation-worker.ts:100 exactOptionalPropertyTypes error."
+}
