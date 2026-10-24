@@ -27,4 +27,16 @@ describe("ACC-017 evidence verification", () => {
     expect(result.valid).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([expect.stringMatching(/missing evidence/i), expect.stringMatching(/secret/i)]));
   });
+  it("accepts NOT_APPLICABLE only for the performance criterion with ADR-012 evidence", async () => {
+    const root = await fixture();
+    await writeFile(join(root, "acceptance.json"), JSON.stringify({ criteria: [{ id: "ACC-015", status: "NOT_APPLICABLE", evidence: ["docs/14-IMPLEMENTATION-DECISIONS.md#adr-012"], note: "Explicit user exclusion of all performance goals." }] }));
+    await expect(verifyEvidenceDirectory(root, "ci-local")).resolves.toMatchObject({ valid: true, errors: [] });
+  });
+  it("rejects NOT_APPLICABLE on any criterion other than ACC-015", async () => {
+    const root = await fixture();
+    await writeFile(join(root, "acceptance.json"), JSON.stringify({ criteria: [{ id: "ACC-014", status: "NOT_APPLICABLE", evidence: ["docs/14-IMPLEMENTATION-DECISIONS.md#adr-012"], note: "Explicit user exclusion of all performance goals." }] }));
+    const result = await verifyEvidenceDirectory(root, "ci-local");
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(expect.arrayContaining([expect.stringMatching(/NOT_APPLICABLE.*ACC-015/i)]));
+  });
 });
