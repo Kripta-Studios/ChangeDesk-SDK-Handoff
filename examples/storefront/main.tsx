@@ -23,6 +23,7 @@ const adminClient: StorefrontAdminClient = {
   getProposal: async () => adminPreview,
   approveProposal: async () => ({ ...adminPreview, proposalRevision: 4, globalRevision: 13, current: adminPreview.proposed, status: "approved" }),
   rejectProposal: async () => ({ ...adminPreview, proposalRevision: 4, status: "rejected" }),
+  subscribeSessionInvalidation: () => () => {},
   clearSession() {},
 };
 
