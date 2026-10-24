@@ -190,6 +190,20 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
       mismatchProof = false;
       const publication = await post(app, "/v1/publications", authorization, { artifactHash: candidate.artifactHash, visibility: "shared_allowlist", allowedTenantIds: [recipientTenantId] });
       expect(publication.statusCode).toBe(200);
+      const revokedPlanResponse = await post(app, "/v1/plans", authorization, { requestId, selectedProductIds: ["product-1"], parameters: { categoryId: "category-1" } });
+      expect(revokedPlanResponse.statusCode).toBe(200);
+      const revokedPlanView = await app.inject({ method: "GET", url: `/v1/plans/${revokedPlanResponse.json().planId}`, headers: readHeaders(authorization) });
+      expect(revokedPlanView.statusCode).toBe(200);
+      const revokedPlan = revokedPlanView.json().plan;
+      const revokedApprovalKey = randomUUID();
+      const revokedApproval = await post(app, "/v1/approvals", authorization, { planId: revokedPlan.id, planHash: revokedPlan.planHash, expectedPlanVersion: revokedPlan.planVersion, idempotencyKey: revokedApprovalKey }, revokedApprovalKey);
+      expect(revokedApproval.statusCode).toBe(200);
+      const revokedExecutionKey = randomUUID();
+      const revokedExecution = await post(app, "/v1/executions", authorization, { approvalId: revokedApproval.json().approvalId, idempotencyKey: revokedExecutionKey }, revokedExecutionKey);
+      expect(revokedExecution.statusCode).toBe(200);
+      const revoked = await post(app, `/v1/publications/${publication.json().publicationId}/revoke`, authorization, { reason: "fixture revocation" });
+      expect(revoked.statusCode).toBe(200);
+      await runWorkerUntil(worker, async () => (await apiStore.withTenant({ tenantId, actorId }, (tx) => tx.getExecution(revokedExecution.json().executionId)))?.state === "failed", "revoked artifact");
       expect(connector.executeAuthorized).toHaveBeenCalledOnce();
     }
     await app.close();
