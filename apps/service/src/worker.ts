@@ -28,7 +28,7 @@ export async function startWorker(worker: DurableWorker, options: { workerId: st
 export async function main(): Promise<void> {
   const config = loadConfig(); const pool = new Pool({ connectionString: config.workerDatabaseUrl, max: config.workerGlobalCap + 2 });
   const store = new Store(pool);
-  const storage = new StorageRuntimeAdapter(store as any, new JobStore(pool) as any, { workerActorId: "unused-lease-actor-is-authoritative", leaseSeconds: config.workerLeaseSeconds, globalCap: config.workerGlobalCap });
+  const storage = new StorageRuntimeAdapter(store as any, new JobStore(pool) as any, { workerActorId: "unused-lease-actor-is-authoritative", leaseSeconds: config.workerLeaseSeconds, globalCap: config.workerGlobalCap, proofRequired: config.proofRequired, ...(config.proofEnvironmentDigest ? { proofEnvironmentDigest: config.proofEnvironmentDigest } : {}) });
   await storage.recoverOrphanedLeases(100);
   const catalog = createProductionCatalog(store, { publicationKeyId: config.publicationKeyId, publicationPrivateKey: publicationPrivateKeyFromPem(config.publicationPrivateKeyPem) });
   const planner = plannerBootstrapConfig(config.planner);

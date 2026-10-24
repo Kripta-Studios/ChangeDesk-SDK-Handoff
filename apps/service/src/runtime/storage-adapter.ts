@@ -4,6 +4,7 @@ import { hashCanonical } from "../core/hashing.js";
 
 interface StorageTx {
   loadExecutionBundle(executionId: string): Promise<any | null>;
+  hasApplicableApprovalEvidence(approvalId: string, environmentDigest: string): Promise<boolean>;
   insertExecutionRows(lease: JobLease, executionId: string, rows: readonly { rowId: string; resourceRef: string; preconditionFingerprint: string }[]): Promise<boolean>;
   updateExecutionWithLease(lease: JobLease, executionId: string, state: string, expectedRevision: number): Promise<any | null>;
   updateRowWithLease(lease: JobLease, input: { executionId: string; rowId: string; state: string }): Promise<boolean>;
@@ -20,11 +21,11 @@ interface JobStoreLike {
 }
 
 export class StorageRuntimeAdapter implements RuntimeStorePort {
-  constructor(private readonly store: StoreLike, private readonly jobs: JobStoreLike, private readonly options: { workerActorId: string; leaseSeconds: number; globalCap: number }) {}
+  constructor(private readonly store: StoreLike, private readonly jobs: JobStoreLike, private readonly options: { workerActorId: string; leaseSeconds: number; globalCap: number; proofRequired?: boolean; proofEnvironmentDigest?: string }) {}
   async claimNextJob(workerId: string): Promise<JobLease | null> { const [lease] = await this.jobs.claimNext({ workerId, leaseSeconds: this.options.leaseSeconds, globalCap: this.options.globalCap, limit: 1 }); return lease ? { ...lease, leaseUntil: new Date(lease.leaseUntil).toISOString() } : null; }
   recoverOrphanedLeases(limit?: number): Promise<number> { return this.jobs.recoverExpired(limit); }
   heartbeat(lease: JobLease): Promise<boolean> { return this.jobs.heartbeat(lease, this.options.leaseSeconds); }
-  loadExecutionBundle(lease: JobLease) { return this.scoped(lease, async (tx) => { const raw = await tx.loadExecutionBundle(lease.executionId!); if (!raw) throw new Error("Execution bundle not found"); return mapBundle(raw); }); }
+  loadExecutionBundle(lease: JobLease) { return this.scoped(lease, async (tx) => { const raw = await tx.loadExecutionBundle(lease.executionId!); if (!raw) throw new Error("Execution bundle not found"); const proofValid = !this.options.proofRequired || (typeof this.options.proofEnvironmentDigest === "string" && await tx.hasApplicableApprovalEvidence(raw.approval.id, this.options.proofEnvironmentDigest)); return mapBundle(raw, proofValid); }); }
   prepareExecution(lease: JobLease, bundle: ExecutionBundle): Promise<ExecutionBundle | null> {
     if (bundle.execution.state !== "queued") return Promise.resolve(bundle);
     return this.scoped(lease, async (tx) => {
@@ -76,7 +77,7 @@ export class StorageRuntimeAdapter implements RuntimeStorePort {
   }
 }
 
-function mapBundle(raw: any): ExecutionBundle {
+function mapBundle(raw: any, proofValid = true): ExecutionBundle {
   const plan = jsonObject(raw.plan.body) ?? raw.plan;
   const execution = { id: raw.execution.id, planId: raw.execution.plan_id ?? raw.execution.planId, state: raw.execution.state, revision: Number(raw.execution.revision), ...(raw.execution.cancel_requested_at ? { cancelRequestedAt: new Date(raw.execution.cancel_requested_at).toISOString() } : {}) };
   const attempts = raw.attempts ?? [];
@@ -86,7 +87,7 @@ function mapBundle(raw: any): ExecutionBundle {
   const hostSessionId = raw.approval.host_session_id ?? raw.actor.host_session_id;
   if (typeof hostSessionId !== "string" || !hostSessionId) throw new Error("Execution authority lacks host session binding");
   const persistedArtifactState = raw.artifact?.state;
-  const artifactState = raw.installation?.status ?? (["private", "published"].includes(persistedArtifactState) ? "active" : persistedArtifactState);
+  const artifactState = proofValid ? raw.installation?.status ?? (["private", "published"].includes(persistedArtifactState) ? "active" : persistedArtifactState) : "security_revoked";
   if (!["active", "withdrawn", "security_revoked", "disabled"].includes(artifactState)) throw new Error("Execution authority lacks artifact state");
   const rows = (raw.rows ?? []).map((row: any) => ({ rowId: row.row_id ?? row.rowId, state: row.state }));
   return { execution, plan: { ...plan, planHash: raw.plan.plan_hash ?? raw.plan.planHash }, approval: { id: raw.approval.id, actorId: raw.approval.actor_id ?? raw.approval.actorId, expiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString(), planHash: raw.approval.plan_hash ?? raw.approval.planHash }, authority: { actorEnabled: raw.actor.state === "enabled", hostSessionId, policyVersion: raw.plan.policy_version ?? plan.policyVersion, artifactState, approvalExpiresAt: new Date(raw.approval.expires_at ?? raw.approval.expiresAt).toISOString() }, pendingEffects, unknownEffects, rows };

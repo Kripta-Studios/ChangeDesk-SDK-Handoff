@@ -52,4 +52,15 @@ describe("StorageRuntimeAdapter", () => {
     const loaded = await adapter.loadExecutionBundle(stringLease);
     expect(loaded.plan.selectionSnapshot).toEqual(body.selectionSnapshot);
   });
+
+  it("marks runtime authority inactive when required exact proof is no longer current", async () => {
+    const raw = { execution: { id: "e", plan_id: "p", state: "running", revision: 1 }, plan: { body: { actorId: "actor", selectionSnapshot: [], perRecordEffects: [], policyVersion: "pv" }, plan_hash: "a".repeat(64), policy_version: "pv" }, approval: { id: "ap", actor_id: "actor", host_session_id: "hs", expires_at: new Date("2099-01-01T00:00:00Z"), plan_hash: "a".repeat(64) }, actor: { state: "enabled" }, installation: { status: "active" }, artifact: { state: "private" }, attempts: [], rows: [] };
+    const tx = { loadExecutionBundle: vi.fn().mockResolvedValue(raw), hasApplicableApprovalEvidence: vi.fn().mockResolvedValue(false) };
+    const store = { withTenant: vi.fn(async (_scope, work) => work(tx)) };
+    const adapter = new StorageRuntimeAdapter(store as any, {} as any, { workerActorId: "worker", leaseSeconds: 30, globalCap: 1, proofRequired: true, proofEnvironmentDigest: proofDigest });
+    const proofLease: JobLease = { jobId: "j", tenantId: "atlas", actorId: "actor", backendKey: "atlas", kind: "execution", executionId: "e", leaseOwner: "w", fence: 1, leaseUntil: "2099-01-01T00:00:00Z", attemptCount: 1 };
+    await expect(adapter.loadExecutionBundle(proofLease)).resolves.toMatchObject({ authority: { artifactState: "security_revoked" } });
+  });
 });
+
+const proofDigest = "0aed1f74bf00de83b25b565a54463767e550692b92fd242dd0397986e222be57";

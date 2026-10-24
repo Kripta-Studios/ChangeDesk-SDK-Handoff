@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "date": "2026-10-24",
+  "scope": "Runtime uncertainty, exact pending-effect replans, PostgreSQL plan decoding, and server-bound proof policy",
+  "baseline": "e77fe3f10970b8e13ee619edca5530e2b351e0cc",
+  "red": [
+    {
+      "command": "vitest run apps/service/tests/runtime/runtime-completion.test.ts --config vitest.config.ts",
+      "result": "FAIL 3/3: HTTP 409 effect_unknown was not_sent; excluded and confirmed products were accepted by priorExecutionId replans"
+    },
+    {
+      "command": "vitest run apps/service/tests/runtime/runtime-completion.test.ts --config vitest.config.ts",
+      "result": "FAIL proof cases: proofRequired compiled as blocked; missing verifier had no explicit fail-closed composition"
+    },
+    {
+      "command": "vitest run apps/service/tests/runtime/runtime-completion.test.ts apps/service/tests/runtime/storage-adapter.test.ts --config vitest.config.ts",
+      "result": "FAIL: partial-row replan recreated a confirmed step; mismatched verifier bindings were accepted; JSON-string plan body was not decoded"
+    }
+  ],
+  "green": [
+    {
+      "command": "vitest run apps/service/tests/runtime --config vitest.config.ts",
+      "result": "PASS 40 tests in 11 files"
+    },
+    {
+      "command": "tsc -p apps/service/tsconfig.json --noEmit --pretty false",
+      "result": "PASS"
+    }
+  ],
+  "bindings": {
+    "scope": "association-set-laws-v1",
+    "verifierVersion": "2.0.39",
+    "environmentDigest": "0aed1f74bf00de83b25b565a54463767e550692b92fd242dd0397986e222be57",
+    "claimBoundary": "Pure additive-association laws only; not proof of Medusa IO, authentication, tenant isolation, or transport"
+  },
+  "notRun": [
+    {
+      "gate": "direct PostgreSQL regression",
+      "status": "NOT_RUN",
+      "reason": "Lab database ownership belongs to finish/regression; root and lab were asked to run the direct-path regression after integration"
+    },
+    {
+      "gate": "live Bend invocation through API",
+      "status": "NOT_RUN",
+      "reason": "No live verifier paths or lab mutation were authorized for this agent; missing explicit configuration fails closed"
+    }
+  ],
+  "challengedHypothesis": "Selecting only a previously affected product is insufficient for safe recovery: a partially completed row can recreate a confirmed step, so recovery is constrained by exact record-and-step keys."
+}

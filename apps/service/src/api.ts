@@ -18,6 +18,7 @@ import { PostgresBuyerTicketReplayStore } from "./storefront/buyer-ticket-store.
 import { AuthorizedCatalog, NodeEd25519Signer, PostgresCatalogRepository } from "./planner/index.js";
 import { artifactHash, canonicalizeJson, hashCanonical } from "./core/hashing.js";
 import { permissionsForRole } from "./policy/index.js";
+import { BendLawVerifier } from "./laws/index.js";
 export { buildApi, SessionManager };
 
 export async function startApi(app: FastifyInstance, config: ServiceConfig): Promise<void> {
@@ -40,7 +41,8 @@ export async function main(): Promise<void> {
     signer: new NodeEd25519Signer(new Map([[config.publicationKeyId, createPrivateKey(config.publicationPrivateKeyPem)]])),
     permissionsFor: (actor) => permissionsForRole(actor.role), newId: () => randomUUID(),
   });
-  const app = buildApi({ config, sessions, operations: new StorageApiOperations(store, connector, resourceIds, catalog, config.publicationKeyId, undefined, config.proofRequired, config.planner.kind === "fake-test" ? "fake" : "live"), storefront: { repository: new PostgresStorefrontRepository(pool), buyerSessions } });
+  const lawVerifier = config.proofVerifier ? new BendLawVerifier(config.proofVerifier) : undefined;
+  const app = buildApi({ config, sessions, operations: new StorageApiOperations(store, connector, resourceIds, catalog, config.publicationKeyId, undefined, config.proofRequired, config.planner.kind === "fake-test" ? "fake" : "live", lawVerifier, config.proofEnvironmentDigest), storefront: { repository: new PostgresStorefrontRepository(pool), buyerSessions } });
   app.get("/readyz", async (_request, reply) => { try { await pool.query("SELECT 1"); return { status: "ready" }; } catch { return reply.status(503).send({ status: "not_ready" }); } });
   const shutdown = async () => { await app.close(); await pool.end(); };
   process.once("SIGINT", () => void shutdown()); process.once("SIGTERM", () => void shutdown());

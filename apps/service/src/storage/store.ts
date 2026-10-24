@@ -374,7 +374,7 @@ export class TenantTx {
     if(result.rowCount!==1) return null;
     const row=result.rows[0]!;
     return {...planRecord(row),requestId:row.request_id,installationId:row.installation_id,artifactHash:row.artifact_hash,adapterVersion:row.adapter_version,
-      policyVersion:row.policy_version,capabilityManifestHash:row.capability_manifest_hash,body:row.body,createdAt:row.created_at};
+      policyVersion:row.policy_version,capabilityManifestHash:row.capability_manifest_hash,body:jsonRecord(row.body) as PlanDetailRecord["body"],createdAt:row.created_at};
   }
 
   async admitExecution(input: ExecutionAdmission): Promise<ExecutionRecord> {
@@ -431,6 +431,7 @@ export class TenantTx {
     );
     if (head.rowCount !== 1) return null;
     const bundle:BundleRow=one(head);
+    bundle.plan.body=jsonRecord(bundle.plan.body);
     const [rows, attempts] = await Promise.all([
       this.client.query("SELECT * FROM storage.execution_rows WHERE tenant_id=$1 AND execution_id=$2 ORDER BY row_id", [this.context.tenantId,executionId]),
       this.client.query("SELECT * FROM storage.step_attempts WHERE tenant_id=$1 AND execution_id=$2 ORDER BY row_id,step_id,attempt_no", [this.context.tenantId,executionId]),
@@ -700,6 +701,28 @@ export class TenantTx {
     return result.rowCount===1?evidenceRecord(result.rows[0]!):null;
   }
 
+  async hasApplicableApprovalEvidence(approvalId:string,environmentDigest:string):Promise<boolean> {
+    const result=await this.client.query(`SELECT 1 FROM storage.approvals a
+      JOIN storage.plans p ON p.tenant_id=a.tenant_id AND p.id=a.plan_id AND p.plan_version=a.plan_version
+      JOIN LATERAL jsonb_array_elements_text(COALESCE(p.body->'evidenceRefs','[]'::jsonb)) ref(id) ON true
+      JOIN storage.evidence_bundles eb ON eb.id=ref.id AND eb.owner_tenant_id=p.tenant_id
+      WHERE a.tenant_id=$1 AND a.id=$2 AND a.actor_id=$3 AND eb.status='passed' AND eb.environment_digest=$4
+        AND eb.artifact_hash=p.artifact_hash AND eb.artifact_refs->>'bindingKind'='plan'
+        AND eb.artifact_refs->>'artifactHash'=p.artifact_hash AND eb.artifact_refs->>'planHash'=p.plan_hash
+        AND eb.artifact_refs->>'policyVersion'=p.policy_version AND eb.artifact_refs->>'scope'='association-set-laws-v1'
+      LIMIT 1`,[this.context.tenantId,approvalId,this.context.actorId,environmentDigest]);
+    return result.rowCount===1;
+  }
+
+  async hasApplicableArtifactEvidence(artifactHash:string,policyVersion:string,environmentDigest:string):Promise<boolean> {
+    const result=await this.client.query(`SELECT 1 FROM storage.evidence_bundles eb WHERE eb.owner_tenant_id=$1
+      AND eb.artifact_hash=$2 AND eb.status='passed' AND eb.environment_digest=$3
+      AND eb.artifact_refs->>'bindingKind'='artifact' AND eb.artifact_refs->>'artifactHash'=$2
+      AND eb.artifact_refs->>'policyVersion'=$4 AND eb.artifact_refs->>'scope'='association-set-laws-v1'
+      LIMIT 1`,[this.context.tenantId,artifactHash,environmentDigest,policyVersion]);
+    return result.rowCount===1;
+  }
+
   async recordAttemptIntent(lease:JobLease,input:AttemptIntent):Promise<AttemptRecord|null> {
     const result=await this.client.query<AttemptRow>(`WITH valid AS (
       SELECT 1 FROM storage.jobs j WHERE j.id=$9 AND j.tenant_id=$1 AND j.execution_id=$2 AND j.status='leased'
@@ -852,6 +875,11 @@ function stableJson(value:unknown):string {
   if(value===null || typeof value!=="object") return JSON.stringify(value);
   if(Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   return `{${Object.entries(value as Record<string,unknown>).sort(([left],[right])=>left.localeCompare(right)).map(([key,item])=>`${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
+}
+function jsonRecord(value:unknown):Record<string,unknown> {
+  if(typeof value==="string") { const parsed:unknown=JSON.parse(value); if(parsed && typeof parsed==="object" && !Array.isArray(parsed)) return parsed as Record<string,unknown>; }
+  if(value && typeof value==="object" && !Array.isArray(value)) return value as Record<string,unknown>;
+  throw new StorageInvariantError("Persisted JSON object is malformed");
 }
 const requestRecord=(r:RequestRow):RequestRecord=>({id:r.id,actorId:r.actor_id,state:r.state,createdAt:r.created_at});
 const messageRecord=(r:MessageRow):RequestMessageRecord=>({id:r.id,requestId:r.request_id,actorId:r.actor_id,clientRequestId:r.client_request_id,redactedText:r.redacted_text,createdAt:r.created_at});

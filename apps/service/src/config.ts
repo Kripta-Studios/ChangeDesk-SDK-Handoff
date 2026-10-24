@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { join } from "node:path";
+import type { BendVerifierConfig } from "./laws/index.js";
+
 export interface ServiceConfig {
   apiDatabaseUrl: string;
   workerDatabaseUrl: string;
@@ -16,6 +20,8 @@ export interface ServiceConfig {
   publicationKeyId: string;
   publicationPrivateKeyPem: string;
   proofRequired: boolean;
+  proofVerifier?: BendVerifierConfig;
+  proofEnvironmentDigest?: string;
   planner: PlannerConfig;
 }
 export type PlannerConfig =
@@ -27,6 +33,8 @@ export interface HostConfig { tenantId: string; bootstrapIssuer: string; delegat
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig {
   const origins = splitRequired(env.CHANGEDESK_ORIGINS, "CHANGEDESK_ORIGINS");
   if (origins.some((origin) => origin === "*" || !/^https?:\/\//.test(origin))) throw new Error("CHANGEDESK_ORIGINS must contain exact HTTP(S) origins");
+  const proofRequired = env.CHANGEDESK_PROOF_REQUIRED === "true";
+  const proof = proofRequired ? parseProofVerifier(env) : undefined;
   return {
     apiDatabaseUrl: required(env.CHANGEDESK_API_DATABASE_URL, "CHANGEDESK_API_DATABASE_URL"),
     workerDatabaseUrl: required(env.CHANGEDESK_WORKER_DATABASE_URL, "CHANGEDESK_WORKER_DATABASE_URL"),
@@ -44,9 +52,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
     hosts: parseHosts(required(env.CHANGEDESK_HOSTS_JSON, "CHANGEDESK_HOSTS_JSON")),
     publicationKeyId: required(env.CHANGEDESK_PUBLICATION_KEY_ID, "CHANGEDESK_PUBLICATION_KEY_ID"),
     publicationPrivateKeyPem: required(env.CHANGEDESK_PUBLICATION_PRIVATE_KEY_PEM, "CHANGEDESK_PUBLICATION_PRIVATE_KEY_PEM"),
-    proofRequired: env.CHANGEDESK_PROOF_REQUIRED === "true",
+    proofRequired,
+    ...(proof ? { proofVerifier: proof.config, proofEnvironmentDigest: proof.environmentDigest } : {}),
     planner: parsePlanner(env),
   };
+}
+const PROOF_HASHES = { binary: "2ec160fa4486d33aff51e9eedcc294d6b531dc10c279c00b0c00685dae2045cd", model: "ac9d10d08692f9259301edf9d897ddb782eb403b98f1fbeff13b9e987baa1596", laws: "02584a23199db88ec67974a4e458a0e7f16f8ed9196b8c1ba5b0a08cfa6937ac", proof: "827e041bc627ff9db7416e9f7f25693e08a170c9d1146330a4c9221c40a344ae" } as const;
+function parseProofVerifier(env:NodeJS.ProcessEnv):{config:BendVerifierConfig;environmentDigest:string} {
+  const workspaceRoot=required(env.CHANGEDESK_WORKSPACE_ROOT,"CHANGEDESK_WORKSPACE_ROOT");
+  const config:BendVerifierConfig={
+    binaryPath:required(env.CHANGEDESK_BEND_BINARY_WINDOWS,"CHANGEDESK_BEND_BINARY_WINDOWS"),
+    executionBinaryPath:required(env.CHANGEDESK_BEND_BINARY_LINUX,"CHANGEDESK_BEND_BINARY_LINUX"),
+    bendttPath:required(env.CHANGEDESK_BENDTT_LINUX,"CHANGEDESK_BENDTT_LINUX"),
+    expectedBinarySha256:PROOF_HASHES.binary,reviewedSourceDir:join(workspaceRoot,"apps","service","src","laws","bend"),
+    expectedModelSha256:PROOF_HASHES.model,expectedLawsSha256:PROOF_HASHES.laws,expectedProofSha256:PROOF_HASHES.proof,
+    workspaceRoot,workspaceTempRoot:join(workspaceRoot,".tools","bend-verifier-tmp"),timeoutMs:parseInteger(env.CHANGEDESK_BEND_TIMEOUT_MS??"60000","CHANGEDESK_BEND_TIMEOUT_MS",1_000,120_000),maxOutputBytes:parseInteger(env.CHANGEDESK_BEND_MAX_OUTPUT_BYTES??"64000","CHANGEDESK_BEND_MAX_OUTPUT_BYTES",1,1_000_000),
+  };
+  return {config,environmentDigest:createHash("sha256").update([PROOF_HASHES.binary,PROOF_HASHES.model,PROOF_HASHES.laws,PROOF_HASHES.proof].join("\0")).digest("hex")};
 }
 function parseHosts(value: string): HostConfig[] { const parsed: unknown = JSON.parse(value); if (!Array.isArray(parsed) || parsed.length !== 2) throw new Error("CHANGEDESK_HOSTS_JSON must contain exactly two hosts"); return parsed.map((item: any) => { for (const key of ["tenantId","bootstrapIssuer","delegationIssuer","audience","commandUrl","reauthorizeUrl","bootstrapPublicKeyPem","delegationPrivateKeyPem","serviceToken","authorityCallbackCredential"]) if (typeof item?.[key] !== "string" || !item[key]) throw new Error(`Invalid host ${key}`); if (!Array.isArray(item.categoryIds) || !Array.isArray(item.channelIds)) throw new Error("Host resource allowlists are required"); return item as HostConfig; }); }
 function required(value: string | undefined, name: string): string { if (!value) throw new Error(`${name} is required`); return value; }
