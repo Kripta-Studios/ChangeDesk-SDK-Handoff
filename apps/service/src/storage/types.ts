@@ -168,6 +168,12 @@ export type GenerationReservationResult=
   | {readonly state:"existing";readonly id:string;readonly status:"pending"|"running"|"completed"|"failed";readonly artifactId?:string}
   | {readonly state:"exhausted"};
 export interface GenerationUsage {readonly artifactId:string;readonly usedTokens:bigint;readonly usedCostMicros:bigint}
+export interface GenerationReservationToken {readonly reservationId:string;readonly fence:bigint}
+export interface GenerationScope {readonly tenantId:string;readonly actorId:string}
+export interface GenerationCallReservationInput extends GenerationScope {
+  readonly requestId:string;readonly intentHash:string;readonly contractVersion:"1";readonly provider:string;readonly model:string;
+  readonly maxAttempts:1|2|3;readonly tokenBudget:bigint;readonly costBudgetMicros:bigint;readonly leaseOwner:string;readonly leaseSeconds:number;
+}
 export interface RetentionResult {readonly requestsCleaned:number;readonly attemptsCleaned:number;readonly usageDeleted:number}
 export interface GenerationBundle {
   readonly request: {
@@ -229,6 +235,7 @@ export interface InstallationDetailRecord extends InstallationRecord {
   readonly evidenceStatus:"passed"|"failed"|"blocked"|"not_run"|"not_applicable";
   readonly installedAt:Date;readonly lastValidatedAt:Date|null;
 }
+export interface InstallationPlanContext {readonly installation:InstallationDetailRecord;readonly config:JsonValue;readonly artifact:CatalogArtifact}
 
 export interface PublicationKey {
   readonly id: string;
