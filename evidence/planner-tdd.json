@@ -27,6 +27,11 @@
       "behavior": "Boreal discovers only a signed, compatible, currently granted generic installation offer",
       "command": "vitest run tests/planner/catalog.test.ts",
       "result": "FAIL as expected: discoverInstallOffers was absent; 10 passed, 1 failed"
+    },
+    {
+      "behavior": "API network calls require a single-use context created after the durable generation reservation",
+      "command": "vitest run tests/planner/providers.test.ts",
+      "result": "FAIL as expected: createApiCallAuthorization was absent; 5 passed, 4 failed"
     }
   ],
   "green": [
@@ -98,6 +103,18 @@
       "tests": 1,
       "durationSeconds": 0.858,
       "coverage": "real PostgreSQL grant exposes signed offer to Boreal, denied tenant sees none, withdrawal removes offer"
+    },
+    {
+      "command": "Node 22.23.4 + vitest run tests/planner/providers.test.ts tests/planner/generation-worker.test.ts tests/planner/bootstrap.test.ts",
+      "result": "PASS",
+      "files": 3,
+      "tests": 17,
+      "durationSeconds": 1.36,
+      "coverage": "API call rejected outside reserved context; one durable reservation, one single-use authorization, one HTTP call, and one usage record per attempt; factory rejects missing secret or durable cost budget"
+    },
+    {
+      "command": "Node 22.23.4 + tsc -p apps/service/tsconfig.json --noEmit",
+      "result": "PASS"
     }
   ],
   "separation": {
