@@ -30,3 +30,7 @@ export function requireBenchmarkEnvironment(environment = process.env) {
 export function benchmarkStatus(catalog, admission) {
   return catalog.errors === 0 && catalog.p95 <= 250 && admission.errors === 0 && admission.p95 <= 300 ? "PASS" : "FAIL";
 }
+
+export function persistenceMetrics(databaseBytesBefore, databaseBytesAfter, catalogLogicalRows, admissionLogicalRows) {
+  return { unit: "bytes", databaseSizeDelta: databaseBytesAfter - databaseBytesBefore, catalogLogicalRows, admissionLogicalRows };
+}
