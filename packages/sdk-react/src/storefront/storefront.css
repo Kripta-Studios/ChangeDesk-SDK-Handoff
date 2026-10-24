@@ -7,7 +7,7 @@
 .changedesk-storefront-root .changedesk-storefront-products { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--changedesk-storefront-card-gap); }
 .changedesk-storefront-root[data-product-layout="list"] .changedesk-storefront-products { grid-template-columns: 1fr; }
 .changedesk-storefront-root .changedesk-storefront-products > * { box-sizing: border-box; background: var(--changedesk-storefront-surface); color: var(--changedesk-storefront-ink); padding: var(--changedesk-storefront-card-padding); border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 0.8rem; }
-.changedesk-storefront-panel { --sf-ink: #15201d; --sf-muted: #5e6965; --sf-paper: #fbf8ef; --sf-line: #c9d0ca; --sf-accent: #c8ff52; width: min(100%, 58rem); color: var(--sf-ink); background: radial-gradient(circle at 92% 8%, rgba(200,255,82,.3), transparent 24%), var(--sf-paper); border: 1px solid #aeb8b1; border-radius: 1.25rem; box-shadow: 0 1.2rem 3rem rgba(20,34,29,.12); padding: clamp(1.1rem, 3vw, 2rem); }
+.changedesk-storefront-panel { --sf-ink: #15201d; --sf-muted: #5e6965; --sf-paper: #fbf8ef; --sf-line: #c9d0ca; --sf-accent: #c8ff52; container-type: inline-size; width: min(100%, 58rem); color: var(--sf-ink); background: radial-gradient(circle at 92% 8%, rgba(200,255,82,.3), transparent 24%), var(--sf-paper); border: 1px solid #aeb8b1; border-radius: 1.25rem; box-shadow: 0 1.2rem 3rem rgba(20,34,29,.12); padding: clamp(1.1rem, 3vw, 2rem); }
 .changedesk-storefront-panel *, .changedesk-storefront-panel *::before, .changedesk-storefront-panel *::after { box-sizing: border-box; }
 .changedesk-storefront-panel__header, .changedesk-storefront-proposal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--sf-line); padding-bottom: 1rem; }
 .changedesk-storefront-panel h2, .changedesk-storefront-panel h3, .changedesk-storefront-panel p { margin-top: 0; }
@@ -40,4 +40,5 @@
 .changedesk-storefront-diff dd span { text-decoration: line-through; color: var(--sf-muted); }
 .changedesk-storefront-notice { border: 1px dashed #809187; padding: .7rem; font-size: .85rem; }
 @media (max-width: 42rem) { .changedesk-storefront-fields, .changedesk-storefront-diff { grid-template-columns: 1fr; } .changedesk-storefront-actions { display: grid; } .changedesk-storefront-button { width: 100%; } }
+@container (max-width: 34rem) { .changedesk-storefront-fields, .changedesk-storefront-diff { grid-template-columns: 1fr; } .changedesk-storefront-actions { display: grid; } .changedesk-storefront-button { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .changedesk-storefront-button { transition: none; } }

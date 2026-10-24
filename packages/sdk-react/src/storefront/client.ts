@@ -15,6 +15,7 @@ export interface StorefrontClient {
   replacePreferences(input: ReplaceStorefrontPreferencesInput, signal?: AbortSignal): Promise<StorefrontPreferencesResponse>;
   createGlobalProposal(input: CreateStorefrontProposalInput, signal?: AbortSignal): Promise<StorefrontProposalView>;
   getOwnProposal(id: string, signal?: AbortSignal): Promise<StorefrontProposalView>;
+  subscribeSessionInvalidation(listener: () => void): () => void;
   clearSession(): void;
 }
 
@@ -93,8 +94,8 @@ function overrides(value: unknown, label: string): StorefrontPreferencesResponse
 }
 
 const parsePreferences: Parser<StorefrontPreferencesResponse> = (value) => {
-  const record = object(value, ["overrides", "effective", "buyerRevision", "globalRevision"], "de preferencias");
-  return { overrides: overrides(record.overrides, "de preferencias"), effective: values(record.effective, "de preferencias"), buyerRevision: integer(record.buyerRevision, "de preferencias"), globalRevision: integer(record.globalRevision, "de preferencias") };
+  const record = object(value, ["overrides", "inherited", "effective", "buyerRevision", "globalRevision"], "de preferencias");
+  return { overrides: overrides(record.overrides, "de preferencias"), inherited: values(record.inherited, "de preferencias"), effective: values(record.effective, "de preferencias"), buyerRevision: integer(record.buyerRevision, "de preferencias"), globalRevision: integer(record.globalRevision, "de preferencias") };
 };
 
 const parseProposal: Parser<StorefrontProposalView> = (value) => {
@@ -124,6 +125,7 @@ function createTransport(options: StorefrontClientOptions) {
   let pendingSession: Promise<StorefrontSession> | undefined;
   let generation = 0;
   const active = new Set<AbortController>();
+  const invalidationListeners = new Set<() => void>();
 
   async function token(expectedGeneration: number): Promise<string> {
     if (session && Date.parse(session.expiresAt) - now() > 15_000) return session.accessToken;
@@ -171,11 +173,13 @@ function createTransport(options: StorefrontClientOptions) {
     generation += 1; session = undefined; pendingSession = undefined;
     for (const controller of active) controller.abort(abortError());
     active.clear();
+    for (const listener of invalidationListeners) listener();
   }
 
   const get = <T>(path: string, parser: Parser<T>, signal?: AbortSignal) => request(path, parser, signal ? { signal } : {});
   const mutate = <T>(method: "POST" | "PUT", path: string, body: unknown, parser: Parser<T>, signal?: AbortSignal) => request(path, parser, { method, body: JSON.stringify(body), ...(signal ? { signal } : {}) }, crypto.randomUUID());
-  return { get, mutate, clearSession };
+  const subscribeSessionInvalidation = (listener: () => void) => { invalidationListeners.add(listener); return () => invalidationListeners.delete(listener); };
+  return { get, mutate, clearSession, subscribeSessionInvalidation };
 }
 
 export function createStorefrontClient(options: StorefrontClientOptions): StorefrontClient {
@@ -185,6 +189,7 @@ export function createStorefrontClient(options: StorefrontClientOptions): Storef
     replacePreferences: (input, signal) => transport.mutate("PUT", "/v1/storefront/me/preferences", input, parsePreferences, signal),
     createGlobalProposal: (input, signal) => transport.mutate("POST", "/v1/storefront/global-change-proposals", input, parseProposal, signal),
     getOwnProposal: (id, signal) => transport.get(`/v1/storefront/global-change-proposals/${encodeURIComponent(id)}`, parseProposal, signal),
+    subscribeSessionInvalidation: transport.subscribeSessionInvalidation,
     clearSession: transport.clearSession,
   };
 }

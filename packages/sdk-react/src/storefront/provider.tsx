@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { StorefrontOverrides, StorefrontPreferencesResponse, StorefrontValues } from "@changedesk/contracts";
 import type { StorefrontClient } from "./client.js";
 
@@ -22,12 +22,14 @@ export function StorefrontProvider({ client, sessionKey = "default", children }:
   const [draft, setDraft] = useState<StorefrontOverrides>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const stateEpoch = useRef(0);
 
   const load = useCallback(async (signal?: AbortSignal) => {
+    const expectedEpoch = stateEpoch.current;
     setLoading(true); setError(null);
     try {
       const response = await client.getPreferences(signal);
-      if (signal?.aborted) return;
+      if (signal?.aborted || expectedEpoch !== stateEpoch.current) return;
       setPreferences(response); setDraft(response.overrides);
     } catch (cause) {
       if ((cause as { name?: string }).name !== "AbortError") setError(cause instanceof Error ? cause : new Error("No se pudieron cargar las preferencias"));
@@ -38,15 +40,20 @@ export function StorefrontProvider({ client, sessionKey = "default", children }:
 
   useEffect(() => {
     const controller = new AbortController();
+    const unsubscribe = client.subscribeSessionInvalidation(() => {
+      stateEpoch.current += 1;
+      controller.abort();
+      setPreferences(null); setDraft({}); setError(null); setLoading(false);
+    });
     setPreferences(null); setDraft({});
     void load(controller.signal);
-    return () => { controller.abort(); client.clearSession(); };
+    return () => { unsubscribe(); controller.abort(); client.clearSession(); };
   }, [client, sessionKey, load]);
 
   const accept = useCallback((response: StorefrontPreferencesResponse) => { setPreferences(response); setDraft(response.overrides); setError(null); }, []);
   const preview = useMemo<StorefrontValues>(() => {
-    const effective = preferences?.effective ?? defaults;
-    return { theme: draft.theme ?? effective.theme, density: draft.density ?? effective.density, productLayout: draft.productLayout ?? effective.productLayout };
+    const inherited = preferences?.inherited ?? defaults;
+    return { theme: draft.theme ?? inherited.theme, density: draft.density ?? inherited.density, productLayout: draft.productLayout ?? inherited.productLayout };
   }, [draft, preferences]);
   const value = useMemo<StorefrontContextValue>(() => ({ client, preferences, draft, preview, loading, error, setDraft, refresh: () => load(), accept }), [accept, client, draft, error, load, loading, preferences, preview]);
   return <Context.Provider value={value}>{children}</Context.Provider>;

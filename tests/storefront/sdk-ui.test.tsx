@@ -7,8 +7,13 @@ import { StorefrontAdminPanel, StorefrontPreferencesPanel, StorefrontRoot } from
 import { StorefrontProvider } from "../../packages/sdk-react/src/storefront/provider.js";
 import type { StorefrontAdminClient, StorefrontClient } from "../../packages/sdk-react/src/storefront/client.js";
 
-const preferences = { overrides: {}, effective: { theme: "system" as const, density: "comfortable" as const, productLayout: "grid" as const }, buyerRevision: 0, globalRevision: 0 };
-const buyerClient: StorefrontClient = { getPreferences: vi.fn(async () => preferences), replacePreferences: vi.fn(async (input) => ({ ...preferences, overrides: input.overrides, buyerRevision: 1 })), createGlobalProposal: vi.fn(async (input) => ({ id: "p1", ...input, status: "pending", proposalRevision: 1, createdAt: "2026-10-24T12:00:00.000Z" })), getOwnProposal: vi.fn(), clearSession: vi.fn() };
+const preferences = { overrides: {}, inherited: { theme: "system" as const, density: "comfortable" as const, productLayout: "grid" as const }, effective: { theme: "system" as const, density: "comfortable" as const, productLayout: "grid" as const }, buyerRevision: 0, globalRevision: 0 };
+function withInvalidation(client: Omit<StorefrontClient, "subscribeSessionInvalidation">): StorefrontClient {
+  const listeners = new Set<() => void>();
+  const clearSession = vi.fn(() => { client.clearSession(); for (const listener of listeners) listener(); });
+  return { ...client, clearSession, subscribeSessionInvalidation(listener) { listeners.add(listener); return () => listeners.delete(listener); } };
+}
+const buyerClient: StorefrontClient = withInvalidation({ getPreferences: vi.fn(async () => preferences), replacePreferences: vi.fn(async (input) => ({ ...preferences, overrides: input.overrides, buyerRevision: 1 })), createGlobalProposal: vi.fn(async (input) => ({ id: "p1", ...input, status: "pending", proposalRevision: 1, createdAt: "2026-10-24T12:00:00.000Z" })), getOwnProposal: vi.fn(), clearSession: vi.fn() });
 afterEach(() => cleanup());
 
 describe("storefront buyer UI", () => {
@@ -33,15 +38,33 @@ describe("storefront buyer UI", () => {
   it("clears provider state on an explicit host session identity change and ignores the old response", async () => {
     let finishOld!: (value: typeof preferences) => void;
     const switched = { ...preferences, overrides: { theme: "light" as const }, effective: { ...preferences.effective, theme: "light" as const } };
-    const client: StorefrontClient = { ...buyerClient, getPreferences: vi.fn()
+    const client: StorefrontClient = withInvalidation({ ...buyerClient, getPreferences: vi.fn()
       .mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; }))
-      .mockResolvedValueOnce(switched), clearSession: vi.fn() };
+      .mockResolvedValueOnce(switched), clearSession: vi.fn() });
     const view = render(<StorefrontProvider client={client} sessionKey="buyer-a"><StorefrontPreferencesPanel /><StorefrontRoot><span data-testid="session-product">Product</span></StorefrontRoot></StorefrontProvider>);
     await vi.waitFor(() => expect(finishOld).toBeTypeOf("function"));
     view.rerender(<StorefrontProvider client={client} sessionKey="buyer-b"><StorefrontPreferencesPanel /><StorefrontRoot><span data-testid="session-product">Product</span></StorefrontRoot></StorefrontProvider>);
     finishOld({ ...preferences, overrides: { theme: "dark" }, effective: { ...preferences.effective, theme: "dark" } });
     await waitFor(() => expect(screen.getByTestId("session-product").closest(".changedesk-storefront-root")?.getAttribute("data-theme")).toBe("light"));
     expect(client.clearSession).toHaveBeenCalled();
+  });
+
+  it("clears visible preferences when the same client is logged out directly", async () => {
+    const client = withInvalidation({ ...buyerClient, clearSession: vi.fn(), getPreferences: vi.fn(async () => ({ ...preferences, overrides: { theme: "dark" as const }, effective: { ...preferences.effective, theme: "dark" as const } })) });
+    render(<StorefrontProvider client={client}><StorefrontPreferencesPanel /><StorefrontRoot><span data-testid="logout-product">Product</span></StorefrontRoot></StorefrontProvider>);
+    expect(await screen.findByDisplayValue("Oscuro")).toBeTruthy();
+    client.clearSession();
+    await waitFor(() => expect((screen.getByLabelText("Tema") as HTMLSelectElement).disabled).toBe(true));
+    expect(screen.getByTestId("logout-product").closest(".changedesk-storefront-root")?.getAttribute("data-theme")).toBe("system");
+  });
+
+  it("previews the inherited global value when an existing personal override is removed", async () => {
+    const overridden = { ...preferences, inherited: { ...preferences.inherited, theme: "light" as const }, overrides: { theme: "dark" as const }, effective: { ...preferences.effective, theme: "dark" as const } };
+    const client = withInvalidation({ ...buyerClient, clearSession: vi.fn(), getPreferences: vi.fn(async () => overridden) });
+    const user = userEvent.setup();
+    render(<StorefrontProvider client={client}><StorefrontPreferencesPanel /><StorefrontRoot><span data-testid="inherit-product">Product</span></StorefrontRoot></StorefrontProvider>);
+    await user.selectOptions(await screen.findByLabelText("Tema"), "");
+    expect(screen.getByTestId("inherit-product").closest(".changedesk-storefront-root")?.getAttribute("data-theme")).toBe("light");
   });
 });
 

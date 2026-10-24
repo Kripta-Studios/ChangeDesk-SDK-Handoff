@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createStorefrontAdminClient, createStorefrontClient, StorefrontApiError } from "../../packages/sdk-react/src/storefront/client.js";
 
-const preferences = { overrides: {}, effective: { theme: "system", density: "comfortable", productLayout: "grid" }, buyerRevision: 0, globalRevision: 0 };
+const preferences = { overrides: {}, inherited: { theme: "system", density: "comfortable", productLayout: "grid" }, effective: { theme: "system", density: "comfortable", productLayout: "grid" }, buyerRevision: 0, globalRevision: 0 };
 
 describe("storefront buyer client", () => {
   it("uses PUT replacement with UUID idempotency and reports 409", async () => {
@@ -14,8 +14,10 @@ describe("storefront buyer client", () => {
   it("invalidates cached data and a late response after logout/session switch", async () => {
     let resolve!: (response: Response) => void;
     const client = createStorefrontClient({ endpoint: "http://localhost:4100", getSession: async () => ({ accessToken: "buyer-token", expiresAt: "2099-01-01T00:00:00.000Z" }), fetch: () => new Promise((done) => { resolve = done; }) });
+    const invalidated = vi.fn(); client.subscribeSessionInvalidation(invalidated);
     const pending = client.getPreferences(); await vi.waitFor(() => expect(resolve).toBeTypeOf("function")); client.clearSession(); resolve(new Response(JSON.stringify(preferences), { status: 200, headers: { "content-type": "application/json" } }));
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(invalidated).toHaveBeenCalledOnce();
   });
 
   it("validates fixed endpoints, sessions and closed response bodies", async () => {
@@ -23,6 +25,8 @@ describe("storefront buyer client", () => {
     expect(() => createStorefrontClient({ endpoint: "https://user:secret@desk.example.test", getSession: async () => ({ accessToken: "x", expiresAt: "2099-01-01T00:00:00Z" }) })).toThrow(/origen fijo/);
     const invalidResponse = createStorefrontClient({ endpoint: "https://desk.example.test", getSession: async () => ({ accessToken: "x", expiresAt: "2099-01-01T00:00:00Z" }), fetch: async () => new Response(JSON.stringify({ ...preferences, tenantId: "leak" }), { headers: { "content-type": "application/json" } }) });
     await expect(invalidResponse.getPreferences()).rejects.toThrow(/respuesta.*inválida/i);
+    const validResponse = createStorefrontClient({ endpoint: "https://desk.example.test", getSession: async () => ({ accessToken: "x", expiresAt: "2099-01-01T00:00:00Z" }), fetch: async () => new Response(JSON.stringify(preferences), { headers: { "content-type": "application/json" } }) });
+    await expect(validResponse.getPreferences()).resolves.toMatchObject({ inherited: preferences.inherited });
   });
 
   it("keeps buyer and administrator routes and request bodies separate", async () => {
