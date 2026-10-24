@@ -44,8 +44,22 @@ export function verificationCommands(lane = "deterministic") {
   return selected;
 }
 
+export function validatePostgresEnvironment(environment = process.env) {
+  const names = ["CHANGEDESK_MIGRATOR_DATABASE_URL", "CHANGEDESK_RUNTIME_DATABASE_URL", "CHANGEDESK_WORKER_DATABASE_URL"];
+  const missing = names.filter((name) => !environment[name]);
+  if (missing.length > 0) throw new Error(`BLOCKED postgres: missing ${missing.join(", ")}`);
+  const scope = environment.CHANGEDESK_INTEGRATION_DATABASE_SCOPE;
+  if (!scope || !/^changedesk_test_[a-z0-9_]+$/.test(scope)) throw new Error("BLOCKED postgres: an explicit run-scoped changedesk_test_<run> database is required");
+  for (const name of names) {
+    let database;
+    try { database = new URL(environment[name]).pathname.slice(1); } catch { throw new Error(`BLOCKED postgres: invalid ${name}`); }
+    if (database !== scope) throw new Error(`BLOCKED postgres: ${name} must target the run-scoped ${scope} database`);
+  }
+}
+
 function assertLanePreconditions(lane, root) {
-  const requiredEnvironment = lane === "postgres" ? ["CHANGEDESK_MIGRATOR_DATABASE_URL", "CHANGEDESK_RUNTIME_DATABASE_URL", "CHANGEDESK_WORKER_DATABASE_URL"] : lane === "medusa" ? ["DATABASE_URL"] : [];
+  if (lane === "postgres") validatePostgresEnvironment();
+  const requiredEnvironment = lane === "medusa" ? ["DATABASE_URL"] : [];
   const missing = requiredEnvironment.filter((name) => !process.env[name]);
   if (missing.length > 0) throw new Error(`BLOCKED ${lane}: missing ${missing.join(", ")}`);
   if (lane === "browser") {

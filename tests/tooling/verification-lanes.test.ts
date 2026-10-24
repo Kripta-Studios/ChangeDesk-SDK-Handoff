@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error Executable tooling intentionally has no declaration bundle.
-import { verificationCommands } from "../../scripts/verify-ci.mjs";
+import { validatePostgresEnvironment, verificationCommands } from "../../scripts/verify-ci.mjs";
 
 describe("CI lane contracts", () => {
   it("defines concrete, non-empty commands for every non-live lane", () => {
@@ -20,5 +20,11 @@ describe("CI lane contracts", () => {
 
   it("rejects an unknown lane instead of returning a green no-op", () => {
     expect(() => verificationCommands("unknown")).toThrow(/Unknown verification lane/);
+  });
+
+  it("refuses the demo database and accepts only one explicit run-scoped integration database", () => {
+    const common = { CHANGEDESK_RUNTIME_DATABASE_URL: "postgresql://runtime:x@127.0.0.1/changedesk_test_123", CHANGEDESK_WORKER_DATABASE_URL: "postgresql://worker:x@127.0.0.1/changedesk_test_123", CHANGEDESK_INTEGRATION_DATABASE_SCOPE: "changedesk_test_123" };
+    expect(() => validatePostgresEnvironment({ ...common, CHANGEDESK_MIGRATOR_DATABASE_URL: "postgresql://migrator:x@127.0.0.1/changedesk" })).toThrow(/run-scoped/);
+    expect(() => validatePostgresEnvironment({ ...common, CHANGEDESK_MIGRATOR_DATABASE_URL: "postgresql://migrator:x@127.0.0.1/changedesk_test_123" })).not.toThrow();
   });
 });

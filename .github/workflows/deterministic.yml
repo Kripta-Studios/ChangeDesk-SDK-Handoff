@@ -82,6 +82,8 @@ jobs:
           worker="$(openssl rand -hex 24)"
           atlas="$(openssl rand -hex 24)"
           boreal="$(openssl rand -hex 24)"
+          database="changedesk_test_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          for secret in "$bootstrap" "$migrator" "$runtime" "$worker" "$atlas" "$boreal"; do echo "::add-mask::$secret"; done
           {
             echo "POSTGRES_BOOTSTRAP_PASSWORD=$bootstrap"
             echo "CHANGEDESK_MIGRATOR_PASSWORD=$migrator"
@@ -90,13 +92,24 @@ jobs:
             echo "ATLAS_DB_PASSWORD=$atlas"
             echo "BOREAL_DB_PASSWORD=$boreal"
             echo "CHANGEDESK_POSTGRES_PORT=5432"
-            echo "CHANGEDESK_MIGRATOR_DATABASE_URL=postgresql://changedesk_migrator:$migrator@127.0.0.1:5432/changedesk"
-            echo "CHANGEDESK_RUNTIME_DATABASE_URL=postgresql://changedesk_runtime:$runtime@127.0.0.1:5432/changedesk"
-            echo "CHANGEDESK_WORKER_DATABASE_URL=postgresql://changedesk_worker:$worker@127.0.0.1:5432/changedesk"
+            echo "CHANGEDESK_INTEGRATION_DATABASE_SCOPE=$database"
+            echo "CHANGEDESK_MIGRATOR_DATABASE_URL=postgresql://changedesk_migrator:$migrator@127.0.0.1:5432/$database"
+            echo "CHANGEDESK_RUNTIME_DATABASE_URL=postgresql://changedesk_runtime:$runtime@127.0.0.1:5432/$database"
+            echo "CHANGEDESK_WORKER_DATABASE_URL=postgresql://changedesk_worker:$worker@127.0.0.1:5432/$database"
             echo "ATLAS_DATABASE_URL=postgresql://atlas_owner:$atlas@127.0.0.1:5432/atlas"
           } >> "$GITHUB_ENV"
       - name: Start scoped PostgreSQL laboratory
         run: docker compose -p changedesk-ci-${{ github.run_id }} -f infra/compose.yaml up -d --wait postgres
+      - name: Create the run-scoped integration database
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -p changedesk-ci-${{ github.run_id }} -f infra/compose.yaml exec -T postgres \
+            psql --set ON_ERROR_STOP=1 --username changedesk_bootstrap --dbname postgres \
+            --command "CREATE DATABASE \"$CHANGEDESK_INTEGRATION_DATABASE_SCOPE\" OWNER changedesk_migrator"
+          docker compose -p changedesk-ci-${{ github.run_id }} -f infra/compose.yaml exec -T postgres \
+            psql --set ON_ERROR_STOP=1 --username changedesk_bootstrap --dbname postgres \
+            --command "GRANT CONNECT ON DATABASE \"$CHANGEDESK_INTEGRATION_DATABASE_SCOPE\" TO changedesk_runtime, changedesk_worker"
       - name: Run PostgreSQL storage and runtime gates
         run: node scripts/verify-ci.mjs --lane postgres
       - name: Stop scoped PostgreSQL laboratory
@@ -128,6 +141,7 @@ jobs:
           worker="$(openssl rand -hex 24)"
           atlas="$(openssl rand -hex 24)"
           boreal="$(openssl rand -hex 24)"
+          for secret in "$bootstrap" "$migrator" "$runtime" "$worker" "$atlas" "$boreal"; do echo "::add-mask::$secret"; done
           {
             echo "POSTGRES_BOOTSTRAP_PASSWORD=$bootstrap"
             echo "CHANGEDESK_MIGRATOR_PASSWORD=$migrator"
