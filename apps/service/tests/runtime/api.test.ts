@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildApi } from "../../src/api/server.js";
 import type { ServiceConfig } from "../../src/config.js";
 
-const config: ServiceConfig = { apiDatabaseUrl: "postgres://invalid-api", workerDatabaseUrl: "postgres://invalid-worker", host: "127.0.0.1", port: 4100, publicOriginAllowlist: ["http://localhost:9001"], sessionAudience: "changedesk", sessionIssuerAllowlist: ["atlas"], sessionTtlSeconds: 300, bridgeTicketMaxTtlSeconds: 60, bodyLimitBytes: 65_536, workerId: "w", workerLeaseSeconds: 30, workerGlobalCap: 8, hosts: [], publicationKeyId: "key", publicationPrivateKeyPem: "pem" };
+const config: ServiceConfig = { proofRequired: false, apiDatabaseUrl: "postgres://invalid-api", workerDatabaseUrl: "postgres://invalid-worker", host: "127.0.0.1", port: 4100, publicOriginAllowlist: ["http://localhost:9001"], sessionAudience: "changedesk", sessionIssuerAllowlist: ["atlas"], sessionTtlSeconds: 300, bridgeTicketMaxTtlSeconds: 60, bodyLimitBytes: 65_536, workerId: "w", workerLeaseSeconds: 30, workerGlobalCap: 8, hosts: [], publicationKeyId: "key", publicationPrivateKeyPem: "pem", planner: { executable: "codex", executableSha256: "a".repeat(64), model: "gpt-6.1-sol", allowedModels: ["gpt-6.1-sol"], isolatedCwd: ".", outputSchemaPath: "schema.json", timeoutMs: 120000, maxOutputBytes: 65536, maxInputTokens: 120000 } };
 
 describe("REST authorization and validation", () => {
   it("ACC-003 rejects viewer mutations even with a known endpoint", async () => {

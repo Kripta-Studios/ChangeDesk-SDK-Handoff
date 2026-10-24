@@ -20,16 +20,17 @@ export class DurableWorker {
   constructor(private readonly dependencies: WorkerDependencies) { this.#clock = dependencies.clock ?? (() => new Date()); }
   recoverOrphanedLeases(limit = 100): Promise<number> { return this.dependencies.store.recoverOrphanedLeases(limit); }
 
-  async runOnce(workerId: string): Promise<"idle" | WorkerOutcome> {
+  async runOnce(workerId: string, signal?: AbortSignal): Promise<"idle" | WorkerOutcome> {
     const lease = await this.dependencies.store.claimNextJob(workerId, this.#clock());
     if (!lease) return "idle";
     if (!await this.dependencies.store.heartbeat(lease, this.#clock())) return { kind: "waiting_reconciliation", reason: "lease_lost_before_load" };
     if (lease.kind === "generation" && this.dependencies.generation) {
       const controller = new AbortController();
+      const abort = () => controller.abort(signal?.reason); signal?.addEventListener("abort", abort, { once: true });
       let leaseLost = false, heartbeatRunning = false;
       const intervalMs = Math.max(1_000, Math.min(10_000, Math.floor((Date.parse(lease.leaseUntil) - this.#clock().getTime()) / 3)));
       const timer = setInterval(() => { if (heartbeatRunning) return; heartbeatRunning = true; void this.dependencies.store.heartbeat(lease, this.#clock()).then((alive) => { if (!alive) { leaseLost = true; controller.abort(); } }).finally(() => { heartbeatRunning = false; }); }, intervalMs);
-      const outcome = await this.dependencies.generation.process(lease, controller.signal).finally(() => clearInterval(timer));
+      const outcome = await this.dependencies.generation.process(lease, controller.signal).finally(() => { clearInterval(timer); signal?.removeEventListener("abort", abort); });
       if (leaseLost) return { kind: "waiting_reconciliation", reason: "generation_lease_lost" };
       await this.dependencies.store.requeueOrFinish(lease, outcome);
       return outcome;
@@ -85,7 +86,7 @@ export class DurableWorker {
         if (!await this.dependencies.store.updateRowState(lease, effect.recordId, "succeeded")) return { confirmed, unknown: unknown + 1 };
         confirmed++;
       } else if (result.state === "no_effect") {
-        if (!await this.dependencies.store.rejectAttempt(lease, attempt.attemptId, "reconciled_no_effect")) return { confirmed, unknown: unknown + 1 };
+        if (!await this.dependencies.store.markAttemptNoEffect(lease, attempt.attemptId)) return { confirmed, unknown: unknown + 1 };
         if (!await this.dependencies.store.updateRowState(lease, effect.recordId, "succeeded")) return { confirmed, unknown: unknown + 1 };
       } else {
         unknown++;

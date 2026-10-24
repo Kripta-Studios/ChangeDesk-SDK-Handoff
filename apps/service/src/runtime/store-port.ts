@@ -7,12 +7,13 @@ export interface RuntimeStorePort {
   heartbeat(lease: JobLease, now: Date): Promise<boolean>;
   loadExecutionBundle(lease: JobLease): Promise<ExecutionBundle>;
   prepareExecution(lease: JobLease, bundle: ExecutionBundle): Promise<ExecutionBundle | null>;
-  updateRowState(lease: JobLease, rowId: string, state: "running" | "succeeded" | "unknown" | "failed"): Promise<boolean>;
+  updateRowState(lease: JobLease, rowId: string, state: "running" | "succeeded" | "unknown" | "failed" | "needs_review"): Promise<boolean>;
   settleExecution(lease: JobLease, outcome: WorkerOutcome): Promise<boolean>;
   recordAttemptIntent(lease: JobLease, input: { rowId: string; stepId: string; operationKey: string; semanticInputHash: string; capability: EffectCapability; argsHash: string }): Promise<Attempt | null>;
   markAttemptSent(lease: JobLease, attemptId: string): Promise<boolean>;
   confirmAttempt(lease: JobLease, attemptId: string, receipt: unknown): Promise<boolean>;
   markAttemptUnknown(lease: JobLease, attemptId: string, code: string): Promise<boolean>;
   rejectAttempt(lease: JobLease, attemptId: string, code: string): Promise<boolean>;
+  markAttemptNoEffect(lease: JobLease, attemptId: string): Promise<boolean>;
   requeueOrFinish(lease: JobLease, outcome: WorkerOutcome): Promise<void>;
 }

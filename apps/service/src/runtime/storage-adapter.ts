@@ -34,7 +34,7 @@ export class StorageRuntimeAdapter implements RuntimeStorePort {
       return execution ? { ...bundle, execution: { ...bundle.execution, state: execution.state, revision: Number(execution.revision) } } : null;
     });
   }
-  updateRowState(lease: JobLease, rowId: string, state: "running" | "succeeded" | "unknown" | "failed") {
+  updateRowState(lease: JobLease, rowId: string, state: "running" | "succeeded" | "unknown" | "failed" | "needs_review") {
     return this.scoped(lease, (tx) => tx.updateRowWithLease(lease, { executionId: lease.executionId!, rowId, state }));
   }
   settleExecution(lease: JobLease, outcome: WorkerOutcome): Promise<boolean> {
@@ -42,8 +42,17 @@ export class StorageRuntimeAdapter implements RuntimeStorePort {
       const raw = await tx.loadExecutionBundle(lease.executionId!); if (!raw) return false;
       if (outcome.kind === "waiting_reconciliation") return true;
       const bundle = mapBundle(raw);
-      if (outcome.kind === "completed") for (const row of bundle.rows) if (row.state === "pending" || row.state === "running") if (!await tx.updateRowWithLease(lease, { executionId: bundle.execution.id, rowId: row.rowId, state: "succeeded" })) return false;
-      const state = outcome.kind === "completed" ? "succeeded" : outcome.kind === "cancelled" ? "cancelled" : outcome.kind === "authority_expired" && outcome.observedEffects > 0 ? "partial" : "failed";
+      let confirmedRows = 0, uncertainRows = 0, failedRows = 0;
+      const effects = (raw.plan.body ?? raw.plan).perRecordEffects ?? [];
+      for (const row of bundle.rows) {
+        const required = effects.filter((effect: any) => effect.recordId === row.rowId && effect.expected === "apply");
+        const states = required.map((effect: any) => (raw.attempts ?? []).filter((attempt: any) => attempt.row_id === row.rowId && attempt.step_id === effect.stepId).at(-1)?.state);
+        const state = states.some((value: string) => value === "rejected") ? "failed" : states.some((value: string) => value === "sent" || value === "unknown" || value === undefined) ? "needs_review" : "succeeded";
+        if (state === "succeeded") confirmedRows++; else if (state === "failed") failedRows++; else uncertainRows++;
+        if (row.state !== state && !await tx.updateRowWithLease(lease, { executionId: bundle.execution.id, rowId: row.rowId, state })) return false;
+      }
+      const observedEffects = (raw.attempts ?? []).some((attempt: any) => attempt.state === "confirmed" || attempt.state === "no_effect");
+      const state = outcome.kind === "cancelled" ? "cancelled" : uncertainRows > 0 ? "partial" : failedRows > 0 ? (confirmedRows > 0 || observedEffects ? "partial" : "failed") : outcome.kind === "completed" ? "succeeded" : outcome.kind === "authority_expired" && observedEffects ? "partial" : "failed";
       return (await tx.updateExecutionWithLease(lease, bundle.execution.id, state, bundle.execution.revision)) !== null;
     });
   }
@@ -52,6 +61,7 @@ export class StorageRuntimeAdapter implements RuntimeStorePort {
   confirmAttempt(lease: JobLease, attemptId: string, receipt: unknown) { return this.transition(lease, attemptId, "confirmed", receipt); }
   markAttemptUnknown(lease: JobLease, attemptId: string, code: string) { return this.transition(lease, attemptId, "unknown", undefined, code); }
   rejectAttempt(lease: JobLease, attemptId: string, code: string) { return this.transition(lease, attemptId, "rejected", undefined, code); }
+  markAttemptNoEffect(lease: JobLease, attemptId: string) { return this.transition(lease, attemptId, "no_effect"); }
   async requeueOrFinish(lease: JobLease, outcome: WorkerOutcome): Promise<void> {
     if (outcome.kind === "waiting_reconciliation") return this.jobs.finish(lease, { status: "pending", nextAttemptAt: new Date(Date.now() + 2_000), errorCode: outcome.reason });
     if (outcome.kind === "completed") return this.jobs.finish(lease, { status: "completed" });
