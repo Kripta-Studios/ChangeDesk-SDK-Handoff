@@ -12,24 +12,63 @@
       "behavior": "publication key cannot disguise a different capability/step graph",
       "command": "esbuild catalog.test.ts then node --test",
       "result": "FAIL as expected: missing PUBLICATION_SEMANTICS_MISMATCH; 4 passed, 1 failed"
+    },
+    {
+      "behavior": "API proposal parser rejects extra fields and preserves measured usage on rejection",
+      "command": "vitest run tests/planner/providers.test.ts",
+      "result": "FAIL as expected: response containing unexpected=true was accepted; 7 passed, 1 failed"
+    },
+    {
+      "behavior": "publication semantic comparison ignores JSON object and set-like capability ordering",
+      "command": "vitest run tests/planner/catalog.test.ts",
+      "result": "FAIL as expected: equivalent reordered recipe raised PUBLICATION_SEMANTICS_MISMATCH; 7 passed, 1 failed"
     }
   ],
   "green": [
     {
-      "command": "node_modules/.bin/vitest.cmd run tests/planner --exclude tests/planner/live.codex.test.ts",
+      "command": "node_modules/.bin/vitest.cmd run tests/planner",
       "result": "PASS",
-      "files": 3,
-      "tests": 18,
-      "durationSeconds": 6.07
+      "files": 4,
+      "tests": 19,
+      "durationSeconds": 7.84,
+      "note": "live file remains in the default project and asserts an explicit BLOCKED_LIVE_SETTINGS gate when live settings are absent; it is never skipped"
     },
     {
       "command": "CHANGEDESK_RUN_CODEX_LIVE=1 CHANGEDESK_CODEX_MODEL=gpt-6.1-sol vitest run tests/planner/live.codex.test.ts",
-      "result": "BLOCKED: transport/schema wrapper passed but the next bounded live run failed full Ajv/semantic validation; no recipe accepted",
+      "result": "PASS: hardened closed schema produced a recipe accepted by contract Ajv and finite semantic assertions; an earlier attempt was rejected and remains recorded",
       "files": 1,
       "tests": 1,
-      "testDurationSeconds": 18.634,
+      "testDurationSeconds": 22.241,
       "observedModel": "not_observed_by_codex_jsonl",
-      "tokenMetric": {"input":11747,"cachedInput":0,"output":294,"reasoningOutput":64}
+      "tokenMetric": {"input":13554,"cachedInput":0,"output":227,"reasoningOutput":0},
+      "priorRejectedAttempt": {"input":11747,"cachedInput":0,"output":294,"reasoningOutput":64}
+    },
+    {
+      "command": "vitest run tests/planner/providers.test.ts",
+      "result": "PASS",
+      "files": 1,
+      "tests": 8,
+      "durationSeconds": 8.48
+    },
+    {
+      "command": "vitest run tests/planner",
+      "result": "PASS",
+      "files": 5,
+      "tests": 24,
+      "durationSeconds": 7.91,
+      "coverage": "ACL-first reuse, requester generation with mutation capabilities, canonical generic persistence, and viewer provider denial"
+    },
+    {
+      "command": "vitest run tests/planner",
+      "result": "PASS",
+      "files": 5,
+      "tests": 27,
+      "durationSeconds": 3.22,
+      "coverage": "durable request-wide reservation in the single-call validated generation path, atomic artifact completion token, failed usage accounting, shared authorized publication lookup, and abort propagation"
+    },
+    {
+      "command": "tsc -b packages/contracts/tsconfig.json apps/service/tsconfig.json --pretty false",
+      "result": "PASS"
     }
   ],
   "separation": {

@@ -18,8 +18,8 @@
   "finalAdr006Green": {
     "command": "Node 22.23.4 path + Vitest 4.0.16 run tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts",
     "exitCode": 0,
-    "tests": {"files":2,"pass":12,"fail":0},
-    "durationMs": 2720,
+    "tests": {"files":2,"pass":13,"fail":0},
+    "durationMs": 2230,
     "reportedBy": "Medusa lane using the exact Node 22 executable and direct Vitest entrypoint"
   },
   "strictTypecheck": {
@@ -28,8 +28,10 @@
   },
   "officialPluginBuild": {
     "backend": "PASS",
-    "admin": "BLOCKED",
-    "reason": "Official CLI compiled plugin source, but the integrated admin build exposed missing exact admin-sdk/admin-shared manifest dependencies. Manifest fix is pending central verification/install; no green build is claimed."
+    "admin": "PASS",
+    "command": "Node 22.23.4 direct @medusajs/cli@2.22.1 plugin:build with telemetry and analytics disabled",
+    "result": "Backend completed in 27.61s; admin extensions completed in 27.74s after staging the exact already-installed @medusajs/admin-shared@2.22.1 package as the newly declared direct dependency.",
+    "reproducibility": "Central lock/install update for the declared admin dependencies is still pending the environment owner; this pass does not replace that lock gate."
   },
   "notRun": [
     {

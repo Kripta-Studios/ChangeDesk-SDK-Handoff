@@ -1,4 +1,4 @@
-import type { ExecutionState, InstallationState, JsonValue, PlanState, RequestState } from "@changedesk/contracts";
+import type { ActorRole, ExecutionState, InstallationState, JsonValue, PlanState, RequestState } from "@changedesk/contracts";
 
 export type TenantContext = Readonly<{ tenantId: string; actorId: string }>;
 export type JobKind = "generation" | "execution" | "reconcile";
@@ -41,6 +41,7 @@ export interface PlanRecord {
   readonly state: PlanState;
   readonly expiresAt: Date;
 }
+export interface PlanDetailRecord extends PlanRecord {readonly requestId:string;readonly installationId:string|null;readonly artifactHash:string;readonly adapterVersion:string;readonly policyVersion:string;readonly capabilityManifestHash:string;readonly body:JsonValue;readonly createdAt:Date}
 
 export interface ApprovalRecord {
   readonly id: string;
@@ -157,6 +158,24 @@ export interface ExecutionBundle {
   readonly authority: { readonly hostSessionId:string|null };
 }
 
+export interface CapabilityManifestRecord {readonly id:string;readonly manifestHash:string;readonly adapterVersion:string;readonly body:JsonValue}
+export interface GenerationReservationInput {
+  readonly id:string;readonly actorId:string;readonly intentHash:string;readonly contractVersion:string;readonly requestId:string;
+  readonly maxAttempts:number;readonly tokenBudget:bigint;readonly costBudgetMicros:bigint;readonly provider:string;readonly model:string;
+}
+export type GenerationReservationResult=
+  | {readonly state:"acquired";readonly id:string;readonly fence:number;readonly attempt:number}
+  | {readonly state:"existing";readonly id:string;readonly status:"pending"|"running"|"completed"|"failed";readonly artifactId?:string}
+  | {readonly state:"exhausted"};
+export interface GenerationUsage {readonly artifactId:string;readonly usedTokens:bigint;readonly usedCostMicros:bigint}
+export interface GenerationReservationToken {readonly reservationId:string;readonly fence:bigint}
+export interface GenerationCallRecordResult {readonly recorded:boolean;readonly withinBudget:boolean}
+export interface GenerationScope {readonly tenantId:string;readonly actorId:string}
+export interface GenerationCallReservationInput extends GenerationScope {
+  readonly requestId:string;readonly intentHash:string;readonly contractVersion:"1";readonly provider:string;readonly model:string;
+  readonly maxAttempts:1|2|3;readonly tokenBudget:bigint;readonly costBudgetMicros:bigint;readonly leaseOwner:string;readonly leaseSeconds:number;
+}
+export interface RetentionResult {readonly requestsCleaned:number;readonly attemptsCleaned:number;readonly usageDeleted:number}
 export interface GenerationBundle {
   readonly request: {
     readonly id:string;
@@ -168,12 +187,8 @@ export interface GenerationBundle {
     readonly createdAt:Date;
   };
   readonly tenant: { readonly policyVersion:string;readonly backendKey:string };
-  readonly capabilityManifest: {
-    readonly id:string;
-    readonly manifestHash:string;
-    readonly adapterVersion:string;
-    readonly body:JsonValue;
-  };
+  readonly actor: {readonly role:ActorRole;readonly enabled:boolean};
+  readonly capabilityManifest: CapabilityManifestRecord;
 }
 
 export interface CatalogQuery {
@@ -216,6 +231,12 @@ export interface InstallationRecord {
   readonly status: InstallationState;
   readonly policyVersion: string;
 }
+export interface InstallationDetailRecord extends InstallationRecord {
+  readonly recipeKey:string;readonly displayName:string;readonly version:string;
+  readonly evidenceStatus:"passed"|"failed"|"blocked"|"not_run"|"not_applicable";
+  readonly installedAt:Date;readonly lastValidatedAt:Date|null;
+}
+export interface InstallationPlanContext {readonly installation:InstallationDetailRecord;readonly config:JsonValue;readonly artifact:CatalogArtifact}
 
 export interface PublicationKey {
   readonly id: string;

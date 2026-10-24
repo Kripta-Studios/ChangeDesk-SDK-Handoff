@@ -6,12 +6,14 @@ export interface PlannerOptions {
   readonly maxMessageCharacters: number;
 }
 
-export class ValidatingPlanner implements PlannerPort {
+export class ValidatingPlanner<MaxCalls extends 1|2|3 = 1|2|3> implements PlannerPort {
+  readonly maxCallsPerPlan:MaxCalls;
   constructor(
     private readonly provider: PlannerProvider,
     private readonly validateRecipe: RecipeValidator,
-    private readonly options: PlannerOptions = { maxCalls: 3, maxMessageCharacters: 4_000 },
+    private readonly options: PlannerOptions & {readonly maxCalls:MaxCalls} = { maxCalls: 3, maxMessageCharacters: 4_000 } as PlannerOptions & {readonly maxCalls:MaxCalls},
   ) {
+    this.maxCallsPerPlan=options.maxCalls;
     if (!Number.isInteger(options.maxCalls) || options.maxCalls < 1 || options.maxCalls > 3) {
       throw new Error("Planner maxCalls must be an integer between 1 and 3");
     }

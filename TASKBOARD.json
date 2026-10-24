@@ -39,12 +39,12 @@
       "dependsOn": [
         "T00"
       ],
-      "status": "review",
+      "status": "done",
       "assignedAgent": "/root/core",
       "evidence": [
         "evidence/core-tdd.json",
         "evidence/parent-core-verification.json",
-        "evidence/parent-substrate-tests.json"
+        "evidence/parent-integration-tests.json"
       ],
       "blocker": null,
       "model": "gpt-6.1-sol",
@@ -62,9 +62,9 @@
       "assignedAgent": "/root/storage",
       "evidence": [
         "evidence/storage-tdd.json",
-        "evidence/parent-substrate-tests.json"
+        "evidence/parent-integration-tests.json"
       ],
-      "blocker": "Root migration1 CRLF differs from applied LF; normalize checkout only. Generation bundle integration underway.",
+      "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
     },
@@ -175,8 +175,12 @@
       ],
       "status": "in_progress",
       "assignedAgent": "/root/security",
-      "evidence": [],
-      "blocker": null,
+      "evidence": [
+        "evidence/security-attack-coverage.json",
+        "evidence/evaluation-runtime-blocker.json",
+        "evidence/holdout-manifest.json"
+      ],
+      "blocker": "Independent evaluation agent runtime filter rejected both continuation and narrowed defensive follow-up; remaining adversarial live evaluation BLOCKED. Completed tests retain scoped evidence.",
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
     },
@@ -204,9 +208,11 @@
         "T09",
         "T10"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
-      "evidence": [],
+      "status": "in_progress",
+      "assignedAgent": "/root/frontend",
+      "evidence": [
+        "evidence/frontend-bundle.json"
+      ],
       "blocker": null,
       "model": "gpt-6.1-sol",
       "reasoningEffort": "high"
@@ -221,8 +227,8 @@
         "T09",
         "T11"
       ],
-      "status": "not_started",
-      "assignedAgent": null,
+      "status": "in_progress",
+      "assignedAgent": "/root/core",
       "evidence": [],
       "blocker": null,
       "model": "gpt-6.1-sol",

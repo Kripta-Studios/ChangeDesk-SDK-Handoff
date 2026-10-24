@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "recordedAt": "2026-10-24T14:20:30+02:00",
+  "scope": "apps/service runtime unit and HTTP injection tests; mocks are explicitly test-only and do not claim Medusa/PostgreSQL integration",
+  "runtime": { "node": "22.23.4", "vitest": "4.0.16" },
+  "red": [
+    {
+      "test": "ACC-009 orphan lease recovery",
+      "command": "node vitest.mjs run apps/service/tests/runtime/recovery.test.ts --reporter=verbose --pool=forks --maxWorkers=1",
+      "exitCode": 1,
+      "reason": "adapter.recoverOrphanedLeases is not a function",
+      "testCommit": "7aef797971ee924396b57aa289e74abbe761c52c"
+    },
+    {
+      "suite": "apps/service/tests/runtime",
+      "exitCode": 1,
+      "observed": "5 failed, 6 passed; exposed strict Ajv union schema, fixture relation assumptions and replay test expectation"
+    }
+  ],
+  "green": [
+    {
+      "test": "ACC-009 orphan lease recovery",
+      "exitCode": 0,
+      "observed": "1 passed"
+    },
+    {
+      "suite": "apps/service/tests/runtime",
+      "exitCode": 0,
+      "observed": "5 files passed, 11 tests passed",
+      "command": "node vitest.mjs run apps/service/tests/runtime --reporter=dot --pool=forks --maxWorkers=1"
+    }
+  ],
+  "notRunOrBlocked": [
+    { "gate": "service TypeScript build", "status": "BLOCKED", "reason": "central workspace node_modules links for @changedesk/contracts, @types/pg and typescript were not available in this worktree at the last attempt" },
+    { "gate": "real Medusa/PostgreSQL runtime", "status": "NOT_RUN", "reason": "requires merged capability-manifest generation bundle and running local lab" },
+    { "gate": "live planner", "status": "NOT_RUN", "reason": "no live provider claim is made by runtime unit tests" }
+  ]
+}

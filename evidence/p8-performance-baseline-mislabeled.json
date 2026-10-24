@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "measuredAt": "2026-10-24T13:05:12.766Z",
+  "revision": "c03e0ac111f93db5bc67aec44504256f40ee5b4d",
+  "dirty": false,
+  "environment": {
+    "node": "v22.23.4",
+    "os": "win32 10.0.26200",
+    "cpu": "AMD Ryzen 9 9955HX 16-Core Processor           ",
+    "logicalCpuCount": 32,
+    "totalMemoryBytes": 33483378688,
+    "postgresql": "17.11"
+  },
+  "dataset": {
+    "runId": "f565bd06-3daa-4aee-a0a9-e826d458f86a",
+    "synthetic": true,
+    "authorizedCatalogEntries": 1000,
+    "catalogPageLimit": 20,
+    "setupMilliseconds": 47163.6906
+  },
+  "catalog": {
+    "samples": 200,
+    "errors": 0,
+    "unit": "ms",
+    "min": 44.09110000000146,
+    "p50": 86.12350000000151,
+    "p95": 404.1353999999992,
+    "p99": 462.88140000000567,
+    "max": 513.3545000000013,
+    "warmupSamples": 20,
+    "targetP95Milliseconds": 250,
+    "targetMet": false,
+    "authorization": "explicit cross-tenant read/install grants"
+  },
+  "admission": {
+    "samples": 80,
+    "errors": 0,
+    "unit": "ms",
+    "min": 15.750599999999395,
+    "p50": 20.87550000000192,
+    "p95": 39.67309999999998,
+    "p99": 44.4346000000005,
+    "max": 44.4346000000005,
+    "warmupSamples": 10,
+    "targetP95Milliseconds": 300,
+    "targetMet": true,
+    "boundary": "Fastify inject through validation, canonical request hash and committed PostgreSQL request+job",
+    "authentication": "preauthenticated benchmark adapter; session cryptography excluded"
+  },
+  "limitations": [
+    "In-process Fastify injection excludes network latency",
+    "Catalog measures a page of 20 over 1,000 authorized entries",
+    "Synthetic laboratory data only; this is not an unlimited-scale claim"
+  ]
+}

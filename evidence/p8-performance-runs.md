@@ -1,0 +1,7 @@
+# P8 performance run notes
+
+The first preserved raw output, `p8-performance-baseline-mislabeled.json`, exited with code 1 because catalog p95 exceeded 250 ms. Its emitted `status: PASS` is a reporter defect, not a passing gate. The defect classified only request errors and ignored missed thresholds. TDD reproduced it, and `benchmarkStatus` now requires both zero errors and both p95 targets. The old `setupMilliseconds` field was also captured too late and includes the measured requests; it is not a seed-only duration.
+
+The corrected pre-index run is `p8-performance.json`. It truthfully reports `FAIL`: catalog p95 was 813.2281 ms over 200 measured samples after 20 warmups; admission p95 was 124.7087 ms over 80 measured samples after 10 warmups. Both paths had zero request errors. The benchmark used 1,000 private synthetic artifacts owned by one tenant and explicit `read`/`install` grants to a distinct consumer tenant. Catalog returned pages of 20 through RLS and the storage API. Admission traversed Fastify validation and canonical hashing and committed each request plus generation job atomically to PostgreSQL.
+
+The benchmark excludes network latency and session cryptography. It does not establish unlimited scale or end-to-end Medusa performance. A comparable post-index repetition must retain the same sample counts, warmups, page limit, adapter `medusa-v2`, capability contract `1`, and cross-tenant grant topology.

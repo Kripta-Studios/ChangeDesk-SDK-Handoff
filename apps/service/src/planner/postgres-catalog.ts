@@ -17,6 +17,7 @@ interface StorageTx {
   grantArtifact(input:{id:string;artifactId:string;recipientScope:"tenant";recipientTenantId:string;rights:readonly string[];idempotencyKey:string;requestHash:string}):Promise<void>;
   insertPublication(input:{id:string;artifactId:string;artifactHash:string;signingKeyId:string;signature:Uint8Array;visibility:"private"|"provider_catalog"|"shared_allowlist";state:"published";reviewedMetadata:unknown;idempotencyKey:string;requestHash:string}):Promise<StoragePublication>;
   getPublicationForUpdate(id:string):Promise<StoragePublication|null>;
+  getAuthorizedPublication(id:string):Promise<StoragePublication|null>;
   updatePublicationState(id:string,state:"withdrawn"|"security_revoked", control:{idempotencyKey:string;requestHash:string}):Promise<StoragePublication|null>;
   insertInstallation(input:{id:string;artifactId:string;artifactHash:string;config:unknown;policyVersion:string;idempotencyKey:string;requestHash:string}):Promise<{id:string;artifactHash:string;status:string}>;
   getPublicationKey(keyId:string):Promise<PublicationKeyRecord|null>;
@@ -33,7 +34,7 @@ export class PostgresCatalogRepository implements CatalogRepository {
   }
   getVisible(actor: ActorContext, publicationId: string): Promise<CatalogArtifactRecord|null> {
     return this.store.withTenant(actor, async (tx) => {
-      const publication=await tx.getPublicationForUpdate(publicationId); if(!publication) return null;
+      const publication=await tx.getAuthorizedPublication(publicationId); if(!publication) return null;
       const artifact=await tx.getAuthorizedArtifact(publication.artifactHash); return artifact ? mapArtifact(artifact,publication) : null;
     });
   }
@@ -42,14 +43,16 @@ export class PostgresCatalogRepository implements CatalogRepository {
   }
   publish(actor: ActorContext, input: NewPublicationRecord): Promise<PublicationRecord> {
     return this.store.withTenant(actor, async (tx) => {
-      const artifact=await tx.insertArtifact({id:input.artifactId,artifactHash:input.artifactHash,schemaVersion:input.recipe.schemaVersion,canonicalBody:input.recipe,idempotencyKey:`${input.idempotencyKey}:artifact`,requestHash:input.requestHash});
+      const existing=await tx.getAuthorizedArtifact(input.artifactHash);
+      const artifact=existing?.ownerTenantId===actor.tenantId&&existing.id===input.artifactId?existing:
+        await tx.insertArtifact({id:input.artifactId,artifactHash:input.artifactHash,schemaVersion:input.recipe.schemaVersion,canonicalBody:input.recipe,idempotencyKey:`${input.idempotencyKey}:artifact`,requestHash:input.requestHash});
       const publication=await tx.insertPublication({id:input.publicationId,artifactId:artifact.id,artifactHash:input.artifactHash,signingKeyId:input.keyId,signature:input.signature,visibility:input.visibility,state:"published",reviewedMetadata:input.reviewedMetadata,idempotencyKey:input.idempotencyKey,requestHash:input.requestHash});
       for(const tenantId of input.allowedTenantIds) await tx.grantArtifact({id:this.newId("grant"),artifactId:artifact.id,recipientScope:"tenant",recipientTenantId:tenantId,rights:["read","install"],idempotencyKey:`${input.idempotencyKey}:grant:${tenantId}`,requestHash:input.requestHash});
       return publication;
     });
   }
   getVisiblePublicationForInstall(actor: ActorContext, publicationId: string): Promise<PublicationRecord|null> {
-    return this.store.withTenant(actor, (tx)=>tx.getPublicationForUpdate(publicationId));
+    return this.store.withTenant(actor, (tx)=>tx.getAuthorizedPublication(publicationId));
   }
   getPublicationKey(actor: ActorContext, keyId: string): Promise<PublicationKeyRecord|null> { return this.store.withTenant(actor,(tx)=>tx.getPublicationKey(keyId)); }
   install(actor: ActorContext, input: {installationId:string;artifactId:string;artifactHash:string;bindings:Readonly<Record<string,string>>;policyVersion:string;idempotencyKey:string;requestHash:string}) {

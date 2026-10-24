@@ -5,6 +5,7 @@ import type { ActorContext, Permission, Recipe } from "../../packages/contracts/
 import { AuthorizedCatalog } from "../../apps/service/src/planner/catalog.ts";
 import type { CanonicalEncoder, CatalogArtifactRecord, CatalogRepository, NewPublicationRecord, PublicationKeyRecord, PublicationRecord } from "../../apps/service/src/planner/catalog-repository.ts";
 import { sanitizeRecipeForPublication } from "../../apps/service/src/planner/publication.ts";
+import { PostgresCatalogRepository } from "../../apps/service/src/planner/postgres-catalog.ts";
 
 const privateCanary="ATLAS_SECRET_PRODUCT_123";
 const recipe:Recipe={schemaVersion:"1.0",recipeKey:"catalog.category.assign.v1",displayName:privateCanary,description:`tenant ${privateCanary}`,compatibility:{adapter:"medusa-v2",capabilityContract:"1",verifiedMedusaVersion:"2.22.1"},parameters:{categoryId:{kind:"resource",resource:"medusa.product_category"}},selection:{resource:"medusa.product",maxRecords:100,requireStatus:"published"},requiredCapabilities:["medusa.products.list","medusa.products.retrieve","medusa.product_categories.retrieve","medusa.product_categories.products.add"],steps:[{id:"addCategory",capability:"medusa.product_categories.products.add",forEach:"selectedProducts",dependsOn:[],arguments:{productId:{$record:"id"},categoryId:{$param:"categoryId"}}}],ui:{kind:"action",label:privateCanary,fields:[{name:"categoryId",control:"resource-picker",label:privateCanary}]}};
@@ -23,7 +24,7 @@ class MemoryRepository implements CatalogRepository {
   async changePublicationState(_a:ActorContext,_id:string,state:string){if(!this.publication)return null;this.publication={...this.publication,state};return this.publication;}
 }
 
-function fixture(){let id=0;const repo=new MemoryRepository();const {privateKey,publicKey}=generateKeyPairSync("ed25519");repo.key={id:"key-1",algorithm:"Ed25519",publicKey:publicKey.export({format:"der",type:"spki"}),status:"active"};const permissions=new Map<string,Permission[]>([[atlas.actorId,["share","revoke","install"]],[boreal.actorId,["install"]]]);const service=new AuthorizedCatalog({repository:repo,encoder,identity:{async hash(value){return `hash:${Buffer.from(JSON.stringify(value)).toString("base64url").slice(0,20)}`;},async requestHash(){return "request-hash";}},signer:{async sign(_keyId,bytes){return sign(null,bytes,privateKey);}},permissionsFor(a){return permissions.get(a.actorId)??[];},newId(kind){return `${kind}-${++id}`;}});return {repo,service};}
+function fixture(options:{artifactHash?:string}={}){let id=0;const repo=new MemoryRepository();const {privateKey,publicKey}=generateKeyPairSync("ed25519");repo.key={id:"key-1",algorithm:"Ed25519",publicKey:publicKey.export({format:"der",type:"spki"}),status:"active"};const permissions=new Map<string,Permission[]>([[atlas.actorId,["share","revoke","install"]],[boreal.actorId,["install"]]]);const service=new AuthorizedCatalog({repository:repo,encoder,identity:{async hash(value){return options.artifactHash??`hash:${Buffer.from(JSON.stringify(value)).toString("base64url").slice(0,20)}`;},async requestHash(){return "request-hash";}},signer:{async sign(_keyId,bytes){return sign(null,bytes,privateKey);}},permissionsFor(a){return permissions.get(a.actorId)??[];},newId(kind){return `${kind}-${++id}`;}});return {repo,service};}
 
 test("publication reconstructs from a positive allowlist and leaks no tenant text",async()=>{
   const safe=sanitizeRecipeForPublication(recipe); assert.equal(JSON.stringify(safe).includes(privateCanary),false);
@@ -31,9 +32,22 @@ test("publication reconstructs from a positive allowlist and leaks no tenant tex
   assert.equal(result.state,"published");assert.equal(JSON.stringify(repo.visible[0].recipe).includes(privateCanary),false);
 });
 
+test("publication reuses an already canonical private artifact identity",async()=>{
+  const {repo,service}=fixture({artifactHash:"private-hash"});await service.publishAuthorized({actor:atlas,sourceArtifactHash:"private-hash",visibility:"shared_allowlist",allowedTenantIds:["boreal"],consent:true,keyId:"key-1",idempotencyKey:"same-artifact"});assert.equal(repo.visible[0]?.id,"src");
+});
+
 test("publication rejects a recipe whose claimed key hides different capabilities",()=>{
   const poisoned={...recipe,requiredCapabilities:[...recipe.requiredCapabilities,"medusa.sales_channels.products.add"],steps:[...recipe.steps,{id:"hiddenChannel",capability:"medusa.sales_channels.products.add",forEach:"selectedProducts",dependsOn:[],arguments:{productId:{$record:"id"},channelId:{$param:"channelId"}}}]} as Recipe;
   assert.throws(()=>sanitizeRecipeForPublication(poisoned),(error:any)=>error.code==="PUBLICATION_SEMANTICS_MISMATCH");
+});
+
+test("publication accepts semantically equivalent key and capability ordering", () => {
+  const reordered: Recipe = {
+    ...recipe,
+    requiredCapabilities: [...recipe.requiredCapabilities].reverse(),
+    steps: recipe.steps.map((step) => ({ ...step, arguments: { categoryId: { $param: "categoryId" }, productId: { $record: "id" } } })),
+  };
+  assert.equal(sanitizeRecipeForPublication(reordered).recipeKey, recipe.recipeKey);
 });
 
 test("publication source must be owned, not merely visible",async()=>{
@@ -60,4 +74,10 @@ test("withdrawal and security revocation remain distinct",async()=>{
   const {service}=fixture();const published=await service.publishAuthorized({actor:atlas,sourceArtifactHash:"private-hash",visibility:"provider_catalog",allowedTenantIds:["boreal"],consent:true,keyId:"key-1",idempotencyKey:"p"});
   assert.equal((await service.withdrawAuthorized({actor:atlas,publicationId:published.publicationId,idempotencyKey:"w"})).state,"withdrawn");
   assert.equal((await service.securityRevokeAuthorized({actor:atlas,publicationId:published.publicationId,reason:"compromised",idempotencyKey:"r"})).state,"security_revoked");
+});
+
+test("PostgreSQL adapter reads a granted publication through the authorized path",async()=>{
+  let authorized=0,ownerOnly=0;const publication={id:"pub",publisherTenantId:"atlas",publisherActorId:"atlas.admin",artifactId:"artifact",artifactHash:"hash",signingKeyId:"key",signature:new Uint8Array(),visibility:"shared_allowlist" as const,state:"published",reviewedMetadata:{}};
+  const store:any={async withTenant(_scope:any,work:any){return work({async getAuthorizedPublication(){authorized++;return publication;},async getPublicationForUpdate(){ownerOnly++;return null;}});}};
+  const repository=new PostgresCatalogRepository(store,()=>"grant");assert.equal((await repository.getVisiblePublicationForInstall(boreal,"pub"))?.id,"pub");assert.equal(authorized,1);assert.equal(ownerOnly,0);
 });
