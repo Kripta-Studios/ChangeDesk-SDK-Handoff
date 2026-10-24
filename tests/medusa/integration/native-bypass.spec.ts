@@ -16,6 +16,7 @@ import { CHANGEDESK_MODULE } from "../../../packages/medusa-plugin/src/modules/c
 import type ChangeDeskModuleService from "../../../packages/medusa-plugin/src/modules/changedesk/service"
 import type { EffectDelegationClaims } from "../../../packages/medusa-plugin/src/bridge/types"
 import { getProduct } from "../../../packages/medusa-plugin/src/bridge/capabilities"
+import { productStepPreconditionFingerprint } from "../../../packages/medusa-plugin/src/bridge/protected-state"
 
 medusaIntegrationTestRunner({
   testSuite: ({ api, getContainer }) => {
@@ -135,7 +136,7 @@ medusaIntegrationTestRunner({
         planId: "plan-integration", planHash: "a".repeat(64), planVersion: 1,
         approvalId: "approval-integration", approvalExpiresAt: now + 120,
         semanticInputHash: "b".repeat(64), operationKey: "exec-integration/row-product/category", fence: 1,
-        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: previewed.protectedDigest },
+        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: productStepPreconditionFingerprint(previewed) },
       }
       const key = createPrivateKey(Buffer.from(process.env.CHANGEDESK_TEST_SERVICE_PRIVATE_KEY_PEM_BASE64!, "base64"))
       const invoke = (value: EffectDelegationClaims) => api.post("/changedesk/bridge/v1/commands", {
@@ -164,7 +165,7 @@ medusaIntegrationTestRunner({
         planId: "plan-stale", planHash: "c".repeat(64), planVersion: 1,
         approvalId: "approval-stale", approvalExpiresAt: now + 120,
         semanticInputHash: "d".repeat(64), operationKey: "exec-stale/row-product/channel", fence: 1,
-        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: previewed.protectedDigest },
+        preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: productStepPreconditionFingerprint(previewed) },
       }
       const key = createPrivateKey(Buffer.from(process.env.CHANGEDESK_TEST_SERVICE_PRIVATE_KEY_PEM_BASE64!, "base64"))
       await expect(api.post("/changedesk/bridge/v1/commands", {
