@@ -12,7 +12,7 @@
     {
       "command": "vitest run tests/storefront/sdk-client.test.ts tests/storefront/sdk-ui.test.tsx",
       "status": "passed",
-      "result": "2 files, 10 tests passed"
+      "result": "2 files, 11 tests passed"
     },
     {
       "command": "tsc -p packages/sdk-react/tsconfig.json --noEmit",

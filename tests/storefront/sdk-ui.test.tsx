@@ -58,6 +58,17 @@ describe("storefront buyer UI", () => {
     expect(screen.getByTestId("logout-product").closest(".changedesk-storefront-root")?.getAttribute("data-theme")).toBe("system");
   });
 
+  it("does not apply a pending response after direct clearSession on the same client", async () => {
+    let finish!: (value: typeof preferences) => void;
+    const client = withInvalidation({ ...buyerClient, clearSession: vi.fn(), getPreferences: vi.fn(() => new Promise((resolve) => { finish = resolve; })) });
+    render(<StorefrontProvider client={client}><StorefrontPreferencesPanel /><StorefrontRoot><span data-testid="late-product">Product</span></StorefrontRoot></StorefrontProvider>);
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    client.clearSession();
+    finish({ ...preferences, overrides: { theme: "dark" }, effective: { ...preferences.effective, theme: "dark" } });
+    await waitFor(() => expect((screen.getByLabelText("Tema") as HTMLSelectElement).disabled).toBe(true));
+    expect(screen.getByTestId("late-product").closest(".changedesk-storefront-root")?.getAttribute("data-theme")).toBe("system");
+  });
+
   it("previews the inherited global value when an existing personal override is removed", async () => {
     const overridden = { ...preferences, inherited: { ...preferences.inherited, theme: "light" as const }, overrides: { theme: "dark" as const }, effective: { ...preferences.effective, theme: "dark" as const } };
     const client = withInvalidation({ ...buyerClient, clearSession: vi.fn(), getPreferences: vi.fn(async () => overridden) });
