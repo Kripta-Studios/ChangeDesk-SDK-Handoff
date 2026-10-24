@@ -118,7 +118,7 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
   app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/approve", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
     const key = idempotencyKey(request); const body = request.body; if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
-    if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision", "expectedGlobalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision) || !Number.isSafeInteger(body.expectedGlobalRevision)) return fail(reply, 422, "invalid_approval", "Expected exact proposal and global revisions", nextRequestId());
+    if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision", "expectedGlobalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision) || (body.expectedProposalRevision as number) < 0 || !Number.isSafeInteger(body.expectedGlobalRevision) || (body.expectedGlobalRevision as number) < 0) return fail(reply, 422, "invalid_approval", "Expected non-negative exact proposal and global revisions", nextRequestId());
     const normalized = { proposalId: request.params.id, expectedProposalRevision: body.expectedProposalRevision as number, expectedGlobalRevision: body.expectedGlobalRevision as number };
     const result = await dependencies.repository.approveProposal({ context, ...normalized, idempotencyKey: key, requestFingerprint: fingerprint("approve-proposal", normalized) });
     if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return result.value;
@@ -126,7 +126,7 @@ export async function registerStorefrontRoutes(app: FastifyInstance, dependencie
   app.post<{ Params: { id: string } }>("/v1/storefront/admin/global-change-proposals/:id/reject", mutationOptions, async (request, reply) => {
     privateResponse(reply); const context = await requireAdmin(request, reply); if (!context) return reply;
     const key = idempotencyKey(request); const body = request.body; if (!key) return fail(reply, 400, "invalid_idempotency_key", "Idempotency-Key must be a UUID", nextRequestId());
-    if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision)) return fail(reply, 422, "invalid_rejection", "Expected an exact proposal revision", nextRequestId());
+    if (!isObject(body) || !hasOnly(body, ["expectedProposalRevision"]) || !Number.isSafeInteger(body.expectedProposalRevision) || (body.expectedProposalRevision as number) < 0) return fail(reply, 422, "invalid_rejection", "Expected a non-negative exact proposal revision", nextRequestId());
     const normalized = { proposalId: request.params.id, expectedProposalRevision: body.expectedProposalRevision as number };
     const result = await dependencies.repository.rejectProposal({ context, ...normalized, idempotencyKey: key, requestFingerprint: fingerprint("reject-proposal", normalized) });
     if (!result.ok) return repositoryFailure(reply, result, nextRequestId()); return result.value;

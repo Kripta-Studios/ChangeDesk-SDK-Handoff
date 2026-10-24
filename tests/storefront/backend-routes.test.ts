@@ -1,5 +1,5 @@
 import Fastify, { type FastifyRequest } from "fastify";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerStorefrontRoutes } from "../../apps/service/src/storefront/routes.js";
 import type {
   BuyerContext,
@@ -140,6 +140,28 @@ describe("storefront Fastify routes", () => {
     expect((await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", key), payload: { expectedRevision: 1, overrides: { theme: "dark" } } })).statusCode).toBe(409);
     expect((await app.inject({ method: "PUT", url: "/v1/storefront/me/preferences", headers: headers("buyer-a", crypto.randomUUID()), payload: { expectedRevision: 0, overrides: {} } })).statusCode).toBe(409);
     expect((await repository.getPreferences(buyer("atlas", "same-id"))).buyerRevision).toBe(1);
+  });
+
+  it("rejects negative and unsafe admin revisions with 422 before invoking the repository", async () => {
+    const app = await build();
+    const approve = vi.spyOn(repository, "approveProposal");
+    const reject = vi.spyOn(repository, "rejectProposal");
+    const key = () => crypto.randomUUID();
+    const approvalBodies = [
+      { expectedProposalRevision: -1, expectedGlobalRevision: 0 },
+      { expectedProposalRevision: 1, expectedGlobalRevision: -1 },
+      { expectedProposalRevision: Number.MAX_SAFE_INTEGER + 1, expectedGlobalRevision: 0 },
+    ];
+    for (const payload of approvalBodies) {
+      const response = await app.inject({ method: "POST", url: "/v1/storefront/admin/global-change-proposals/proposal-1/approve", headers: headers("admin-a", key()), payload });
+      expect(response.statusCode).toBe(422);
+    }
+    for (const expectedProposalRevision of [-1, Number.MAX_SAFE_INTEGER + 1]) {
+      const response = await app.inject({ method: "POST", url: "/v1/storefront/admin/global-change-proposals/proposal-1/reject", headers: headers("admin-a", key()), payload: { expectedProposalRevision } });
+      expect(response.statusCode).toBe(422);
+    }
+    expect(approve).not.toHaveBeenCalled();
+    expect(reject).not.toHaveBeenCalled();
   });
 
   it("creates an immutable proposal without effect and hides other buyers and tenants as 404", async () => {
