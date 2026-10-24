@@ -1,8 +1,8 @@
-import test from "node:test"
-import assert from "node:assert/strict"
+import { describe, expect, it } from "vitest"
 import { mustDenyAdminMutation, mustDenyAuthMutation } from "../../packages/medusa-plugin/src/bridge/native-policy.ts"
 
-test("all native admin mutation families are denied to every managed demo role", () => {
+describe("native mutation guard", () => {
+it("denies all native admin mutation families to every managed demo role", () => {
   const paths = [
     "/admin/products/prod_1",
     "/admin/product-categories/pcat_1/products",
@@ -12,15 +12,16 @@ test("all native admin mutation families are denied to every managed demo role",
     "/admin/api-keys",
     "/admin/inventory-items/iitem_1",
   ]
-  for (const path of paths) assert.equal(mustDenyAdminMutation(path, true), true, path)
-  assert.equal(mustDenyAdminMutation("/admin/products/prod_1", false), false)
-  assert.equal(mustDenyAdminMutation("/admin/changedesk/session", true), false)
+  for (const path of paths) expect(mustDenyAdminMutation(path, true), path).toBe(true)
+  expect(mustDenyAdminMutation("/admin/products/prod_1", false)).toBe(false)
+  expect(mustDenyAdminMutation("/admin/changedesk/session", true)).toBe(false)
 })
 
-test("auth registration, reset and MFA mutation are denied; only login/session are exempt", () => {
-  assert.equal(mustDenyAuthMutation("/auth/user/emailpass"), false)
-  assert.equal(mustDenyAuthMutation("/auth/session"), false)
-  assert.equal(mustDenyAuthMutation("/auth/user/emailpass/register"), true)
-  assert.equal(mustDenyAuthMutation("/auth/user/emailpass/reset-password"), true)
-  assert.equal(mustDenyAuthMutation("/auth/mfa/enroll"), true)
+it("denies auth registration, reset and MFA mutation and exempts only login/session", () => {
+  expect(mustDenyAuthMutation("/auth/user/emailpass")).toBe(false)
+  expect(mustDenyAuthMutation("/auth/session")).toBe(false)
+  expect(mustDenyAuthMutation("/auth/user/emailpass/register")).toBe(true)
+  expect(mustDenyAuthMutation("/auth/user/emailpass/reset-password")).toBe(true)
+  expect(mustDenyAuthMutation("/auth/mfa/enroll")).toBe(true)
+})
 })

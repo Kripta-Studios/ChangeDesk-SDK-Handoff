@@ -23,7 +23,7 @@ medusaIntegrationTestRunner({
           authIdentityId: registered.authIdentity.id,
           userData: {
             email,
-            metadata: { changedesk: { managed: true, active: true, role: "operator", policyVersion: "changedesk-lab-v1", hostSessionId: "not-bootstrapped" } },
+            metadata: { changedesk: { managed: true, active: true, role: "operator", policyVersion: "changedesk-lab-v1", hostSessionId: "not-bootstrapped", readableProductIds: [] } },
           },
         },
       })
