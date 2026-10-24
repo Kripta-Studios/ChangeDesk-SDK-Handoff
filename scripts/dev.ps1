@@ -43,4 +43,7 @@ foreach ($check in $checks) {
   } while (-not $ready -and (Get-Date) -lt $deadline)
   if (-not $ready) { throw "$($check.name) did not become ready; inspect .local/run logs and run stop.ps1." }
 }
+foreach ($item in $started) {
+  if (-not (Get-Process -Id $item.pid -ErrorAction SilentlyContinue)) { throw "$($item.name) exited during startup; inspect its .local/run log." }
+}
 Write-Output "Change Desk local lab is ready on API 4100, Atlas 9001, and Boreal 9002."
