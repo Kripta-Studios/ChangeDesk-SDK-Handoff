@@ -22,3 +22,5 @@
 | Evaluación independiente no puede continuar | Dos rechazos del filtro runtime documentados; no reintentar/rerutear; holdout sellado sin leer | root |
 
 Antes del cierre faltan dos tiendas/8actores/readiness, efectos nativos y readback, recovery real, reuse firmado con mismo hash y bindings privados, Codex E2E, kernel, overhead/coste/fairness, runbook limpio, CI amplia, browser demo y reviewer fresco. Cada resultado fake, PostgreSQL, host real, browser y LLM conserva su alcance. No declarar LOCAL_VERIFIED por tests unitarios o solo presencia de handlers.
+
+Actualización: grafo root reinstalado de forma atómica con frozen lock, copia anterior conservada. Root unit56/56 en14archivos y serviceTypeScriptPASS (`parent-current-unit.json`). Bendkernel real2/2PASS; sin embargo `proofRequired=true` no verifica planes aún: bloquea siempre, requiere wiring verificador/evidenciahash y error explícito. Defaultfalse sigue honesto notapplicable. Esta limitación experimental no se confunde con PASS del modelo puro. Registroservice/tenants/actores ausente causó sessionexchange500 real; runtime implementa provisioningreproducible antesde continuar browser.

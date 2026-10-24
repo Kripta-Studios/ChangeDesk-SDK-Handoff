@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-24",
+  "sourceCommit": "336e86769837c56437ea75b4da49c17ea60781f1",
+  "runtime": "Node 22.23.4",
+  "results": [
+    {
+      "command": "node scripts/verify-ci.mjs --lane unit",
+      "status": "PASS",
+      "testFiles": 14,
+      "tests": 56
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc -p apps/service --noEmit",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Root checkout after atomic dependency graph repair. SDK, runtime and Medusa bridge units plus complete service TypeScript. No database, Medusa HTTP, browser or live model acceptance claim.",
+  "previousFailure": "evidence/parent-current-tests.json preserved; SDK setup previously failed due incomplete dependency store."
+}
