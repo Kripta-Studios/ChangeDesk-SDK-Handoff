@@ -1,0 +1,7 @@
+.cd-storefront-admin-page { max-width: 1180px; margin: 0 auto; padding: 32px; color: #11241f; }
+.cd-storefront-admin-page > header { display: grid; gap: 10px; margin-bottom: 28px; border: 1px solid #11241f; padding: clamp(22px, 4vw, 46px); background: #e8f1ff; box-shadow: 8px 8px 0 #11241f; }
+.cd-storefront-admin-page > header p { margin: 0; font: 700 11px ui-monospace, monospace; letter-spacing: .13em; }
+.cd-storefront-admin-page > header h1 { max-width: 820px; margin: 0; font-size: clamp(32px, 5vw, 58px); line-height: 1; letter-spacing: -.05em; }
+.cd-storefront-admin-disabled { border-left: 6px solid #df5a3d; padding: 20px; background: #fff0eb; }
+.cd-storefront-admin-disabled h2 { margin-top: 0; }
+@media (max-width: 700px) { .cd-storefront-admin-page { padding: 18px; } }

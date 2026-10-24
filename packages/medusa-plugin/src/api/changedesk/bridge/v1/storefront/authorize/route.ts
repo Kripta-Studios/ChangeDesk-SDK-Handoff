@@ -1,9 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { timingSafeEqual } from "node:crypto";
-import { BridgeError } from "../../../../../../../bridge/errors.ts";
-import { CHANGEDESK_MODULE } from "../../../../../../../modules/changedesk/index.ts";
-import type ChangeDeskModuleService from "../../../../../../../modules/changedesk/service.ts";
-import { storefrontSessionRegistry, type ExpressSessionStoreLike } from "../../../../../../../storefront/session-registry.ts";
+import { BridgeError } from "../../../../../../bridge/errors.ts";
+import { CHANGEDESK_MODULE } from "../../../../../../modules/changedesk/index.ts";
+import type ChangeDeskModuleService from "../../../../../../modules/changedesk/service.ts";
+import { storefrontSessionRegistry, type ExpressSessionStoreLike } from "../../../../../../storefront/session-registry.ts";
 
 const equal = (actual: string, expected: string) => { const left = Buffer.from(actual); const right = Buffer.from(expected); return left.length === right.length && timingSafeEqual(left, right); };
 const handle = async (req: MedusaRequest, res: MedusaResponse) => {

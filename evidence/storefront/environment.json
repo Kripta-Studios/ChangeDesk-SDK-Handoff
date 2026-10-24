@@ -23,6 +23,7 @@
     "pinLimit": "Official documentation displayed v2.22.1; no raw source commit was available, so no commit pin is claimed.",
     "installedCodeEvidence": [
       "@medusajs/framework 2.22.1 dist/http/express-loader.js installs express-session and therefore exposes req.sessionID and req.sessionStore",
+      "@medusajs/medusa 2.22.1 dist/api/auth/middlewares.js authenticates DELETE /auth/session with actor type wildcard and session auth",
       "@medusajs/medusa 2.22.1 dist/api/auth/session/route.js DELETE awaits req.session.destroy, which destroys the same store entry"
     ]
   },

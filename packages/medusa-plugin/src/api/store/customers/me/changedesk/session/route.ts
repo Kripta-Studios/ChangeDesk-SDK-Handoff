@@ -1,10 +1,10 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http";
-import { BridgeError } from "../../../../../../../bridge/errors.ts";
-import { importPrivateKey } from "../../../../../../../bridge/crypto.ts";
-import { CHANGEDESK_MODULE } from "../../../../../../../modules/changedesk/index.ts";
-import type ChangeDeskModuleService from "../../../../../../../modules/changedesk/service.ts";
-import { issueStorefrontBootstrapTicket } from "../../../../../../../storefront/ticket.ts";
-import { storefrontSessionRegistry } from "../../../../../../../storefront/session-registry.ts";
+import { BridgeError } from "../../../../../../bridge/errors.ts";
+import { importPrivateKey } from "../../../../../../bridge/crypto.ts";
+import { CHANGEDESK_MODULE } from "../../../../../../modules/changedesk/index.ts";
+import type ChangeDeskModuleService from "../../../../../../modules/changedesk/service.ts";
+import { issueStorefrontBootstrapTicket } from "../../../../../../storefront/ticket.ts";
+import { storefrontSessionRegistry } from "../../../../../../storefront/session-registry.ts";
 
 const handle = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
   if (req.body && Object.keys(req.body as object).length !== 0) throw new BridgeError(400, "body_forbidden", "Buyer identity is derived from Medusa authentication");
