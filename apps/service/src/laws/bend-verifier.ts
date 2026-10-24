@@ -1,8 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { copyFile, mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { parseBendVerdict } from "./verdict.js";
 import type { LawVerificationRequest, LawVerificationResult, LawVerifier } from "./types.js";
@@ -16,7 +15,12 @@ export interface BendVerifierConfig {
   readonly binaryPath: string;
   readonly expectedBinarySha256: string;
   readonly executionBinaryPath: string;
+  readonly expectedModelSha256: string;
+  readonly expectedLawsSha256: string;
+  readonly expectedProofSha256: string;
   readonly reviewedSourceDir: string;
+  readonly workspaceRoot: string;
+  readonly workspaceTempRoot: string;
   readonly timeoutMs: number;
   readonly maxOutputBytes: number;
   readonly distribution?: string;
@@ -34,6 +38,11 @@ function windowsPathToWsl(path: string): string {
   return `/mnt/${matched[1]!.toLowerCase()}/${matched[2]!.replaceAll("\\", "/")}`;
 }
 
+function isContained(root: string, target: string): boolean {
+  const path = relative(root, target);
+  return path !== "" && path !== ".." && !path.startsWith(`..\\`) && !path.startsWith("../") && !isAbsolute(path);
+}
+
 function limited(value: string): string {
   return value.length <= MAX_RECORDED_OUTPUT ? value : `${value.slice(0, MAX_RECORDED_OUTPUT)}\n[truncated]`;
 }
@@ -49,8 +58,10 @@ export class BendLawVerifier implements LawVerifier {
   readonly #config: BendVerifierConfig;
 
   constructor(config: BendVerifierConfig) {
-    if (!isAbsolute(config.binaryPath) || !isAbsolute(config.reviewedSourceDir)) throw new TypeError("Bend paths must be absolute");
-    if (!HASH.test(config.expectedBinarySha256)) throw new TypeError("Expected Bend binary SHA-256 must be lowercase hex");
+    if (![config.binaryPath, config.reviewedSourceDir, config.workspaceRoot, config.workspaceTempRoot].every(isAbsolute)) throw new TypeError("Bend paths must be absolute");
+    if (![config.expectedBinarySha256, config.expectedModelSha256, config.expectedLawsSha256, config.expectedProofSha256].every((hash) => HASH.test(hash))) throw new TypeError("Expected Bend SHA-256 values must be lowercase hex");
+    if (config.executionBinaryPath !== windowsPathToWsl(config.binaryPath)) throw new TypeError("Execution binary must be the WSL mapping of the hashed binary");
+    if (!isContained(resolve(config.workspaceRoot), resolve(config.workspaceTempRoot))) throw new TypeError("Bend temp root must remain inside the workspace");
     if (config.timeoutMs < 1 || config.timeoutMs > 120_000 || config.maxOutputBytes < 1 || config.maxOutputBytes > 1_000_000) throw new TypeError("Bend limits are outside the reviewed bounds");
     this.#config = Object.freeze({ ...config });
   }
@@ -60,6 +71,8 @@ export class BendLawVerifier implements LawVerifier {
     let binarySha256 = "";
     let modelHash: string | undefined;
     let lawsHash: string | undefined;
+    let proofHash: string | undefined;
+    let toolchainHash: string | undefined;
     let workDir: string | undefined;
     const finish = (partial: Pick<LawVerificationResult, "status" | "exitCode" | "stdout" | "stderr"> & { readonly reason?: string }): LawVerificationResult => ({
       ...partial,
@@ -68,6 +81,8 @@ export class BendLawVerifier implements LawVerifier {
       binarySha256,
       ...(modelHash ? { modelHash } : {}),
       ...(lawsHash ? { lawsHash } : {}),
+      ...(proofHash ? { proofHash } : {}),
+      ...(toolchainHash ? { toolchainHash } : {}),
       durationMs: Math.round(performance.now() - started),
       artifactHash: request.artifactHash,
       planHash: request.planHash,
@@ -90,8 +105,18 @@ export class BendLawVerifier implements LawVerifier {
       }
       modelHash = sha256(sources.get("model.bend")!);
       lawsHash = sha256(sources.get("LAWS.bend")!);
+      proofHash = sha256(sources.get("PROOF.bend")!);
+      if (modelHash !== this.#config.expectedModelSha256 || lawsHash !== this.#config.expectedLawsSha256 || proofHash !== this.#config.expectedProofSha256) {
+        return finish({ status: "failed", exitCode: null, stdout: "", stderr: "", reason: "reviewed_source_hash_mismatch" });
+      }
+      toolchainHash = sha256([binarySha256, modelHash, lawsHash, proofHash].join("\0"));
 
-      workDir = await mkdtemp(join(tmpdir(), "changedesk-bend-"));
+      await mkdir(this.#config.workspaceTempRoot, { recursive: true });
+      const workspaceReal = await realpath(this.#config.workspaceRoot);
+      const tempRootReal = await realpath(this.#config.workspaceTempRoot);
+      if (!isContained(workspaceReal, tempRootReal)) return finish({ status: "failed", exitCode: null, stdout: "", stderr: "", reason: "temp_root_scope_violation" });
+      workDir = await mkdtemp(join(tempRootReal, "changedesk-bend-"));
+      if (!isContained(tempRootReal, workDir)) return finish({ status: "failed", exitCode: null, stdout: "", stderr: "", reason: "temp_scope_violation" });
       for (const name of REVIEWED_FILES) await copyFile(join(this.#config.reviewedSourceDir, name), join(workDir, name));
       const proofPath = windowsPathToWsl(join(workDir, "PROOF.bend"));
       const environment = ["HOME=/tmp", `PATH=${this.#config.executionPath ?? "/usr/bin:/bin"}`];
@@ -134,7 +159,9 @@ export class BendLawVerifier implements LawVerifier {
     } finally {
       if (workDir) {
         try {
-          await rm(workDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+          const cleanupRoot = await realpath(this.#config.workspaceTempRoot);
+          const cleanupTarget = resolve(workDir);
+          if (isContained(cleanupRoot, cleanupTarget)) await rm(cleanupTarget, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
         } catch {
           // The bounded verifier result remains authoritative; Windows/WSL can
           // briefly retain a 9p handle. OS temp cleanup is the fallback.
