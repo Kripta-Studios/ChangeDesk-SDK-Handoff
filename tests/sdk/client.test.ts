@@ -49,11 +49,27 @@ describe("ChangeDesk HTTP client", () => {
   it("offers only the documented finite client surface", () => {
     const client = createChangeDeskClient({ endpoint: "http://localhost:4400", getSession: vi.fn(), fetch: vi.fn() });
     expect(Object.keys(client).sort()).toEqual([
-      "approvePlan", "cancelExecution", "clearSession", "createPlan", "createRequest", "getEvidence", "getExecution", "getInstallations", "getPlan", "getRequest", "getResources", "installAction", "publishAction", "resumeExecution", "revokePublication", "selectCandidate", "startExecution",
+      "approvePlan", "cancelExecution", "clearSession", "createPlan", "createRequest", "getEvidence", "getExecution", "getInstallations", "getPlan", "getRequest", "getResources", "installAction", "publishAction", "resumeExecution", "revokePublication", "selectCandidate", "sendMessage", "startExecution",
     ]);
     expect(client).not.toHaveProperty("rawFetch");
     expect(client).not.toHaveProperty("executeCode");
     expect(client).not.toHaveProperty("setTenant");
     expect(client).not.toHaveProperty("grantRole");
+  });
+
+  it("cannot repopulate a cleared session from a stale pending bridge promise", async () => {
+    let resolveFirst!: (value: { accessToken: string; expiresAt: string }) => void;
+    const getSession = vi.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockResolvedValueOnce({ accessToken: "new-actor-token", expiresAt: "2099-01-01T00:00:00Z" });
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ requestId: "req_2", status: "received" }), { status: 202, headers: { "content-type": "application/json" } }));
+    const client = createChangeDeskClient({ endpoint: "https://desk.example.test", getSession, fetch: fetcher });
+    const stale = client.createRequest({ message: "old actor", selectedProductIds: ["p1"], clientRequestId: crypto.randomUUID() });
+    client.clearSession();
+    resolveFirst({ accessToken: "old-actor-token", expiresAt: "2099-01-01T00:00:00Z" });
+    await expect(stale).rejects.toMatchObject({ name: "AbortError" });
+    await client.createRequest({ message: "new actor", selectedProductIds: ["p2"], clientRequestId: crypto.randomUUID() });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0]![1]!.headers).toMatchObject({ Authorization: "Bearer new-actor-token" });
   });
 });

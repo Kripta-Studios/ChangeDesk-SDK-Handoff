@@ -8,8 +8,8 @@
     "node": ">=22.22.0 <23"
   },
   "scripts": {
-    "build": "medusa plugin:build",
-    "test:unit": "vitest run ../../tests/medusa/*.test.ts"
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa.ps1 plugin:build",
+    "test:unit": "vitest run --root ../.. tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -23,21 +23,29 @@
     "./*": "./.medusa/server/src/*.js"
   },
   "peerDependencies": {
+    "@medusajs/admin-sdk": "2.22.1",
+    "@medusajs/cli": "2.22.1",
     "@medusajs/core-flows": "2.22.1",
     "@medusajs/framework": "2.22.1",
-    "@medusajs/medusa": "2.22.1"
+    "@medusajs/medusa": "2.22.1",
+    "@medusajs/test-utils": "2.22.1",
+    "react": "^18.3.1",
+    "react-router-dom": "^6.30.4 || ^7.0.0"
   },
   "dependencies": {
     "@changedesk/react": "workspace:*",
     "canonicalize": "5.1.0"
   },
   "devDependencies": {
+    "@medusajs/admin-sdk": "2.22.1",
+    "@medusajs/admin-shared": "2.22.1",
     "@medusajs/cli": "2.22.1",
     "@medusajs/core-flows": "2.22.1",
     "@medusajs/framework": "2.22.1",
     "@medusajs/medusa": "2.22.1",
     "@medusajs/test-utils": "2.22.1",
     "@swc/core": "1.15.3",
+    "ts-node": "10.9.2",
     "typescript": "5.9.3"
   }
 }

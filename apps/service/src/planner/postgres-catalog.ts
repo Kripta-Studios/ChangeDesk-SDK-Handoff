@@ -29,7 +29,7 @@ export class PostgresCatalogRepository implements CatalogRepository {
   constructor(private readonly store: TenantCatalogStore, private readonly newId: (kind:"grant")=>string) {}
 
   listVisible(actor: ActorContext, query: { recipeKey?: Recipe["recipeKey"]; adapter: AdapterDescriptor; limit: number }): Promise<readonly CatalogArtifactRecord[]> {
-    return this.store.withTenant(actor, async (tx) => (await tx.listDiscoverableCatalog({ recipeKey:query.recipeKey, adapter:query.adapter.id, capabilityContract:query.adapter.capabilityContract, limit:query.limit })).map((row)=>mapArtifact(row)));
+    return this.store.withTenant(actor, async (tx) => (await tx.listDiscoverableCatalog({ ...(query.recipeKey?{recipeKey:query.recipeKey}:{}), adapter:query.adapter.id, capabilityContract:query.adapter.capabilityContract, limit:query.limit })).map((row)=>mapArtifact(row)));
   }
   getVisible(actor: ActorContext, publicationId: string): Promise<CatalogArtifactRecord|null> {
     return this.store.withTenant(actor, async (tx) => {
@@ -42,7 +42,9 @@ export class PostgresCatalogRepository implements CatalogRepository {
   }
   publish(actor: ActorContext, input: NewPublicationRecord): Promise<PublicationRecord> {
     return this.store.withTenant(actor, async (tx) => {
-      const artifact=await tx.insertArtifact({id:input.artifactId,artifactHash:input.artifactHash,schemaVersion:input.recipe.schemaVersion,canonicalBody:input.recipe,idempotencyKey:`${input.idempotencyKey}:artifact`,requestHash:input.requestHash});
+      const existing=await tx.getAuthorizedArtifact(input.artifactHash);
+      const artifact=existing?.ownerTenantId===actor.tenantId&&existing.id===input.artifactId?existing:
+        await tx.insertArtifact({id:input.artifactId,artifactHash:input.artifactHash,schemaVersion:input.recipe.schemaVersion,canonicalBody:input.recipe,idempotencyKey:`${input.idempotencyKey}:artifact`,requestHash:input.requestHash});
       const publication=await tx.insertPublication({id:input.publicationId,artifactId:artifact.id,artifactHash:input.artifactHash,signingKeyId:input.keyId,signature:input.signature,visibility:input.visibility,state:"published",reviewedMetadata:input.reviewedMetadata,idempotencyKey:input.idempotencyKey,requestHash:input.requestHash});
       for(const tenantId of input.allowedTenantIds) await tx.grantArtifact({id:this.newId("grant"),artifactId:artifact.id,recipientScope:"tenant",recipientTenantId:tenantId,rights:["read","install"],idempotencyKey:`${input.idempotencyKey}:grant:${tenantId}`,requestHash:input.requestHash});
       return publication;

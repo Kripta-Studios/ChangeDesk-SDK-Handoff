@@ -16,10 +16,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
+    "@changedesk/contracts": "0.0.0",
     "react": ">=18.3.1 <19",
     "react-dom": ">=18.3.1 <19"
   },
-  "dependencies": {
+  "devDependencies": {
     "@changedesk/contracts": "workspace:*"
   }
 }

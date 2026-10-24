@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { hashCanonical } from "../core/hashing.js";
 import type { ActorContext, Role } from "../runtime/types.js";
 import type { ServiceConfig } from "../config.js";
@@ -42,6 +43,15 @@ export function buildApi(options: { config: ServiceConfig; sessions: SessionMana
     const actor = request.actor!; requireRole(actor, roles); const result = await handler(actor, request); if (result === null) throw notFound(); return reply.send(result);
   };
   const auth = { preHandler: authenticate };
+  app.get("/healthz", async () => ({ status: "ok" }));
+  app.post("/internal/v1/medusa/authority/check", { schema: { body: schemas.effectAuthority } }, async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const host = options.config.hosts.find((item) => item.tenantId === body.tenantId);
+    const supplied = request.headers["x-changedesk-host-credential"];
+    if (!host || typeof supplied !== "string" || !secretEqual(supplied, host.authorityCallbackCredential)) return reply.status(403).send({ authorized: false });
+    const decision = await options.operations.authorizeEffectClaim(body);
+    return (decision as { authorized?: boolean }).authorized === true ? reply.send(decision) : reply.status(403).send(decision);
+  });
 
   app.options("/*", async (request, reply) => {
     const origin = request.headers.origin;
@@ -62,7 +72,7 @@ export function buildApi(options: { config: ServiceConfig; sessions: SessionMana
   app.post("/v1/requests/:id/messages", { ...auth, schema: { params: paramsId, body: schemas.message } }, mutate(["requester", "operator", "admin"], (c, r) => options.operations.addMessage(c, idParam(r), r.body)));
   app.get("/v1/requests/:id/candidates", { ...auth, schema: { params: paramsId } }, read(["requester", "operator", "admin"], (a, r) => options.operations.getCandidates(a, idParam(r))));
   app.post("/v1/requests/:id/candidate", { ...auth, schema: { params: paramsId, body: schemas.candidate } }, mutate(["requester", "operator", "admin"], (c, r) => options.operations.selectCandidate(c, idParam(r), r.body)));
-  app.get("/v1/resources/:kind", { ...auth, schema: { params: schemas.resourceParams, querystring: schemas.resourceQuery } }, read(["requester", "operator", "admin"], (a, r) => options.operations.getResources(a, (r.params as any).kind, r.query as any)));
+  app.get("/v1/resources/:kind", { ...auth, schema: { params: schemas.resourceParams, querystring: schemas.resourceQuery } }, read(["requester", "operator", "admin"], (a, r) => { const q = r.query as { cursor?: string; limit?: string }; return options.operations.getResources(a, (r.params as any).kind, { ...(q.cursor ? { cursor: q.cursor } : {}), ...(q.limit ? { limit: Number(q.limit) } : {}) }); }));
   app.post("/v1/plans", { ...auth, schema: { body: schemas.plan } }, mutate(["requester", "operator", "admin"], (c, r) => options.operations.createPlan(c, r.body)));
   app.get("/v1/plans/:id", { ...auth, schema: { params: paramsId } }, read(["requester", "operator", "admin"], (a, r) => options.operations.getPlan(a, idParam(r))));
   app.post("/v1/approvals", { ...auth, schema: { body: schemas.approval } }, mutate(["operator", "admin"], (c, r) => options.operations.createApproval(c, r.body)));
@@ -96,3 +106,4 @@ function requireIdempotencyHeader(request: FastifyRequest) { if (typeof request.
 function bodyRecord(request: FastifyRequest): Record<string, unknown> { return request.body && typeof request.body === "object" ? request.body as Record<string, unknown> : {}; }
 function idParam(request: FastifyRequest): string { return (request.params as { id: string }).id; }
 async function nullGuard(value: Promise<unknown | null>) { const result = await value; if (result === null) throw notFound(); return result; }
+function secretEqual(left: string, right: string): boolean { const a = Buffer.from(left); const b = Buffer.from(right); return a.length === b.length && timingSafeEqual(a, b); }

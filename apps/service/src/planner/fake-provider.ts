@@ -7,7 +7,7 @@ export class DeterministicFakePlannerProvider implements PlannerProvider {
 
   async generate(input: PlannerInput): Promise<{ proposal: { kind: "candidate"; recipe: Recipe } | { kind: "needs_clarification"; safeMessage: string }; usage: ProviderUsage }> {
     const started = this.now();
-    const key = input.structuredIntent?.recipeKey ?? operationToKey(input.structuredIntent?.operation);
+    const key = inferRecipeKey(input);
     const usage: ProviderUsage = {
       provider: "fake", configuredModel: "deterministic-fixture-v1", observedModel: "deterministic-fixture-v1",
       calls: 1, inputTokens: null, cachedInputTokens: null, outputTokens: null, reasoningOutputTokens: null,
@@ -17,6 +17,12 @@ export class DeterministicFakePlannerProvider implements PlannerProvider {
     return { proposal: { kind: "candidate", recipe: structuredClone(this.recipes[key]) }, usage };
   }
 }
+
+export function inferRecipeKey(input: Pick<PlannerInput,"message"|"structuredIntent">): RecipeKey | undefined {
+  return input.structuredIntent?.recipeKey ?? operationToKey(input.structuredIntent?.operation) ?? inferText(input.message);
+}
+
+function inferText(message:string):RecipeKey|undefined {const text=message.toLocaleLowerCase("en");const category=/\b(category|categor[ií]a)\b/u.test(text),channel=/\b(channel|canal)\b/u.test(text);if(category&&channel)return "catalog.campaign.prepare.v1";if(category)return "catalog.category.assign.v1";if(channel)return "catalog.channel.assign.v1";return undefined;}
 
 function operationToKey(operation: StructuredIntent["operation"]): RecipeKey | undefined {
   if (operation === "campaign") return "catalog.campaign.prepare.v1";

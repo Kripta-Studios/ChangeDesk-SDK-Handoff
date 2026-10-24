@@ -3,15 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "license": "UNLICENSED",
-  "type": "module",
   "engines": {
     "node": ">=22.22.0 <23"
   },
   "scripts": {
-    "build": "medusa build",
-    "dev": "medusa develop",
-    "start": "medusa start",
-    "seed": "medusa exec ./src/scripts/seed.ts",
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa.ps1 build",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa.ps1 develop",
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa.ps1 start",
+    "seed": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa.ps1 exec ./src/scripts/seed.ts",
     "test:integration": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config jest.config.cjs --runInBand --forceExit"
   },
   "dependencies": {
@@ -26,6 +25,7 @@
     "@swc/core": "1.15.3",
     "@swc/jest": "0.2.39",
     "jest": "30.2.0",
+    "ts-node": "10.9.2",
     "typescript": "5.9.3"
   }
 }

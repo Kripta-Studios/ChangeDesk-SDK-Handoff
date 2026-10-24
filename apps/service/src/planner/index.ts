@@ -3,6 +3,7 @@ export * from "./catalog-repository.js";
 export * from "./catalog.js";
 export * from "./codex-cli-provider.js";
 export * from "./fake-provider.js";
+export * from "./generation-worker.js";
 export * from "./planner.js";
 export * from "./postgres-catalog.js";
 export * from "./process-runner.js";

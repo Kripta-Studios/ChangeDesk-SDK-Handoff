@@ -14,4 +14,4 @@ GREEN command:
 
 `pnpm exec vitest run --config tests/sdk/vitest.config.ts --reporter=verbose`
 
-Final observed result after adding unknown/reconciliation and session-unmount coverage: `3 passed` test files, `10 passed` tests, exit 0. Browser/real-host coverage remains a separate NOT_RUN gate in `evidence/frontend-browser.md`.
+Final canonical result after adding installed-action/no-model, stale-session-race, clarification, authorized reopen and English locale coverage: `3 passed` test files, `15 passed` tests, exit 0, using the single root `vitest.config.ts`. Browser/real-host coverage remains a separate NOT_RUN gate in `evidence/frontend-browser.md`.

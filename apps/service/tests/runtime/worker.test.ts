@@ -7,6 +7,19 @@ const lease: JobLease = { jobId: "j", tenantId: "atlas", actorId: "operator", ba
 const effect: PlanEffect = { recordId: "p01", stepId: "addCategory", capability: "medusa.product_categories.products.add", arguments: { productId: "p01", categoryId: "cat" }, expected: "apply", preconditionFingerprint: "d" };
 
 describe("durable worker", () => {
+  it("dispatches generation leases to the bounded planner processor", async () => {
+    const generationLease = { ...lease, kind: "generation" as const, executionId: undefined, requestId: "r" };
+    const store = fakeStore(bundle());
+    store.claimNextJob.mockResolvedValue(generationLease);
+    const generation = { process: vi.fn().mockResolvedValue({ kind: "completed" }) };
+    const worker = new DurableWorker({ store: store as any, connector: {} as any, authority: new StrictEffectAuthority(), generation });
+
+    expect(await worker.runOnce("w")).toEqual({ kind: "completed" });
+    expect(generation.process).toHaveBeenCalledWith(generationLease);
+    expect(store.loadExecutionBundle).not.toHaveBeenCalled();
+    expect(store.requeueOrFinish).toHaveBeenCalledWith(generationLease, { kind: "completed" });
+  });
+
   it("ACC-008 marks a lost effect response unknown and never retries it blindly", async () => {
     const store = fakeStore(bundle({ pendingEffects: [effect] }));
     const connector = { readAuthorized: vi.fn(), executeAuthorized: vi.fn().mockRejectedValue(new Error("socket lost")), reconcileOperation: vi.fn() };
@@ -35,7 +48,7 @@ describe("durable worker", () => {
   });
 });
 
-function fakeStore(value: ExecutionBundle) { return { claimNextJob: vi.fn().mockResolvedValue(lease), heartbeat: vi.fn(), loadExecutionBundle: vi.fn().mockResolvedValue(value), recordAttemptIntent: vi.fn().mockResolvedValue({ attemptId: "a", state: "intent_recorded" }), markAttemptSent: vi.fn().mockResolvedValue(true), confirmAttempt: vi.fn().mockResolvedValue(true), markAttemptUnknown: vi.fn().mockResolvedValue(true), rejectAttempt: vi.fn().mockResolvedValue(true), requeueOrFinish: vi.fn().mockResolvedValue(undefined) }; }
+function fakeStore(value: ExecutionBundle) { return { recoverOrphanedLeases: vi.fn().mockResolvedValue(0), claimNextJob: vi.fn().mockResolvedValue(lease), heartbeat: vi.fn().mockResolvedValue(true), loadExecutionBundle: vi.fn().mockResolvedValue(value), recordAttemptIntent: vi.fn().mockResolvedValue({ attemptId: "a", state: "intent_recorded" }), markAttemptSent: vi.fn().mockResolvedValue(true), confirmAttempt: vi.fn().mockResolvedValue(true), markAttemptUnknown: vi.fn().mockResolvedValue(true), rejectAttempt: vi.fn().mockResolvedValue(true), requeueOrFinish: vi.fn().mockResolvedValue(undefined) }; }
 function bundle(overrides: Partial<ExecutionBundle> = {}): ExecutionBundle {
-  return { execution: { id: "e", planId: "plan", state: "running" }, plan: { schemaVersion: "1.0", id: "plan", tenantId: "atlas", actorId: "operator", requestId: "r", artifactHash: "a".repeat(64), adapterVersion: "v", policyVersion: "p", capabilityManifestHash: "c".repeat(64), parameters: {}, selectionSnapshot: [], perRecordEffects: [], exclusions: [], limits: { maxRecords: 100, maxSteps: 12 }, expiresAt: "2026-10-24T12:05:00Z", evidenceRefs: [], planVersion: 1, planHash: "h" }, approval: { id: "ap", actorId: "operator", expiresAt: "2026-10-24T12:05:00Z", planHash: "h" }, authority: { actorEnabled: true, policyVersion: "p", artifactState: "active", approvalExpiresAt: "2026-10-24T12:05:00Z" }, pendingEffects: [], unknownEffects: [], ...overrides };
+  return { execution: { id: "e", planId: "plan", state: "running" }, plan: { schemaVersion: "1.0", id: "plan", tenantId: "atlas", actorId: "operator", requestId: "r", artifactHash: "a".repeat(64), adapterVersion: "v", policyVersion: "p", capabilityManifestHash: "c".repeat(64), parameters: {}, selectionSnapshot: [], perRecordEffects: [], exclusions: [], limits: { maxRecords: 100, maxSteps: 12 }, expiresAt: "2026-10-24T12:05:00Z", evidenceRefs: [], planVersion: 1, planHash: "h" }, approval: { id: "ap", actorId: "operator", expiresAt: "2026-10-24T12:05:00Z", planHash: "h" }, authority: { actorEnabled: true, hostSessionId: "hs", policyVersion: "p", artifactState: "active", approvalExpiresAt: "2026-10-24T12:05:00Z" }, pendingEffects: [], unknownEffects: [], ...overrides };
 }

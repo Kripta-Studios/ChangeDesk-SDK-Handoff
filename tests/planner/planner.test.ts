@@ -15,6 +15,12 @@ test("deterministic fake is explicitly non-live and follows structured intent",a
   assert.equal(result.proposal.kind,"candidate"); assert.equal(result.usage.live,false); assert.equal(result.usage.provider,"fake");
 });
 
+test("finite text-only intent distinguishes category, channel, and combined campaign",async()=>{
+  const recipes={"catalog.category.assign.v1":recipe,"catalog.channel.assign.v1":{...recipe,recipeKey:"catalog.channel.assign.v1"} as Recipe,"catalog.campaign.prepare.v1":{...recipe,recipeKey:"catalog.campaign.prepare.v1"} as Recipe};const fake=new DeterministicFakePlannerProvider(recipes);
+  const {structuredIntent:_structuredIntent,...textInput}=input;
+  for(const [message,key] of [["Assign only a category","catalog.category.assign.v1"],["Añade solo el canal","catalog.channel.assign.v1"],["Prepare category and sales channel campaign","catalog.campaign.prepare.v1"]] as const){const result=await fake.generate({...textInput,message});assert.equal(result.proposal.kind,"candidate");if(result.proposal.kind==="candidate")assert.equal(result.proposal.recipe.recipeKey,key);}
+});
+
 test("planner retries invalid untrusted output at most three times",async()=>{
   let calls=0; const provider:PlannerProvider={id:"fake",async generate(){calls++;return {proposal:{kind:"candidate",recipe:{proofRequired:false,shell:"rm -rf"}},usage:fakeUsage};}};
   const planner=new ValidatingPlanner(provider,()=>({ok:false,code:"SCHEMA_INVALID"}),{maxCalls:3,maxMessageCharacters:4000});

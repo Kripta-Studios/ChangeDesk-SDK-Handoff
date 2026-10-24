@@ -99,6 +99,7 @@ describe("PostgreSQL storage integration", () => {
     const actorId = "operator";
     await seedTenant(tenantId, actorId);
     const ids = await seedReadyPlan(tenantId, actorId);
+    const hostSessionId=await seedHostSession(tenantId,actorId);
 
     const approvalInputs = [randomUUID(), randomUUID()].map((key) => ({
       id: randomUUID(),
@@ -106,6 +107,7 @@ describe("PostgreSQL storage integration", () => {
       planVersion: 1,
       planHash: ids.planHash,
       actorId,
+      hostSessionId,
       scope: ["execute"],
       expiresAt: new Date(Date.now() + 60_000),
       idempotencyKey: key,
@@ -117,13 +119,14 @@ describe("PostgreSQL storage integration", () => {
       ),
     );
     expect(new Set(approvals.map((item) => item.id)).size).toBe(1);
+    const approval=approvals[0]!;
 
     const starts = await Promise.all(
       [randomUUID(), randomUUID()].map((key) =>
         store.withTenant({ tenantId, actorId }, (tx) =>
           tx.admitExecution({
             id: randomUUID(),
-            approvalId: approvals[0].id,
+            approvalId: approval.id,
             actorId,
             jobId: randomUUID(),
             idempotencyKey: key,
@@ -168,6 +171,53 @@ describe("PostgreSQL storage integration", () => {
     expect(requests.find((request)=>request.id===requestId)).toBeUndefined();
   });
 
+  it("ACC-010 REUSE-08 permits identical private digests without cross-tenant discovery",async()=>{
+    const firstTenant=`tenant-${randomUUID()}`;
+    const secondTenant=`tenant-${randomUUID()}`;
+    const outsider=`tenant-${randomUUID()}`;
+    await seedTenant(firstTenant,"admin");await seedTenant(secondTenant,"admin");await seedTenant(outsider,"admin");
+    const artifactHash="6".repeat(64);
+    const body={recipeKey:"catalog.category.assign.v1",compatibility:{adapter:"medusa-v2",capabilityContract:"1"}};
+    const first=await store.withTenant({tenantId:firstTenant,actorId:"admin"},(tx)=>tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1",canonicalBody:body,idempotencyKey:randomUUID(),requestHash:"1".repeat(64)}));
+    const second=await store.withTenant({tenantId:secondTenant,actorId:"admin"},(tx)=>tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1",canonicalBody:body,idempotencyKey:randomUUID(),requestHash:"2".repeat(64)}));
+    expect(first.id).not.toBe(second.id);
+    expect((await store.withTenant({tenantId:firstTenant,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash)))?.id).toBe(first.id);
+    expect((await store.withTenant({tenantId:secondTenant,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash)))?.id).toBe(second.id);
+    expect(await store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash))).toBeNull();
+  });
+
+  it("ACC-010 resolves explicit grants without making private hashes globally discoverable",async()=>{
+    const owner=`tenant-${randomUUID()}`;const recipient=`tenant-${randomUUID()}`;const outsider=`tenant-${randomUUID()}`;
+    await seedTenant(owner,"admin");await seedTenant(recipient,"admin");await seedTenant(outsider,"admin");
+    const artifactHash="7".repeat(64);
+    const artifact=await store.withTenant({tenantId:owner,actorId:"admin"},(tx)=>tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1",canonicalBody:{recipeKey:"catalog.shared.v1",compatibility:{adapter:"medusa-v2",capabilityContract:"1"}},idempotencyKey:randomUUID(),requestHash:"8".repeat(64)}));
+    await store.withTenant({tenantId:owner,actorId:"admin"},(tx)=>tx.grantArtifact({id:randomUUID(),artifactId:artifact.id,recipientScope:"tenant",recipientTenantId:recipient,rights:["read"],idempotencyKey:randomUUID(),requestHash:"9".repeat(64)}));
+    expect((await store.withTenant({tenantId:recipient,actorId:"admin"},(tx)=>tx.listDiscoverableCatalog({adapter:"medusa-v2",capabilityContract:"1",limit:20}))).map(row=>row.id)).toContain(artifact.id);
+    expect(await store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash))).toBeNull();
+    await expect(store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.insertEvidence({id:randomUUID(),artifactHash,environmentDigest:"guess",suiteVersion:"1",status:"not_run",artifactRefs:{},privacyScope:"private"}))).rejects.toThrow("not authorized");
+  });
+
+  it("DATA-01 reserves generation budget durably and fences completion",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;const actorId="operator";await seedTenant(tenantId,actorId);
+    const ids=await seedReadyPlan(tenantId,actorId);const reservationId=randomUUID();const intentHash="a".repeat(64);
+    const acquired=await store.withTenant({tenantId,actorId},(tx)=>tx.reserveGeneration({id:reservationId,actorId,intentHash,contractVersion:"1",requestId:ids.requestId,maxAttempts:2,tokenBudget:1000n,costBudgetMicros:5000n,provider:"test",model:"test"}));
+    expect(acquired).toMatchObject({state:"acquired",id:reservationId,fence:1,attempt:1});
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.completeGeneration(reservationId,0,{artifactId:ids.artifactHash,usedTokens:10n,usedCostMicros:20n}))).toBe(false);
+    const artifact=await store.withTenant({tenantId,actorId},(tx)=>tx.getAuthorizedArtifact(ids.artifactHash));
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.completeGeneration(reservationId,1,{artifactId:artifact!.id,usedTokens:10n,usedCostMicros:20n}))).toBe(true);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.reserveGeneration({id:randomUUID(),actorId,intentHash,contractVersion:"1",requestId:ids.requestId,maxAttempts:2,tokenBudget:1000n,costBudgetMicros:5000n,provider:"test",model:"test"}))).toMatchObject({state:"existing",id:reservationId,status:"completed",artifactId:artifact!.id});
+  });
+
+  it("DATA-02 tombstones deny tenant access and survive status reapplication",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;const actorId="operator";await seedTenant(tenantId,actorId);
+    await store.withTenant({tenantId,actorId},(tx)=>tx.createRequestAndJob({id:randomUUID(),actorId,redactedText:"erase",contextRef:{},budget:{},jobId:randomUUID(),idempotencyKey:randomUUID(),requestHash:"b".repeat(64)}));
+    await store.withTenant({tenantId,actorId},(tx)=>tx.tombstoneTenant("tenant_deleted"));
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.listRequests())).toEqual([]);
+    await migrator.query("UPDATE storage.tenants SET status='active' WHERE id=$1",[tenantId]);
+    await migrator.query("SELECT storage.reapply_tombstones()");
+    expect((await migrator.query<{status:string}>("SELECT status FROM storage.tenants WHERE id=$1",[tenantId])).rows[0]?.status).toBe("disabled");
+  });
+
   it("ACC-003 consumes a bridge ticket once by issuer and jti",async()=>{
     const tenantId=`tenant-${randomUUID()}`;
     const actorId="operator";
@@ -189,9 +239,9 @@ describe("PostgreSQL storage integration", () => {
     const leases=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:2,limit:2});
     expect(leases).toHaveLength(2);
     expect(new Set(leases.map((lease)=>lease.tenantId)).size).toBe(2);
-    expect(await jobs.heartbeat({...leases[0],fence:leases[0].fence-1},30)).toBe(false);
-    expect(await jobs.heartbeat(leases[0],30)).toBe(true);
-    const claimed=leases[0];
+    const claimed=leases[0]!;
+    expect(await jobs.heartbeat({...claimed,fence:claimed.fence-1},30)).toBe(false);
+    expect(await jobs.heartbeat(claimed,30)).toBe(true);
     const claimedResource=claimed.requestId
       ? await workerStore.withTenant({tenantId:claimed.tenantId,actorId:claimed.actorId},(tx)=>tx.getRequest(claimed.requestId!))
       : await workerStore.withTenant({tenantId:claimed.tenantId,actorId:claimed.actorId},(tx)=>tx.getExecution(claimed.executionId!));
@@ -203,13 +253,101 @@ describe("PostgreSQL storage integration", () => {
     const tenantId=`tenant-${randomUUID()}`;
     await seedTenant(tenantId,"operator");
     await store.withTenant({tenantId,actorId:"operator"},(tx)=>tx.createRequestAndJob({id:randomUUID(),actorId:"operator",redactedText:"recover",contextRef:{},budget:{},jobId:randomUUID(),idempotencyKey:randomUUID(),requestHash:"d".repeat(64)}));
-    const [lease]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:1});
+    const lease=(await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:1}))[0]!;
     expect(lease).toBeDefined();
     await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",[lease.jobId]);
     await migrator.query("UPDATE storage.capacity_leases SET lease_until=clock_timestamp()-interval '1 second' WHERE job_id=$1",[lease.jobId]);
     expect(await jobs.finish(lease,{status:"completed"})).toBe(false);
     expect(await jobs.recoverExpired()).toBeGreaterThanOrEqual(1);
     expect(await jobs.finish(lease,{status:"completed"})).toBe(false);
+  });
+
+  it("ACC-009 reloads private generation input after restart only under its live fence",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;
+    const actorId="operator";
+    await seedTenant(tenantId,actorId);
+    const requestId=randomUUID();
+    const jobId=randomUUID();
+    const contextRef={locale:"es",selectedProductIds:["product-1"]};
+    await store.withTenant({tenantId,actorId},async(tx)=>{
+      await tx.setCapabilityManifest({id:randomUUID(),manifestHash:"e".repeat(64),adapterVersion:"medusa-v2",body:{capabilities:["medusa.products.list"]},idempotencyKey:randomUUID(),requestHash:"f".repeat(64)});
+      await tx.createRequestAndJob({id:requestId,actorId,redactedText:"prepara la campaña",contextRef,budget:{maxGenerationAttempts:2},jobId,idempotencyKey:randomUUID(),requestHash:"0".repeat(64)});
+    });
+    let targetLease;
+    for(let count=0;count<20 && !targetLease;count++) {
+      const [candidate]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:4});
+      if(!candidate) break;
+      if(candidate.jobId===jobId) targetLease=candidate;
+      else await jobs.finish(candidate,{status:"completed"});
+    }
+    expect(targetLease).toBeDefined();
+    const bundle=await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle(targetLease!));
+    expect(bundle).toMatchObject({request:{id:requestId,redactedText:"prepara la campaña",contextRef},tenant:{policyVersion:"1"},capabilityManifest:{manifestHash:"e".repeat(64)}});
+    expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle({...targetLease!,fence:targetLease!.fence-1}))).toBeNull();
+    const generatedHash=randomUUID().replaceAll("-","").padEnd(64,"0");
+    const candidate={id:randomUUID(),version:"1",artifactHash:generatedHash,recipeKey:"catalog.campaign.prepare.v1",displayName:"Preparar campaña",requiredCapabilities:["medusa.products.list"],compatibility:"compatible" as const,evidenceStatus:"not_run" as const,estimatedCost:null,safeMetadata:{source:"generated"}};
+    expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.persistGeneratedCandidate(targetLease!,{requestId,artifact:{id:randomUUID(),artifactHash:generatedHash,schemaVersion:"1",canonicalBody:{recipeKey:candidate.recipeKey}},candidate}))).toBe(true);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.listRequestCandidates(requestId))).toMatchObject([{id:candidate.id,state:"offered"}]);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.selectRequestCandidate({requestId,candidateId:candidate.id,version:"1",choice:"reuse",idempotencyKey:randomUUID(),requestHash:"7".repeat(64)}))).toMatchObject({id:candidate.id,state:"selected",selectedChoice:"reuse"});
+    await jobs.finish(targetLease!,{status:"completed"});
+  });
+
+  it("ACC-008 preserves attempt state across recovery and requires fenced business transitions",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;
+    const actorId="operator";
+    await seedTenant(tenantId,actorId);
+    const ids=await seedReadyPlan(tenantId,actorId);
+    const evidenceId=randomUUID();
+    await store.withTenant({tenantId,actorId},async(tx)=>{
+      await tx.insertEvidence({id:evidenceId,artifactHash:ids.artifactHash,environmentDigest:"environment",suiteVersion:"1",status:"passed",artifactRefs:{},privacyScope:"private"});
+      expect(await tx.getEvidence(evidenceId)).toMatchObject({id:evidenceId,status:"passed",privacyScope:"private"});
+    });
+    const hostSessionId=await seedHostSession(tenantId,actorId);
+    const approval=await store.withTenant({tenantId,actorId},(tx)=>tx.createApproval({id:randomUUID(),planId:ids.planId,planVersion:1,planHash:ids.planHash,actorId,hostSessionId,scope:["execute"],expiresAt:new Date(Date.now()+60_000),idempotencyKey:randomUUID(),requestHash:"1".repeat(64)}));
+    const executionJobId=randomUUID();
+    const execution=await store.withTenant({tenantId,actorId},(tx)=>tx.admitExecution({id:randomUUID(),approvalId:approval.id,actorId,jobId:executionJobId,idempotencyKey:randomUUID(),requestHash:"2".repeat(64)}));
+    let lease;
+    for(let count=0;count<30 && !lease;count++) {
+      const [candidate]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:4});
+      if(!candidate) break;
+      if(candidate.jobId===executionJobId) lease=candidate;
+      else await jobs.finish(candidate,{status:"completed"});
+    }
+    expect(lease).toBeDefined();
+    const attempt={executionId:execution.id,rowId:"product-1",stepId:"category",attemptNo:1,semanticInputHash:"3".repeat(64),operationKey:randomUUID()};
+    await workerStore.withTenant({tenantId,actorId},async(tx)=>{
+      expect(await tx.insertExecutionRows(lease!,execution.id,[{rowId:"product-1",resourceRef:"product-1",preconditionFingerprint:"precondition"}])).toBe(true);
+      expect(await tx.updateExecutionWithLease(lease!,execution.id,"running",0)).toMatchObject({state:"running",revision:1});
+      expect(await tx.recordAttemptIntent(lease!,attempt)).toMatchObject({inserted:true,state:"intent_recorded",operationKey:attempt.operationKey});
+      expect(await tx.recordAttemptIntent(lease!,attempt)).toMatchObject({inserted:false,state:"intent_recorded"});
+      const claim={executionId:execution.id,planHash:ids.planHash,planVersion:1,approvalId:approval.id,operationKey:attempt.operationKey,jobId:lease!.jobId,leaseOwner:lease!.leaseOwner,fence:lease!.fence,hostSessionId,policyVersion:"1"};
+      expect(await tx.authorizeEffectClaim(claim)).toMatchObject({authorized:true,executionId:execution.id,hostSessionId});
+      expect(await tx.authorizeEffectClaim({...claim,fence:claim.fence-1})).toEqual({authorized:false,reasonCode:"claim_invalid"});
+      expect(await tx.transitionAttempt(lease!,attempt,"sent","receipt-1")).toBe(true);
+      expect(await tx.authorizeEffectClaim(claim)).toMatchObject({authorized:true,executionId:execution.id});
+    });
+    await migrator.query("UPDATE storage.jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",[lease!.jobId]);
+    await migrator.query("UPDATE storage.capacity_leases SET lease_until=clock_timestamp()-interval '1 second' WHERE job_id=$1",[lease!.jobId]);
+    await jobs.recoverExpired();
+    let reconcileLease;
+    for(let count=0;count<30 && !reconcileLease;count++) {
+      const [candidate]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:4});
+      if(!candidate) break;
+      if(candidate.jobId===executionJobId) reconcileLease=candidate;
+      else await jobs.finish(candidate,{status:"completed"});
+    }
+    expect(reconcileLease).toBeDefined();
+    await workerStore.withTenant({tenantId,actorId},async(tx)=>{
+      expect(await tx.adoptAttemptForReconciliation(reconcileLease!,attempt)).toMatchObject({state:"sent",receiptRef:"receipt-1",inserted:false});
+      expect(await tx.transitionAttempt(reconcileLease!,attempt,"confirmed","receipt-1","observation-1")).toBe(true);
+      expect(await tx.updateRowWithLease(reconcileLease!,{executionId:execution.id,rowId:"product-1",state:"succeeded",finalObservationRef:"observation-1"})).toBe(true);
+      expect(await tx.updateExecutionWithLease(reconcileLease!,execution.id,"succeeded",1)).toMatchObject({state:"succeeded",revision:2});
+      expect(await tx.loadExecutionBundle(execution.id)).toMatchObject({authority:{hostSessionId}});
+      expect(await tx.getExecutionDetail(execution.id)).toMatchObject({execution:{id:execution.id},rows:[{row_id:"product-1"}],attempts:[{idempotency_key:attempt.operationKey}]});
+    });
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.getPlanDetail(ids.planId))).toMatchObject({id:ids.planId,requestId:ids.requestId,artifactHash:ids.artifactHash,body:{}});
+    expect(await jobs.finish(reconcileLease!,{status:"completed"})).toBe(true);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.getExecution(execution.id))).toMatchObject({state:"succeeded",revision:2});
   });
 
   async function seedTenant(tenantId: string, actorId: string) {
@@ -227,11 +365,19 @@ describe("PostgreSQL storage integration", () => {
     const requestId = randomUUID();
     const planId = randomUUID();
     const planHash = "c".repeat(64);
+    const artifactHash=randomUUID().replaceAll("-","").padEnd(64,"0");
     await store.withTenant({ tenantId, actorId }, async (tx) => {
+      await tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1.0",canonicalBody:{recipeKey:"catalog.category.assign.v1",compatibility:{adapter:"medusa-v2",capabilityContract:"1"}},idempotencyKey:randomUUID(),requestHash:artifactHash});
       await tx.createRequestAndJob({ id: requestId, actorId, redactedText: "request", contextRef: {}, budget: {}, jobId: randomUUID(), idempotencyKey: randomUUID(), requestHash: "3".repeat(64) });
-      await tx.createPlan(testPlan({ requestId, actorId, tenantId, id: planId, planHash, idempotencyKey: randomUUID(), requestHash: "4".repeat(64) }));
+      await tx.createPlan(testPlan({ requestId, actorId, tenantId, id: planId, planHash,artifactHash,idempotencyKey: randomUUID(), requestHash: "4".repeat(64) }));
     });
-    return { requestId, planId, planHash };
+    return { requestId, planId, planHash,artifactHash };
+  }
+
+  async function seedHostSession(tenantId:string,actorId:string) {
+    const sessionId=randomUUID();
+    await store.withTenant({tenantId,actorId},(tx)=>tx.exchangeSessionTicket({ticketId:randomUUID(),issuer:"medusa-test",jtiHash:randomUUID().replaceAll("-","").padEnd(64,"0"),nonceHash:randomUUID().replaceAll("-", ""),audience:"changedesk",sessionId,policyVersion:"1",ticketExpiresAt:new Date(Date.now()+60_000),sessionExpiresAt:new Date(Date.now()+300_000)}));
+    return sessionId;
   }
 });
 

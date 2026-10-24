@@ -1,0 +1,23 @@
+{
+  "verifiedAt": "2026-10-24",
+  "actions": {
+    "actions/checkout": {
+      "tag": "v4",
+      "commit": "11d5960a326750d5838078e36cf38b85af677262",
+      "source": "https://github.com/actions/checkout/tree/11d5960a326750d5838078e36cf38b85af677262",
+      "license": "MIT"
+    },
+    "actions/setup-node": {
+      "tag": "v4",
+      "commit": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "source": "https://github.com/actions/setup-node/tree/49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "license": "MIT"
+    },
+    "pnpm/action-setup": {
+      "tag": "v4",
+      "commit": "b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "source": "https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "license": "MIT"
+    }
+  }
+}

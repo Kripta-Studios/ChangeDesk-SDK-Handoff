@@ -1,9 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { timingSafeEqual } from "node:crypto"
-import { BridgeError } from "../../../../../../bridge/errors.ts"
-import { CHANGEDESK_MODULE } from "../../../../../../modules/changedesk/index.ts"
-import type ChangeDeskModuleService from "../../../../../../modules/changedesk/service.ts"
+import { BridgeError } from "../../../../../bridge/errors.ts"
+import { CHANGEDESK_MODULE } from "../../../../../modules/changedesk/index.ts"
+import type ChangeDeskModuleService from "../../../../../modules/changedesk/service.ts"
 
 const equalCredential = (actual: string, expected: string) => {
   const left = Buffer.from(actual, "utf8")

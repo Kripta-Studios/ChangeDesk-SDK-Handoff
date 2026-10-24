@@ -19,7 +19,7 @@ export class AuthorizedCatalog implements CatalogPort {
   async searchAuthorized(query: CatalogSearchQuery): Promise<readonly Candidate[]> {
     assertEnabled(query.actor);
     const rows = await this.options.repository.listVisible(query.actor, {
-      recipeKey: query.recipeKey, adapter: query.adapter, limit: Math.min(Math.max(query.limit ?? 20, 1), 20),
+      ...(query.recipeKey ? {recipeKey:query.recipeKey} : {}), adapter: query.adapter, limit: Math.min(Math.max(query.limit ?? 20, 1), 20),
     });
     return rows.filter((row) => compatible(row.recipe, query)).slice(0, 3).map(toCandidate);
   }
@@ -41,9 +41,10 @@ export class AuthorizedCatalog implements CatalogPort {
     const envelope = publicationEnvelope({ artifactHash, publisherTenantId: input.actor.tenantId, visibility, allowedTenantIds });
     const signature = await this.options.signer.sign(input.keyId, this.options.encoder.encode(envelope));
     const publicationId = this.options.newId("publication");
+    const artifactId = artifactHash === source.artifactHash ? source.id : this.options.newId("artifact");
     const requestHash = await this.options.identity.requestHash({ ...input, actor: { tenantId: input.actor.tenantId, actorId: input.actor.actorId }, recipe, artifactHash });
     const created = await this.options.repository.publish(input.actor, {
-      publicationId, artifactId: this.options.newId("artifact"), artifactHash, recipe, keyId: input.keyId,
+      publicationId, artifactId, artifactHash, recipe, keyId: input.keyId,
       signature, visibility, allowedTenantIds,
       reviewedMetadata: { schemaVersion: "1", signatureEnvelope: envelope },
       idempotencyKey: input.idempotencyKey, requestHash,
