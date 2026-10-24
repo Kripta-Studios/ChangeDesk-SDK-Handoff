@@ -4,6 +4,7 @@ import { signEnvelope, sha256Json, verifyEnvelope } from "../../packages/medusa-
 import { BridgeError } from "../../packages/medusa-plugin/src/bridge/errors.ts"
 import { authorizeDelegation, buildBootstrapClaims, parseCommand, parseDelegationClaims } from "../../packages/medusa-plugin/src/bridge/validation.ts"
 import type { ActorPolicy, EffectDelegationClaims, ReadDelegationClaims } from "../../packages/medusa-plugin/src/bridge/types.ts"
+import { protectedProductFingerprint } from "../../packages/medusa-plugin/src/bridge/protected-state.ts"
 
 const { privateKey, publicKey } = generateKeyPairSync("ed25519")
 const actor: ActorPolicy = {
@@ -21,6 +22,18 @@ it("argsHash matches the ADR006 NUL-framed JCS vector", () => {
   expect(
     sha256Json({ productId: "prod_1", categoryId: "pcat_1" }),
   ).toBe("52578f36f4e7ab3083bd06158123a9ca0d467bab028d3ff635ceac81dc2c1366")
+})
+
+it("protected fingerprint ignores associations but detects status and price changes", () => {
+  const product = {
+    id: "prod_1", title: "Desk", handle: "desk", description: "Preserve this", status: "published",
+    metadata: { changedesk_locked: false }, tags: [{ id: "tag_b" }, { id: "tag_a" }],
+    variants: [{ id: "variant_1", sku: "DESK-1", manage_inventory: false, prices: [{ id: "price_1", amount: 1999, currency_code: "eur" }] }],
+  }
+  const baseline = protectedProductFingerprint(product)
+  expect(protectedProductFingerprint({ ...product, categories: [{ id: "pcat_new" }], sales_channels: [{ id: "sc_new" }] } as typeof product)).toBe(baseline)
+  expect(protectedProductFingerprint({ ...product, status: "draft" })).not.toBe(baseline)
+  expect(protectedProductFingerprint({ ...product, variants: [{ ...product.variants[0], prices: [{ id: "price_1", amount: 2000, currency_code: "eur" }] }] })).not.toBe(baseline)
 })
 
 const readClaims = (capability: ReadDelegationClaims["capability"], args: object): ReadDelegationClaims => ({
@@ -41,10 +54,14 @@ const readClaims = (capability: ReadDelegationClaims["capability"], args: object
   requestId: "request-1",
 })
 
-const effectClaims = (args: object): EffectDelegationClaims => ({
-  ...readClaims("medusa.product_categories.products.add", args),
+const effectClaims = (args: object): EffectDelegationClaims => {
+  const { requestId: _requestId, ...base } = readClaims("medusa.product_categories.products.add", args)
+  return ({
+  ...base,
   typ: "changedesk.effect",
   executionId: "execution-1",
+  jobId: "job-1",
+  leaseOwner: "worker-1",
   rowId: "row-1",
   stepId: "step-1",
   planId: "plan-1",
@@ -57,6 +74,7 @@ const effectClaims = (args: object): EffectDelegationClaims => ({
   fence: 7,
   preconditions: { productStatus: "published", productUnlocked: true, relationAbsent: true, preconditionFingerprint: "fixture-fingerprint" },
 })
+}
 
 it("Ed25519 compact envelope detects payload tampering", () => {
   const claims = readClaims("medusa.products.retrieve", { productId: "prod_1" })
@@ -81,6 +99,13 @@ it("strict claims reject missing timestamps, unknown typ, and extra fields", () 
   expect(() => parseDelegationClaims(missingExp)).toThrow(/missing or unknown/)
   expect(() => parseDelegationClaims({ ...valid, typ: "changedesk.future" })).toThrow(/Unknown delegation type/)
   expect(() => parseDelegationClaims({ ...valid, surprise: true })).toThrow(/missing or unknown/)
+})
+
+it("strict effect claims require the lease identity", () => {
+  const valid = effectClaims({ productId: "prod_1", categoryId: "pcat_1" })
+  expect(parseDelegationClaims(valid)).toEqual(valid)
+  const { leaseOwner: _leaseOwner, ...missingLeaseOwner } = valid
+  expect(() => parseDelegationClaims(missingLeaseOwner)).toThrow(/missing or unknown/)
 })
 
 it("closed command parser rejects remove and batch effects", () => {

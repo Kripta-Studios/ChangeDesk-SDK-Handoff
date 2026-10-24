@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa.ps1 plugin:build",
-    "test:unit": "vitest run ../../tests/medusa/*.test.ts"
+    "test:unit": "vitest run --root ../.. tests/medusa/bridge-contract.test.ts tests/medusa/native-guard.test.ts"
   },
   "exports": {
     "./package.json": "./package.json",

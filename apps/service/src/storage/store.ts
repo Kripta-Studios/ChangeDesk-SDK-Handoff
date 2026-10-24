@@ -13,6 +13,7 @@ export class StorageConflictError extends Error {
 export class StorageInvariantError extends Error {
   readonly code = "STORAGE_INVARIANT_VIOLATION";
 }
+export class StorageCapacityError extends Error { readonly code="QUEUE_CAPACITY_EXCEEDED";constructor(readonly scope:"tenant"|"global"){super(`Pending job capacity exceeded for ${scope}`);} }
 
 export class Store {
   constructor(private readonly pool: Pool) {}
@@ -54,11 +55,7 @@ export class TenantTx {
        RETURNING id,actor_id,state,created_at`,
       [this.context.tenantId, input.id, input.actorId, input.redactedText, input.contextRef, input.budget],
     ));
-    await this.client.query(
-      `INSERT INTO storage.jobs (id,tenant_id,actor_id,backend_key,request_id,kind,status)
-       VALUES ($1,$2,$3,COALESCE($4,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$5,'generation','pending')`,
-      [input.jobId, this.context.tenantId,input.actorId,input.backendKey ?? null,input.id],
-    );
+    await this.enqueueJob({id:input.jobId,actorId:input.actorId,backendKey:input.backendKey,requestId:input.id,kind:"generation"});
     await this.client.query("SELECT storage.ensure_scheduler_tenant($1,COALESCE($2,(SELECT backend_key FROM storage.tenants WHERE id=$1)))", [this.context.tenantId,input.backendKey ?? null]);
     await this.bindIdempotency("requests.create", input.idempotencyKey, input.id);
     return requestRecord(row);
@@ -234,12 +231,7 @@ export class TenantTx {
       "UPDATE storage.approvals SET consumed_execution_id=$3 WHERE tenant_id=$1 AND id=$2 AND consumed_execution_id IS NULL",
       [this.context.tenantId,row.approval_id,row.id],
     );
-    await this.client.query(
-      `INSERT INTO storage.jobs (id,tenant_id,actor_id,backend_key,execution_id,kind,status)
-       VALUES ($1,$2,$3,COALESCE($4,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$5,'execution','pending')
-       ON CONFLICT (tenant_id,execution_id,kind) WHERE execution_id IS NOT NULL DO NOTHING`,
-      [input.jobId,this.context.tenantId,input.actorId,input.backendKey ?? null,row.id],
-    );
+    await this.enqueueJob({id:input.jobId,actorId:input.actorId,backendKey:input.backendKey,executionId:row.id,kind:"execution"});
     await this.client.query("SELECT storage.ensure_scheduler_tenant($1,COALESCE($2,(SELECT backend_key FROM storage.tenants WHERE id=$1)))", [this.context.tenantId,input.backendKey ?? null]);
     await this.bindIdempotency("executions.create", input.idempotencyKey, row.id);
     return executionRecord(row);
@@ -287,9 +279,7 @@ export class TenantTx {
     if(replay) return this.getExecution(replay);
     const execution=await this.getExecution(input.executionId);
     if(!execution) return null;
-    await this.client.query(`INSERT INTO storage.jobs(id,tenant_id,actor_id,backend_key,execution_id,kind,status)
-      VALUES($1,$2,$3,COALESCE($4,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$5,'reconcile','pending')
-      ON CONFLICT (tenant_id,execution_id,kind) WHERE execution_id IS NOT NULL DO NOTHING`,[input.jobId,this.context.tenantId,this.context.actorId,input.backendKey ?? null,input.executionId]);
+    await this.enqueueJob({id:input.jobId,actorId:this.context.actorId,backendKey:input.backendKey,executionId:input.executionId,kind:"reconcile"});
     await this.client.query("SELECT storage.ensure_scheduler_tenant($1,COALESCE($2,(SELECT backend_key FROM storage.tenants WHERE id=$1)))",[this.context.tenantId,input.backendKey ?? null]);
     await this.bindIdempotency("executions.resume",input.idempotencyKey,input.executionId);
     return execution;
@@ -548,7 +538,7 @@ export class TenantTx {
         AND ra.state<>'security_revoked' AND (p.installation_id IS NULL OR i.status='active')
         AND NOT EXISTS(SELECT 1 FROM storage.publications revoked WHERE revoked.artifact_hash=p.artifact_hash AND revoked.state='security_revoked')
         AND j.id=$8 AND j.lease_owner=$9 AND j.fence=$11 AND j.status='leased' AND j.lease_until>clock_timestamp()
-        AND sa.idempotency_key=$7 AND sa.fence=$11 AND sa.state='intent_recorded'
+        AND sa.idempotency_key=$7 AND sa.fence=$11 AND sa.state IN('intent_recorded','sent')
       LIMIT 1`,
       [this.context.tenantId,this.context.actorId,input.executionId,input.planHash,input.planVersion,input.approvalId,input.operationKey,input.jobId,input.leaseOwner,input.hostSessionId,input.fence,input.policyVersion]);
     if(result.rowCount!==1) return {authorized:false,reasonCode:"claim_invalid"};
@@ -587,6 +577,16 @@ export class TenantTx {
       "UPDATE storage.idempotency_records SET resource_id=$5 WHERE tenant_id=$1 AND actor_id=$2 AND operation=$3 AND key=$4",
       [this.context.tenantId,this.context.actorId,operation,key,resourceId],
     );
+  }
+
+  private async enqueueJob(input:{id:string;actorId:string;backendKey?:string;requestId?:string;executionId?:string;kind:"generation"|"execution"|"reconcile"}) {
+    const result=await this.client.query<{outcome:"admitted"|"tenant_full"|"global_full"}>(`SELECT storage.enqueue_job($1,$2,$3,
+      COALESCE($4,(SELECT backend_key FROM storage.tenants WHERE id=$2)),$5,$6,$7) outcome`,
+      [input.id,this.context.tenantId,input.actorId,input.backendKey ?? null,input.requestId ?? null,input.executionId ?? null,input.kind]);
+    const outcome=result.rows[0]?.outcome;
+    if(outcome==="tenant_full") throw new StorageCapacityError("tenant");
+    if(outcome==="global_full") throw new StorageCapacityError("global");
+    if(outcome!=="admitted") throw new StorageInvariantError("Job admission did not return an outcome");
   }
 
   private async requireRequest(id:string) { return requestRecord(one(await this.client.query<RequestRow>("SELECT id,actor_id,state,created_at FROM storage.requests WHERE tenant_id=$1 AND id=$2",[this.context.tenantId,id]))); }
