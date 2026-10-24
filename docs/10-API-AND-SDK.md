@@ -52,7 +52,7 @@ Paginación con cursor opaco ligado a tenant, actor/scope y query; límite ≤50
 | `GET /v1/executions/:id` | Estado/resumen por registro | Ámbito del tenant y permiso de lectura |
 | `POST /v1/executions/:id/cancel` | cancelación idempotente | Dueño autorizado/operator/admin; frena nuevos pasos |
 | `POST /v1/executions/:id/resume` | resolución/reintento seguro del mismo ledger | Reautorizar; no salta unknown ni aprobación expirada |
-| `GET /v1/installations` | Funciones visibles para usuario | Scope + estado + política actual |
+| `GET /v1/installations` | Instalaciones, ofertas autorizadas e identidad de presentación del usuario (ADR-010/011) | Scope + grants vigentes + firma/compatibilidad + política actual |
 | `POST /v1/installations` | artifactHash + configuración validada | admin; fija versión, nunca copia datos de origen |
 | `POST /v1/installations/:id/disable` | deshabilitar nuevas ejecuciones | admin; reconciliar en curso |
 | `POST /v1/publications` | artifactHash + visibility + consentimiento | admin con derecho a compartir; revisión de contenido genérico |
