@@ -186,6 +186,38 @@ describe("PostgreSQL storage integration", () => {
     expect(await store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash))).toBeNull();
   });
 
+  it("ACC-010 resolves explicit grants without making private hashes globally discoverable",async()=>{
+    const owner=`tenant-${randomUUID()}`;const recipient=`tenant-${randomUUID()}`;const outsider=`tenant-${randomUUID()}`;
+    await seedTenant(owner,"admin");await seedTenant(recipient,"admin");await seedTenant(outsider,"admin");
+    const artifactHash="7".repeat(64);
+    const artifact=await store.withTenant({tenantId:owner,actorId:"admin"},(tx)=>tx.insertArtifact({id:randomUUID(),artifactHash,schemaVersion:"1",canonicalBody:{recipeKey:"catalog.shared.v1",compatibility:{adapter:"medusa-v2",capabilityContract:"1"}},idempotencyKey:randomUUID(),requestHash:"8".repeat(64)}));
+    await store.withTenant({tenantId:owner,actorId:"admin"},(tx)=>tx.grantArtifact({id:randomUUID(),artifactId:artifact.id,recipientScope:"tenant",recipientTenantId:recipient,rights:["read"],idempotencyKey:randomUUID(),requestHash:"9".repeat(64)}));
+    expect((await store.withTenant({tenantId:recipient,actorId:"admin"},(tx)=>tx.listDiscoverableCatalog({adapter:"medusa-v2",capabilityContract:"1",limit:20}))).map(row=>row.id)).toContain(artifact.id);
+    expect(await store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.getAuthorizedArtifact(artifactHash))).toBeNull();
+    await expect(store.withTenant({tenantId:outsider,actorId:"admin"},(tx)=>tx.insertEvidence({id:randomUUID(),artifactHash,environmentDigest:"guess",suiteVersion:"1",status:"not_run",artifactRefs:{},privacyScope:"private"}))).rejects.toThrow("not authorized");
+  });
+
+  it("DATA-01 reserves generation budget durably and fences completion",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;const actorId="operator";await seedTenant(tenantId,actorId);
+    const ids=await seedReadyPlan(tenantId,actorId);const reservationId=randomUUID();const intentHash="a".repeat(64);
+    const acquired=await store.withTenant({tenantId,actorId},(tx)=>tx.reserveGeneration({id:reservationId,actorId,intentHash,contractVersion:"1",requestId:ids.requestId,maxAttempts:2,tokenBudget:1000n,costBudgetMicros:5000n,provider:"test",model:"test"}));
+    expect(acquired).toMatchObject({state:"acquired",id:reservationId,fence:1,attempt:1});
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.completeGeneration(reservationId,0,{artifactId:ids.artifactHash,usedTokens:10n,usedCostMicros:20n}))).toBe(false);
+    const artifact=await store.withTenant({tenantId,actorId},(tx)=>tx.getAuthorizedArtifact(ids.artifactHash));
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.completeGeneration(reservationId,1,{artifactId:artifact!.id,usedTokens:10n,usedCostMicros:20n}))).toBe(true);
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.reserveGeneration({id:randomUUID(),actorId,intentHash,contractVersion:"1",requestId:ids.requestId,maxAttempts:2,tokenBudget:1000n,costBudgetMicros:5000n,provider:"test",model:"test"}))).toMatchObject({state:"existing",id:reservationId,status:"completed",artifactId:artifact!.id});
+  });
+
+  it("DATA-02 tombstones deny tenant access and survive status reapplication",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;const actorId="operator";await seedTenant(tenantId,actorId);
+    await store.withTenant({tenantId,actorId},(tx)=>tx.createRequestAndJob({id:randomUUID(),actorId,redactedText:"erase",contextRef:{},budget:{},jobId:randomUUID(),idempotencyKey:randomUUID(),requestHash:"b".repeat(64)}));
+    await store.withTenant({tenantId,actorId},(tx)=>tx.tombstoneTenant("tenant_deleted"));
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.listRequests())).toEqual([]);
+    await migrator.query("UPDATE storage.tenants SET status='active' WHERE id=$1",[tenantId]);
+    await migrator.query("SELECT storage.reapply_tombstones()");
+    expect((await migrator.query<{status:string}>("SELECT status FROM storage.tenants WHERE id=$1",[tenantId])).rows[0]?.status).toBe("disabled");
+  });
+
   it("ACC-003 consumes a bridge ticket once by issuer and jti",async()=>{
     const tenantId=`tenant-${randomUUID()}`;
     const actorId="operator";
@@ -311,7 +343,9 @@ describe("PostgreSQL storage integration", () => {
       expect(await tx.updateRowWithLease(reconcileLease!,{executionId:execution.id,rowId:"product-1",state:"succeeded",finalObservationRef:"observation-1"})).toBe(true);
       expect(await tx.updateExecutionWithLease(reconcileLease!,execution.id,"succeeded",1)).toMatchObject({state:"succeeded",revision:2});
       expect(await tx.loadExecutionBundle(execution.id)).toMatchObject({authority:{hostSessionId}});
+      expect(await tx.getExecutionDetail(execution.id)).toMatchObject({execution:{id:execution.id},rows:[{row_id:"product-1"}],attempts:[{idempotency_key:attempt.operationKey}]});
     });
+    expect(await store.withTenant({tenantId,actorId},(tx)=>tx.getPlanDetail(ids.planId))).toMatchObject({id:ids.planId,requestId:ids.requestId,artifactHash:ids.artifactHash,body:{}});
     expect(await jobs.finish(reconcileLease!,{status:"completed"})).toBe(true);
     expect(await store.withTenant({tenantId,actorId},(tx)=>tx.getExecution(execution.id))).toMatchObject({state:"succeeded",revision:2});
   });

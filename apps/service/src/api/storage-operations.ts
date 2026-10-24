@@ -15,7 +15,14 @@ export class StorageApiOperations implements ApiOperations {
   addMessage(c: MutationContext, id: string, b: any) { return this.run(c.actor, async (tx: any) => { const r = await tx.getRequest(id); this.owner(c.actor, r?.actorId); if (!r) throw notFound(); const m = await tx.addRequestMessage({ id: randomUUID(), requestId: id, clientRequestId: b.clientRequestId, redactedText: b.message }); return { requestId: id, messageId: m.id, status: r.state }; }); }
   getCandidates(a: ActorContext, id: string) { return this.run(a, async (tx: any) => { const r = await tx.getRequest(id); this.owner(a, r?.actorId); return r ? { candidates: await tx.listRequestCandidates(id) } : null; }); }
   selectCandidate(c: MutationContext, id: string, b: any) { return this.run(c.actor, async (tx: any) => { const r = await tx.getRequest(id); this.owner(c.actor, r?.actorId); if (!r) throw notFound(); const selected = await tx.selectRequestCandidate({ requestId: id, candidateId: b.candidateId, version: b.version, choice: b.choice, idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }); if (!selected) throw notFound(); await tx.updateRequestState(id, "needs_configuration"); return { requestId: id, status: "needs_configuration", candidateId: selected.id }; }); }
-  async getResources(a: ActorContext, kind: "category" | "channel", q: { limit?: number }) { const capability = kind === "category" ? "medusa.product_categories.retrieve" as const : "medusa.sales_channels.retrieve" as const; const items = await Promise.all((this.resourceIds[a.tenantId]?.[kind] ?? []).slice(0, q.limit ?? 50).map(async (id) => ({ id, detail: await this.connector.readAuthorized({ capability, args: kind === "category" ? { categoryId: id } : { channelId: id }, actor: a }) }))); return { items, nextCursor: null }; }
+  async getResources(a: ActorContext, kind: "category" | "channel", q: { limit?: number }) {
+    const capability = kind === "category" ? "medusa.product_categories.retrieve" as const : "medusa.sales_channels.retrieve" as const;
+    const resources = await Promise.all((this.resourceIds[a.tenantId]?.[kind] ?? []).slice(0, q.limit ?? 50).map(async (id) => {
+      const result = await this.connector.readAuthorized({ capability, args: kind === "category" ? { categoryId: id } : { channelId: id }, actor: a });
+      return { id, label: resourceLabel(id, result), kind };
+    }));
+    return { resources };
+  }
   async createPlan() { throw new ApiError(503, "ACTIVE_CAPABILITY_MANIFEST_UNAVAILABLE", "Plan compilation requires an active persisted capability manifest", true); }
   getPlan(a: ActorContext, id: string) { return this.run(a, async (tx: any) => { const r = await tx.getPlan(id); this.owner(a, r?.actorId); return r; }); }
   createApproval(c: MutationContext, b: any) { return this.run(c.actor, async (tx: any) => { const p = await tx.getPlan(b.planId); this.owner(c.actor, p?.actorId); if (!p) throw notFound(); const r = await tx.createApproval({ id: randomUUID(), planId: b.planId, planVersion: b.expectedPlanVersion, planHash: b.planHash, actorId: c.actor.actorId, hostSessionId: c.actor.hostSessionId, scope: ["execute"], expiresAt: new Date(Math.min(p.expiresAt.getTime(), this.clock().getTime() + 600_000)), idempotencyKey: c.idempotencyKey, requestHash: c.requestHash }); return { approvalId: r.id }; }); }
@@ -52,3 +59,10 @@ function parseProduct(id: string, raw: unknown): ProductSnapshot {
 function catalogActor(actor: ActorContext) { const role = actor.roles.includes("admin") ? "admin" as const : actor.roles.includes("operator") ? "operator" as const : actor.roles.includes("requester") ? "requester" as const : "viewer" as const; return { tenantId: actor.tenantId, actorId: actor.actorId, role, enabled: true }; }
 function uiPermissions(actor: ActorContext): string[] { return actor.roles.includes("admin") ? ["read","request","preview","approve","execute","install","share","revoke","policy.manage"] : actor.roles.includes("operator") ? ["read","request","preview","approve","execute"] : actor.roles.includes("requester") ? ["read","request","preview"] : ["read"]; }
 function safeRequestMessage(state: string): string { return ({ received: "Request received.", searching: "Searching authorized functions.", candidate_offered: "Compatible functions are ready for review.", generating: "Generating a bounded proposal.", needs_configuration: "Configuration is required.", needs_clarification: "More information is required.", plan_ready: "Plan ready for review.", rejected: "The request was rejected.", error: "The request could not be completed." } as Record<string,string>)[state] ?? "Request status unavailable."; }
+function resourceLabel(id: string, value: unknown): string {
+  if (!value || typeof value !== "object") return id;
+  const record = value as Record<string, unknown>;
+  const nested = (record.product_category ?? record.sales_channel ?? record.category ?? record.channel) as Record<string, unknown> | undefined;
+  const label = nested?.name ?? nested?.title ?? record.name ?? record.title;
+  return typeof label === "string" && label.trim() ? label.slice(0, 200) : id;
+}

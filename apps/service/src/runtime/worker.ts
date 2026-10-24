@@ -1,6 +1,7 @@
 import { hashCanonical, semanticInputHash } from "../core/hashing.js";
 import type { EffectAuthority, ExecutionBundle, HostConnector, JobLease, PlanEffect, WorkerOutcome } from "./types.js";
 import type { RuntimeStorePort } from "./store-port.js";
+import type { GenerationProcessor } from "../planner/generation-worker.js";
 
 export class ConnectorError extends Error {
   constructor(public readonly code: string, public readonly certainty: "not_sent" | "unknown", message: string) { super(message); }
@@ -10,6 +11,7 @@ export interface WorkerDependencies {
   store: RuntimeStorePort;
   connector: HostConnector;
   authority: EffectAuthority;
+  generation?: GenerationProcessor;
   clock?: () => Date;
 }
 
@@ -22,6 +24,11 @@ export class DurableWorker {
     const lease = await this.dependencies.store.claimNextJob(workerId, this.#clock());
     if (!lease) return "idle";
     if (!await this.dependencies.store.heartbeat(lease, this.#clock())) return { kind: "waiting_reconciliation", reason: "lease_lost_before_load" };
+    if (lease.kind === "generation" && this.dependencies.generation) {
+      const outcome = await this.dependencies.generation.process(lease);
+      await this.dependencies.store.requeueOrFinish(lease, outcome);
+      return outcome;
+    }
     if (lease.kind !== "execution" && lease.kind !== "reconcile") {
       const outcome = { kind: "failed", reason: "unsupported_job_kind" } as const;
       await this.dependencies.store.requeueOrFinish(lease, outcome);
