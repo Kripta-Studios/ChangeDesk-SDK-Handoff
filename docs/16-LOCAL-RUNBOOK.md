@@ -40,25 +40,42 @@ El seed rechaza sobrescribir un namespace existente. En un laboratorio ya prepar
 
 - Atlas: http://127.0.0.1:9001/app/changedesk
 - Boreal: http://127.0.0.1:9002/app/changedesk
+- Storefront comprador: http://127.0.0.1:8001/ (selector Atlas/Boreal y sesión customer independiente).
 - API: http://127.0.0.1:4100/healthz y `/readyz` (disponibilidad, no prueba de funcionalidades).
 - Credenciales locales generadas: `examples/medusa/.local/credentials.atlas.json` y `credentials.boreal.json`. Son privadas e ignoradas por Git.
 - Mapas del seed: `evidence/local/seed-map.atlas.json` y `seed-map.boreal.json`.
+- Compradores: `examples/medusa/.local/buyer-credentials.atlas.json` y `buyer-credentials.boreal.json`; mapas `evidence/local/buyer-map.<tenant>.json`. No publicar estos archivos.
 - Logs/PIDs: `.local/run/`. No publicar tokens, contraseñas o contenido de configuración privada.
 
 Seleccionar productos, abrir el panel, solicitar una función, escoger candidato y parámetros locales, preparar preview y aprobar con actor autorizado. La biblioteca permite instalar y volver a planificar funciones. Un admin publica una plantilla explícitamente; otro tenant configura sus propios recursos. Estos recorridos están implementados; consultar FINAL-REPORT antes de asumir que todos han pasado E2E.
 
 La sesión de demostración actual usa el checkout `.worktrees/environment`; sus mapas, credenciales y logs están bajo ese directorio. No reseedear el mismo PostgreSQL desde root mientras esa sesión esté activa.
 
+Para añadir compradores a un laboratorio existente, ejecutar desde su checkout, después de incorporar y construir el código actualizado:
+
+```powershell
+$env:CHANGEDESK_SEED_BUYERS_ONLY = '1'
+try {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa-host.ps1 -Tenant atlas -Command seed
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts/medusa-host.ps1 -Tenant boreal -Command seed
+} finally { Remove-Item Env:CHANGEDESK_SEED_BUYERS_ONLY }
+```
+
+Este modo añade dos customers por tienda y su clave pública de storefront sin recrear productos ni usuarios staff. Si falta el archivo de credenciales de un comprador existente, se detiene sin sobrescribir su cuenta. `dev.ps1` arranca también el storefront; `stop.ps1` incluye su proceso registrado. El puerto 8001 evita una reserva HTTP.sys ajena encontrada en 8000.
+
 ## Proveedores
 
 Codex es el predeterminado y su autenticación permanece fuera de Git. `CHANGEDESK_PLANNER_PROVIDER` admite `codex-cli`, `openai`, `deepseek`, `opencode` y `fake-test` explícito. Las APIs usan respectivamente `OPENAI_API_KEY`, `DEEPSEEK_API_KEY` y `OPENCODE_API_KEY`; requieren valores positivos para `CHANGEDESK_PLANNER_AUTHORIZED_BUDGET_USD` y `CHANGEDESK_PLANNER_MAX_PRICE_PER_CALL_USD`. No se han realizado llamadas pagadas de verificación.
 
-Los perfiles revisados están en `apps/service/src/config.ts`: OpenAI gpt-6-luna, DeepSeek deepseek-flash y OpenCode deepseek-v4.1-flash. El wrapper del laboratorio todavía provisiona Codex; para despliegues API sin Codex se debe completar ese ajuste del wrapper, no omitir los límites de presupuesto. El modo fake requiere además `CHANGEDESK_ALLOW_TEST_FAKE=true` y nunca se presenta como proveedor real.
+Los perfiles revisados están en `apps/service/src/config.ts`: OpenAI gpt-6-luna, DeepSeek deepseek-flash y OpenCode deepseek-v4.1-flash. El wrapper exige Codex únicamente para `codex-cli`; los perfiles API conservan sus requisitos de claves externas y presupuesto. El modo fake requiere además `CHANGEDESK_ALLOW_TEST_FAKE=true` y nunca se presenta como proveedor real.
+
+La política `CHANGEDESK_PROOF_REQUIRED=true` exige `CHANGEDESK_WORKSPACE_ROOT`, `CHANGEDESK_BEND_BINARY_WINDOWS`, `CHANGEDESK_BEND_BINARY_LINUX` y `CHANGEDESK_BENDTT_LINUX`. El servidor fija los hashes revisados y limita tiempo/salida. Un resultado válido queda ligado al hash final del plan, artefacto, política y entorno; ver ADR-015. Si falta el verificador, falla cerrado. Esta evidencia solo cubre el modelo puro de asociaciones, no los efectos de Medusa.
 
 ## Pruebas
 
 ```powershell
 & $node scripts/verify-ci.mjs --lane unit
+& $node scripts/verify-ci.mjs --lane functional
 & $node node_modules/typescript/bin/tsc -p apps/service --noEmit
 ```
 
