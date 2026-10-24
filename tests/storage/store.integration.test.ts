@@ -212,6 +212,30 @@ describe("PostgreSQL storage integration", () => {
     expect(await jobs.finish(lease,{status:"completed"})).toBe(false);
   });
 
+  it("ACC-009 reloads private generation input after restart only under its live fence",async()=>{
+    const tenantId=`tenant-${randomUUID()}`;
+    const actorId="operator";
+    await seedTenant(tenantId,actorId);
+    const requestId=randomUUID();
+    const jobId=randomUUID();
+    const contextRef={locale:"es",selectedProductIds:["product-1"]};
+    await store.withTenant({tenantId,actorId},async(tx)=>{
+      await tx.setCapabilityManifest({id:randomUUID(),manifestHash:"e".repeat(64),adapterVersion:"medusa-v2",body:{capabilities:["medusa.products.list"]},idempotencyKey:randomUUID(),requestHash:"f".repeat(64)});
+      await tx.createRequestAndJob({id:requestId,actorId,redactedText:"prepara la campaña",contextRef,budget:{maxGenerationAttempts:2},jobId,idempotencyKey:randomUUID(),requestHash:"0".repeat(64)});
+    });
+    let targetLease;
+    for(let count=0;count<20 && !targetLease;count++) {
+      const [candidate]=await jobs.claimNext({workerId:`worker-${randomUUID()}`,leaseSeconds:30,globalCap:4});
+      if(!candidate) break;
+      if(candidate.jobId===jobId) targetLease=candidate;
+      else await jobs.finish(candidate,{status:"completed"});
+    }
+    expect(targetLease).toBeDefined();
+    const bundle=await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle(targetLease!));
+    expect(bundle).toMatchObject({request:{id:requestId,redactedText:"prepara la campaña",contextRef},tenant:{policyVersion:"1"},capabilityManifest:{manifestHash:"e".repeat(64)}});
+    expect(await workerStore.withTenant({tenantId,actorId},(tx)=>tx.loadGenerationBundle({...targetLease!,fence:targetLease!.fence-1}))).toBeNull();
+  });
+
   async function seedTenant(tenantId: string, actorId: string) {
     const client = await migrator.connect();
     try {

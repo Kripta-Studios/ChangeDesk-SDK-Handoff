@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Pool, PoolClient, QueryResultRow } from "pg";
 import type {
-  ApprovalRecord, AttemptIntent, CatalogArtifact, CatalogQuery, ExecutionAdmission, ExecutionBundle, ExecutionRecord, InstallationRecord, JobLease,
+  ApprovalRecord, AttemptIntent, CatalogArtifact, CatalogQuery, ExecutionAdmission, ExecutionBundle, ExecutionRecord, GenerationBundle, InstallationRecord, JobLease,
   NewApproval, NewExecutionRow, NewPlan, NewRequest, PlanRecord, PublicationKey, PublicationRecord, RequestMessageRecord, RequestRecord, SessionRecord, TenantContext,
 } from "./types.js";
 
@@ -64,6 +64,35 @@ export class TenantTx {
     return requestRecord(row);
   }
 
+  async setCapabilityManifest(input:{id:string;manifestHash:string;adapterVersion:string;body:unknown;idempotencyKey:string;requestHash:string}):Promise<void> {
+    const replay=await this.reserveIdempotency("capability_manifests.activate",input.idempotencyKey,input.requestHash);
+    if(replay) return;
+    await this.client.query("UPDATE storage.capability_manifests SET active=false WHERE tenant_id=$1 AND active",[this.context.tenantId]);
+    const row=one(await this.client.query<{id:string}>(`INSERT INTO storage.capability_manifests
+      (tenant_id,id,manifest_hash,adapter_version,body,active) VALUES($1,$2,$3,$4,$5,true)
+      ON CONFLICT (tenant_id,manifest_hash) DO UPDATE SET active=true RETURNING id`,
+      [this.context.tenantId,input.id,input.manifestHash,input.adapterVersion,input.body]));
+    await this.bindIdempotency("capability_manifests.activate",input.idempotencyKey,row.id);
+  }
+
+  async loadGenerationBundle(lease:JobLease):Promise<GenerationBundle|null> {
+    const result=await this.client.query<GenerationBundleRow>(`SELECT r.id,r.actor_id,r.redacted_text,r.context_ref,r.budget,r.state,r.created_at,
+      t.policy_version,t.backend_key,m.id manifest_id,m.manifest_hash,m.adapter_version,m.body manifest_body
+      FROM storage.jobs j JOIN storage.requests r ON r.tenant_id=j.tenant_id AND r.id=j.request_id
+      JOIN storage.tenants t ON t.id=j.tenant_id
+      JOIN storage.capability_manifests m ON m.tenant_id=j.tenant_id AND m.active
+      WHERE j.id=$1 AND j.tenant_id=$2 AND j.actor_id=$3 AND j.kind='generation' AND j.status='leased'
+        AND j.lease_owner=$4 AND j.fence=$5 AND j.lease_until>clock_timestamp()`,
+      [lease.jobId,this.context.tenantId,this.context.actorId,lease.leaseOwner,lease.fence]);
+    if(result.rowCount!==1) return null;
+    const row=result.rows[0]!;
+    return {
+      request:{id:row.id,actorId:row.actor_id,redactedText:row.redacted_text,contextRef:row.context_ref,budget:row.budget,state:row.state,createdAt:row.created_at},
+      tenant:{policyVersion:row.policy_version,backendKey:row.backend_key},
+      capabilityManifest:{id:row.manifest_id,manifestHash:row.manifest_hash,adapterVersion:row.adapter_version,body:row.manifest_body},
+    };
+  }
+
   async listRequests(): Promise<RequestRecord[]> {
     const result = await this.client.query<RequestRow>("SELECT id,actor_id,state,created_at FROM storage.requests ORDER BY created_at,id");
     return result.rows.map(requestRecord);
@@ -71,7 +100,7 @@ export class TenantTx {
 
   async getRequest(id:string):Promise<RequestRecord|null> {
     const result=await this.client.query<RequestRow>("SELECT id,actor_id,state,created_at FROM storage.requests WHERE tenant_id=$1 AND id=$2",[this.context.tenantId,id]);
-    return result.rowCount===1?requestRecord(result.rows[0]):null;
+    return result.rowCount===1?requestRecord(result.rows[0]!):null;
   }
 
   async addRequestMessage(input:{id:string;requestId:string;clientRequestId:string;redactedText:string}):Promise<RequestMessageRecord> {
@@ -131,7 +160,7 @@ export class TenantTx {
 
   async getPlan(id:string):Promise<PlanRecord|null> {
     const result=await this.client.query<PlanRow>("SELECT id,actor_id,plan_version,plan_hash,state,expires_at FROM storage.plans WHERE tenant_id=$1 AND id=$2",[this.context.tenantId,id]);
-    return result.rowCount===1?planRecord(result.rows[0]):null;
+    return result.rowCount===1?planRecord(result.rows[0]!):null;
   }
 
   async admitExecution(input: ExecutionAdmission): Promise<ExecutionRecord> {
@@ -145,14 +174,14 @@ export class TenantTx {
       [this.context.tenantId,input.approvalId,input.actorId],
     );
     if(authority.rowCount!==1) throw new StorageInvariantError("Approval cannot admit an execution");
-    const approved=authority.rows[0];
+    const approved=authority.rows[0]!;
     const existing=await this.client.query<ExecutionRow>(
       `SELECT id,plan_id,plan_version,approval_id,actor_id,prior_execution_id,state,revision FROM storage.executions
        WHERE tenant_id=$1 AND plan_id=$2 AND plan_version=$3`,[this.context.tenantId,approved.plan_id,approved.plan_version],
     );
     if(existing.rowCount===1) {
-      await this.bindIdempotency("executions.create",input.idempotencyKey,existing.rows[0].id);
-      return executionRecord(existing.rows[0]);
+      await this.bindIdempotency("executions.create",input.idempotencyKey,existing.rows[0]!.id);
+      return executionRecord(existing.rows[0]!);
     }
     if(!approved.authorized) throw new StorageInvariantError("Approval cannot admit an execution");
     const row=one(await this.client.query<ExecutionRow>(
@@ -199,7 +228,7 @@ export class TenantTx {
 
   async getExecution(id:string):Promise<ExecutionRecord|null> {
     const result=await this.client.query<ExecutionRow>("SELECT id,plan_id,plan_version,approval_id,actor_id,prior_execution_id,state,revision FROM storage.executions WHERE tenant_id=$1 AND id=$2",[this.context.tenantId,id]);
-    return result.rowCount===1?executionRecord(result.rows[0]):null;
+    return result.rowCount===1?executionRecord(result.rows[0]!):null;
   }
 
   async cancelExecution(id:string,control:{idempotencyKey:string;requestHash:string}):Promise<ExecutionRecord|null> {
@@ -210,7 +239,7 @@ export class TenantTx {
       RETURNING id,plan_id,plan_version,approval_id,actor_id,prior_execution_id,state,revision`,[this.context.tenantId,id]);
     if(result.rowCount!==1) return this.getExecution(id);
     await this.bindIdempotency("executions.cancel",control.idempotencyKey,id);
-    return executionRecord(result.rows[0]);
+    return executionRecord(result.rows[0]!);
   }
 
   async enqueueReconciliation(input:{executionId:string;jobId:string;backendKey?:string;idempotencyKey:string;requestHash:string}):Promise<ExecutionRecord|null> {
@@ -246,7 +275,7 @@ export class TenantTx {
         AND j.lease_owner=$4 AND j.fence=$5 AND j.status='leased'
       RETURNING e.id,e.plan_id,e.plan_version,e.approval_id,e.actor_id,e.prior_execution_id,e.state,e.revision`,
       [this.context.tenantId,executionId,lease.jobId,lease.leaseOwner,lease.fence,state,expectedRevision]);
-    return result.rowCount===1?executionRecord(result.rows[0]):null;
+    return result.rowCount===1?executionRecord(result.rows[0]!):null;
   }
 
   async updateRowWithLease(lease:JobLease,input:{executionId:string;rowId:string;state:"pending"|"running"|"succeeded"|"skipped"|"unknown"|"failed"|"needs_review";finalObservationRef?:string}):Promise<boolean> {
@@ -282,7 +311,7 @@ export class TenantTx {
         ON p.artifact_id=a.id AND p.artifact_hash=a.artifact_hash AND p.state='published'
        WHERE a.artifact_hash=$1 AND (a.state='published' OR a.owner_tenant_id=$2)`,[artifactHash,this.context.tenantId],
     );
-    return result.rowCount===1?catalogRecord(result.rows[0]):null;
+    return result.rowCount===1?catalogRecord(result.rows[0]!):null;
   }
 
   async insertArtifact(input:{id:string;artifactHash:string;schemaVersion:string;canonicalBody:unknown;idempotencyKey:string;requestHash:string}):Promise<CatalogArtifact> {
@@ -324,7 +353,7 @@ export class TenantTx {
 
   async getPublicationForUpdate(id:string):Promise<PublicationRecord|null> {
     const result=await this.client.query<PublicationRow>("SELECT * FROM storage.publications WHERE id=$1 AND publisher_tenant_id=$2 AND publisher_actor_id=$3 FOR UPDATE",[id,this.context.tenantId,this.context.actorId]);
-    return result.rowCount===1?publicationRecord(result.rows[0]):null;
+    return result.rowCount===1?publicationRecord(result.rows[0]!):null;
   }
 
   async updatePublicationState(id:string,state:"withdrawn"|"security_revoked",control:{idempotencyKey:string;requestHash:string}):Promise<PublicationRecord|null> {
@@ -337,7 +366,7 @@ export class TenantTx {
       WHERE id=$1 AND publisher_tenant_id=$3 AND publisher_actor_id=$4 RETURNING *`,[id,state,this.context.tenantId,this.context.actorId]);
     if(result.rowCount!==1) return null;
     await this.bindIdempotency(operation,control.idempotencyKey,id);
-    return publicationRecord(result.rows[0]);
+    return publicationRecord(result.rows[0]!);
   }
 
   async insertInstallation(input:{id:string;artifactId:string;artifactHash:string;config:unknown;policyVersion:string;idempotencyKey:string;requestHash:string}):Promise<InstallationRecord> {
@@ -366,12 +395,12 @@ export class TenantTx {
     const result=await this.client.query<InstallationRow>("UPDATE storage.installations SET status='disabled' WHERE tenant_id=$1 AND id=$2 RETURNING id,artifact_id,artifact_hash,status,policy_version",[this.context.tenantId,id]);
     if(result.rowCount!==1) return null;
     await this.bindIdempotency("installations.disable",control.idempotencyKey,id);
-    return installationRecord(result.rows[0]);
+    return installationRecord(result.rows[0]!);
   }
 
   async getPublicationKey(keyId:string):Promise<PublicationKey|null> {
     const result=await this.client.query<KeyRow>("SELECT id,algorithm,public_key,status FROM storage.signing_keys WHERE id=$1",[keyId]);
-    return result.rowCount===1?{id:result.rows[0].id,algorithm:result.rows[0].algorithm,publicKey:result.rows[0].public_key,status:result.rows[0].status}:null;
+    return result.rowCount===1?{id:result.rows[0]!.id,algorithm:result.rows[0]!.algorithm,publicKey:result.rows[0]!.public_key,status:result.rows[0]!.status}:null;
   }
 
   async insertSigningKey(input:{id:string;publicKey:Uint8Array;privateKeyRef:string;idempotencyKey:string;requestHash:string}):Promise<PublicationKey> {
@@ -387,7 +416,7 @@ export class TenantTx {
 
   async getPrivateSigningKeyRef(keyId:string):Promise<string|null> {
     const result=await this.client.query<{private_key_ref:string}>("SELECT private_key_ref FROM storage.signing_key_secrets WHERE tenant_id=$1 AND key_id=$2",[this.context.tenantId,keyId]);
-    return result.rowCount===1?result.rows[0].private_key_ref:null;
+    return result.rowCount===1?result.rows[0]!.private_key_ref:null;
   }
 
   async consumeTicket(input:{ticketId:string;issuer:string;jtiHash:string;nonceHash:string;audience:string;expiresAt:Date}):Promise<boolean> {
@@ -473,6 +502,7 @@ export class TenantTx {
 
 interface RequestRow extends QueryResultRow { id:string;actor_id:string;state:RequestRecord["state"];created_at:Date }
 interface MessageRow extends QueryResultRow { id:string;request_id:string;actor_id:string;client_request_id:string;redacted_text:string;created_at:Date }
+interface GenerationBundleRow extends QueryResultRow { id:string;actor_id:string;redacted_text:string;context_ref:GenerationBundle["request"]["contextRef"];budget:GenerationBundle["request"]["budget"];state:RequestRecord["state"];created_at:Date;policy_version:string;backend_key:string;manifest_id:string;manifest_hash:string;adapter_version:string;manifest_body:GenerationBundle["capabilityManifest"]["body"] }
 interface PlanRow extends QueryResultRow { id:string;actor_id:string;plan_version:number;plan_hash:string;state:PlanRecord["state"];expires_at:Date }
 interface ApprovalRow extends QueryResultRow { id:string;plan_id:string;plan_version:number;plan_hash:string;actor_id:string;expires_at:Date;consumed_execution_id:string|null }
 interface ExecutionRow extends QueryResultRow { id:string;plan_id:string;plan_version:number;approval_id:string;actor_id:string;prior_execution_id:string|null;state:ExecutionRecord["state"];revision:string|number }
@@ -483,7 +513,7 @@ interface PublicationRow extends QueryResultRow { id:string;publisher_tenant_id:
 interface InstallationRow extends QueryResultRow { id:string;artifact_id:string;artifact_hash:string;status:InstallationRecord["status"];policy_version:string }
 interface KeyRow extends QueryResultRow { id:string;algorithm:"Ed25519";public_key:Buffer;status:string }
 interface SessionRow extends QueryResultRow { id:string;actor_id:string;ticket_id:string;policy_version:string;expires_at:Date }
-function one<T extends QueryResultRow>(result:{rowCount:number|null;rows:T[]}):T { if(result.rowCount!==1) throw new StorageInvariantError("Expected exactly one row"); return result.rows[0]; }
+function one<T extends QueryResultRow>(result:{rowCount:number|null;rows:T[]}):T { if(result.rowCount!==1) throw new StorageInvariantError("Expected exactly one row"); return result.rows[0]!; }
 const requestRecord=(r:RequestRow):RequestRecord=>({id:r.id,actorId:r.actor_id,state:r.state,createdAt:r.created_at});
 const messageRecord=(r:MessageRow):RequestMessageRecord=>({id:r.id,requestId:r.request_id,actorId:r.actor_id,clientRequestId:r.client_request_id,redactedText:r.redacted_text,createdAt:r.created_at});
 const planRecord=(r:PlanRow):PlanRecord=>({id:r.id,actorId:r.actor_id,planVersion:r.plan_version,planHash:r.plan_hash,state:r.state,expiresAt:r.expires_at});

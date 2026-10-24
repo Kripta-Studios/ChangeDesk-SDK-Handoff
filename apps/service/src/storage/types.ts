@@ -133,6 +133,25 @@ export interface ExecutionBundle {
   readonly attempts: readonly Record<string, unknown>[];
 }
 
+export interface GenerationBundle {
+  readonly request: {
+    readonly id:string;
+    readonly actorId:string;
+    readonly redactedText:string;
+    readonly contextRef:JsonValue;
+    readonly budget:JsonValue;
+    readonly state:RequestState;
+    readonly createdAt:Date;
+  };
+  readonly tenant: { readonly policyVersion:string;readonly backendKey:string };
+  readonly capabilityManifest: {
+    readonly id:string;
+    readonly manifestHash:string;
+    readonly adapterVersion:string;
+    readonly body:JsonValue;
+  };
+}
+
 export interface CatalogQuery {
   readonly recipeKey?: string;
   readonly adapter: string;
