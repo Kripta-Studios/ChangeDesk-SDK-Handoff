@@ -28,7 +28,7 @@ class TestStorefrontRepository implements StorefrontRepository {
   async getPreferences(context: BuyerContext): Promise<StorefrontPreferences> {
     const global = this.global(context.tenantId);
     const buyer = this.buyers.get(this.buyerKey(context)) ?? { overrides: {}, revision: 0 };
-    return { overrides: buyer.overrides, effective: { ...global.values, ...buyer.overrides }, buyerRevision: buyer.revision, globalRevision: global.revision };
+    return { overrides: buyer.overrides, inherited: global.values, effective: { ...global.values, ...buyer.overrides }, buyerRevision: buyer.revision, globalRevision: global.revision };
   }
   async replacePreferences(input: Parameters<StorefrontRepository["replacePreferences"]>[0]): Promise<RepositoryResult<StorefrontPreferences>> {
     const idemKey = `${input.context.tenantId}:buyer:${input.context.buyerId}:replace:${input.idempotencyKey}`;

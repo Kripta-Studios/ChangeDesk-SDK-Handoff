@@ -10,6 +10,7 @@ export interface StorefrontOverrides {
 
 export interface StorefrontPreferences {
   readonly overrides: StorefrontOverrides;
+  readonly inherited: Required<StorefrontOverrides>;
   readonly effective: Required<StorefrontOverrides>;
   readonly buyerRevision: number;
   readonly globalRevision: number;

@@ -177,7 +177,7 @@ async function getPreferencesTx(tx: PoolClient, context: BuyerContext, forUpdate
   const global = await readGlobal(tx, context.tenantId);
   const result = await tx.query<{overrides:StorefrontOverrides;buyer_revision:string}>(`SELECT overrides,buyer_revision FROM storage.storefront_buyer_preferences WHERE tenant_id=$1 AND buyer_id=$2${forUpdate ? " FOR UPDATE" : ""}`, [context.tenantId, context.buyerId]);
   const overrides = result.rows[0]?.overrides ?? {}; const buyerRevision = Number(result.rows[0]?.buyer_revision ?? 0);
-  return { overrides, effective: { ...global.values, ...overrides }, buyerRevision, globalRevision: global.revision };
+  return { overrides, inherited: global.values, effective: { ...global.values, ...overrides }, buyerRevision, globalRevision: global.revision };
 }
 function preview(item: StorefrontProposal, global: GlobalState): StorefrontAdminPreview { return { proposalId: item.id, proposalRevision: item.proposalRevision, current: global.values, proposed: item.proposed, globalRevision: global.revision, precedenceNotice: "Personal overrides remain unchanged and take precedence.", status: item.status }; }
 async function lock(tx: PoolClient, key: string): Promise<void> { await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [key]); }
