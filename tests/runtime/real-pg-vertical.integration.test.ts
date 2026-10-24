@@ -63,6 +63,8 @@ describe("real PostgreSQL API-to-worker vertical with controlled host/provider f
 
     const candidates = await app.inject({ method: "GET", url: `/v1/requests/${requestId}/candidates`, headers: readHeaders(authorization) });
     expect(candidates.statusCode).toBe(200);
+    const requestView = await app.inject({ method: "GET", url: `/v1/requests/${requestId}`, headers: readHeaders(authorization) });
+    expect(requestView.json().providerMode).toBe("fake");
     const candidate = candidates.json().candidates[0];
     expect(candidate).toMatchObject({ compatibility: "compatible", version: "1" });
     const selected = await post(app, `/v1/requests/${requestId}/candidate`, authorization, { candidateId: candidate.id, version: candidate.version, choice: "reuse" });
