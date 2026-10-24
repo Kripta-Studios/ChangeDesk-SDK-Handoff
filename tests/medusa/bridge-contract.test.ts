@@ -5,6 +5,7 @@ import { BridgeError } from "../../packages/medusa-plugin/src/bridge/errors.ts"
 import { authorizeDelegation, buildBootstrapClaims, parseCommand, parseDelegationClaims } from "../../packages/medusa-plugin/src/bridge/validation.ts"
 import type { ActorPolicy, EffectDelegationClaims, ReadDelegationClaims } from "../../packages/medusa-plugin/src/bridge/types.ts"
 import { protectedProductFingerprint } from "../../packages/medusa-plugin/src/bridge/protected-state.ts"
+import { buildAuthorityCheckInput } from "../../packages/medusa-plugin/src/bridge/authority.ts"
 
 const { privateKey, publicKey } = generateKeyPairSync("ed25519")
 const actor: ActorPolicy = {
@@ -106,6 +107,19 @@ it("strict effect claims require the lease identity", () => {
   expect(parseDelegationClaims(valid)).toEqual(valid)
   const { leaseOwner: _leaseOwner, ...missingLeaseOwner } = valid
   expect(() => parseDelegationClaims(missingLeaseOwner)).toThrow(/missing or unknown/)
+})
+
+it("JIT authority input binds host session and lease identity", () => {
+  const claims = effectClaims({ productId: "prod_1", categoryId: "pcat_1" })
+  expect(buildAuthorityCheckInput(claims)).toMatchObject({
+    actorId: "user-1", hostSessionId: "host-session", executionId: "execution-1",
+    jobId: "job-1", leaseOwner: "worker-1", fence: 7,
+  })
+  expect(Object.keys(buildAuthorityCheckInput(claims)).sort()).toEqual([
+    "actorId", "approvalExpiresAt", "approvalId", "argsHash", "capability", "executionId", "fence",
+    "hostSessionId", "jobId", "leaseOwner", "operationKey", "planHash", "planId", "planVersion",
+    "policyVersion", "rowId", "semanticInputHash", "stepId", "tenantId",
+  ].sort())
 })
 
 it("closed command parser rejects remove and batch effects", () => {
