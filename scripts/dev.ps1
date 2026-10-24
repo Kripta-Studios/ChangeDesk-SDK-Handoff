@@ -13,6 +13,8 @@ if (Test-Path -LiteralPath $pidPath) {
 }
 docker compose --env-file $envPath -f (Join-Path $root "infra/compose.yaml") up -d --wait postgres
 if ($LASTEXITCODE -ne 0) { throw "Docker Compose startup failed with exit code $LASTEXITCODE." }
+& (Join-Path $PSScriptRoot "provision-lab.ps1")
+if ($LASTEXITCODE -ne 0) { throw "Lab provisioning failed with exit code $LASTEXITCODE." }
 New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 $specifications = @(
   @{ name = "api"; script = "service-process.ps1"; arguments = @("-Mode", "api") },

@@ -94,6 +94,14 @@
     "observedOutput": "ALL PROOFS CHECK",
     "mutantLane": "PENDING_EXPLICIT_CORE_LIVE_TEST"
   },
+  "localLabProof": {
+    "status": "PARTIAL_PASS",
+    "postgres": "PASS migrations 1-14 and two idempotent provision runs",
+    "medusa": "PASS Atlas and Boreal build, custom/core migrations, seed, and health endpoints",
+    "service": "PASS API health/readiness and live worker startup",
+    "browser": "IN_PROGRESS final live journey owned by frontend lane",
+    "officialMedusaRunner": "BLOCKED test-utils config loader module-mode mismatch; no tests or integration fixture effects executed"
+  },
   "dependencyDecisions": [
     {
       "gap": "Normative RFC 8785/JCS hashes cannot use a homemade recursive sorter.",
