@@ -41,6 +41,21 @@ medusaIntegrationTestRunner({
       await expect(api.post(url, body, { headers: { Authorization: `Bearer ${bearer}` } })).rejects.toMatchObject({ response: { status: 403 } })
     })
 
+    it("reauthorizes only the exact current host session and policy", async () => {
+      const headers = { Authorization: "Bearer integration-only-not-a-production-secret" }
+      const current = await api.post("/changedesk/bridge/v1/authorize", {
+        actorId, hostSessionId: "not-bootstrapped", policyVersion: "changedesk-lab-v1",
+      }, { headers })
+      expect(current.data).toEqual({ active: true, roles: ["operator"], policyVersion: "changedesk-lab-v1" })
+      const stale = await api.post("/changedesk/bridge/v1/authorize", {
+        actorId, hostSessionId: "stale-session", policyVersion: "changedesk-lab-v1",
+      }, { headers })
+      expect(stale.data).toEqual({ active: false, roles: [], policyVersion: null })
+      await expect(api.post("/changedesk/bridge/v1/authorize", {
+        actorId, hostSessionId: "not-bootstrapped", policyVersion: "changedesk-lab-v1",
+      })).rejects.toMatchObject({ response: { status: 401 } })
+    })
+
     it("creates a bootstrap ticket only from the real cookie session and exact origin", async () => {
       const session = await api.post("/auth/session", {}, { headers: { Authorization: `Bearer ${bearer}` } })
       const cookie = session.headers["set-cookie"]?.[0]
@@ -52,6 +67,7 @@ medusaIntegrationTestRunner({
       expect(response.data.ticket).toEqual(expect.any(String))
       expect(Date.parse(response.data.expiresAt)).toBeGreaterThan(Date.now())
     })
+
   },
 })
 
