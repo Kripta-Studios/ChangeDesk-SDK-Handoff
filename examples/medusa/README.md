@@ -6,7 +6,8 @@ The Change Desk plugin is loaded from `packages/medusa-plugin`.
 
 The seed uses Medusa modules and native workflows only. It refuses an existing
 fixture namespace, writes no business tables directly, emits a non-secret ID
-map under `evidence/medusa-seed-map.<tenant>.json`, and stores generated demo
+map under ignored `evidence/local/seed-map.<tenant>.json`, records an ignored
+run-scoped progress manifest for safe diagnosis of partial failures, and stores generated demo
 passwords only in ignored `.local/credentials.<tenant>.json`.
 
 After the first seed, set `CHANGEDESK_ALLOWED_CATEGORY_IDS` and
